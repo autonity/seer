@@ -1,0 +1,20 @@
+---
+node:
+  rpc: "https://rpc-internal-1.piccadilly.autonity.org/"
+db:
+  url:
+  token:
+  bucket:
+  user:
+  password:
+  org: "autonity"
+contracts:
+  - address:
+    name:
+    abi:
+  - address:
+    name:
+    abi:
+logging:
+  level: "info"
+...

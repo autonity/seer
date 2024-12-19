@@ -1,0 +1,33 @@
+package db
+
+import (
+	"time"
+
+	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
+
+	"Seer/config"
+	"Seer/interfaces"
+	"Seer/model"
+)
+
+type handler struct {
+	cfg    config.InfluxDBConfig
+	client influxdb2.Client
+}
+
+func NewHandler(dbConfig config.InfluxDBConfig) interfaces.DatabaseHandler {
+	h := &handler{cfg: dbConfig}
+	h.client = influxdb2.NewClient(dbConfig.URL, dbConfig.Token)
+	return h
+}
+
+func (h *handler) WriteEvent(schema model.EventSchema) {
+	writer := h.client.WriteAPI(h.cfg.Org, h.cfg.Bucket)
+	//TODO: what else we need here
+	point := influxdb2.NewPoint(schema.Name, nil, schema.Fields, time.Now())
+	writer.WritePoint(point)
+}
+
+func (h *handler) Close() {
+	h.client.Close()
+}
