@@ -1,20 +1,20 @@
 ---
+seer:
+  logLevel: "info"
 node:
   rpc: "https://rpc-internal-1.piccadilly.autonity.org/"
+  sync:
+    from: "latest"  # options last, latest or genesis
 db:
-  url:
-  token:
-  bucket:
-  user:
-  password:
+  url: "http://127.0.0.1:8086"
+  token: "admin:admin"
+  bucket: "seer"
   org: "autonity"
-contracts:
-  - address:
-    name:
-    abi:
-  - address:
-    name:
-    abi:
-logging:
-  level: "info"
+abi:
+  dir:
+  contracts:
+    - name:
+      address:
+    - name:
+      address:
 ...

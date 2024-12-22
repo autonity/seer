@@ -23,7 +23,7 @@ build:
 
 run: build
 	@echo "Running $(APP_NAME)..."
-	$(BIN_DIR)/$(APP_NAME) start
+	$(BIN_DIR)/$(APP_NAME) $(START_CMD)
 
 test:
 	@echo "Running tests..."
