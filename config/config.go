@@ -2,14 +2,24 @@ package config
 
 // Config holds the application configuration
 type Config struct {
-	Node      NodeConfig       `mapstructure:"node"`
-	InfluxDB  InfluxDBConfig   `mapstructure:"db"`
-	Contracts []ContractConfig `mapstructure:"contracts"`
-	Logging   LoggingConfig    `mapstructure:"logging"`
+	Seer     SeerConfig     `mapstructure:"seer"`
+	Node     NodeConfig     `mapstructure:"node"`
+	InfluxDB InfluxDBConfig `mapstructure:"db"`
+	ABIs     ABIConfig      `mapstructure:"abi"`
+}
+
+type SeerConfig struct {
+	LogLevel string `mapstructure:"logLevel"`
+}
+
+type SyncConfig struct {
+	History bool `mapstructure:"history"`
 }
 
 type NodeConfig struct {
-	RPC string `mapstructure:"rpc"`
+	RPC  string     `mapstructure:"rpc"`
+	WS   string     `mapstructure:"ws"`
+	Sync SyncConfig `mapstructure:"sync"`
 }
 
 type InfluxDBConfig struct {
@@ -21,11 +31,12 @@ type InfluxDBConfig struct {
 	password string `mapstructure:"password"`
 }
 
-type ContractConfig struct {
-	Address string `mapstructure:"address"`
-	path    string `mapstructure:"path"`
+type ABIConfig struct {
+	Dir       string     `mapstrucuture:"dir"`
+	Contracts []Contract `mapstructure:"contracts"`
 }
 
-type LoggingConfig struct {
-	Level string `mapstructure:"level"`
+type Contract struct {
+	Name    string `mapstructure:"name"`
+	Address string `mapstructure:"address"`
 }

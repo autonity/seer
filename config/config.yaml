@@ -1,20 +1,22 @@
 ---
+seer:
+  logLevel: "info"
 node:
-  rpc: "https://rpc-internal-1.piccadilly.autonity.org/"
+  rpc: "https://rpc2.piccadilly.autonity.org"
+  ws: "wss://rpc2.piccadilly.autonity.org/ws"
+  sync:
+    history: true  # options last, latest or genesis
 db:
-  url:
-  token:
-  bucket:
-  user:
-  password:
-  org: "autonity"
-contracts:
-  - address:
-    name:
-    abi:
-  - address:
-    name:
-    abi:
-logging:
-  level: "info"
+  url: "http://127.0.0.1:8086"
+  # yamllint disable-line rule:line-length
+  token: "70VkIAStV4jk5WrAsKAilGqj_sFtX_C31XpeP9x006vvvUiEhJBYoxpQluepQmZ4gKpCj_0ADM58jwOxdDFA6w=="
+  bucket: "see_test"
+  org: "org"
+abi:
+  dir: "../abis"
+  contracts:
+    - name:
+      address:
+    - name:
+      address:
 ...

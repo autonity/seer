@@ -23,7 +23,7 @@ build:
 
 run: build
 	@echo "Running $(APP_NAME)..."
-	$(BIN_DIR)/$(APP_NAME) start
+	$(BIN_DIR)/$(APP_NAME) $(START_CMD)
 
 test:
 	@echo "Running tests..."
@@ -31,7 +31,8 @@ test:
 
 clean:
 	@echo "Cleaning build artifacts..."
-	@rm -f $(BIN_DIR)
+	$(GO) clean -cache
+	@rm -rf $(BIN_DIR)
 
 lint:
 	@echo "Linting code..."

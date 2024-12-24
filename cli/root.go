@@ -54,7 +54,7 @@ func initConfig() {
 
 	viper.SetEnvPrefix("SEER")
 	viper.AutomaticEnv()
-	viper.SetDefault("logging.level", "info")
+	viper.SetDefault("seer.logLevel", "info")
 
 	if err := viper.ReadInConfig(); err != nil {
 		log.Printf("Failed to read config file: %v", err)
