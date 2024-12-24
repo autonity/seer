@@ -13,11 +13,12 @@ type SeerConfig struct {
 }
 
 type SyncConfig struct {
-	From string `mapstructure:"from"`
+	History bool `mapstructure:"history"`
 }
 
 type NodeConfig struct {
 	RPC  string     `mapstructure:"rpc"`
+	WS   string     `mapstructure:"ws"`
 	Sync SyncConfig `mapstructure:"sync"`
 }
 

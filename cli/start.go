@@ -37,10 +37,12 @@ func start(cmd *cobra.Command, args []string) {
 	parser := schema.NewABIParser(cfg.ABIs, handler)
 	err := parser.Start()
 	if err != nil {
+		slog.Error("Error parsing ", "error ", err)
 		return
 	}
 	l := listener.NewListener(cfg.Node, parser, handler)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	l.Start(ctx)
+	l.Stop()
 }

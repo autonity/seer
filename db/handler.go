@@ -29,6 +29,10 @@ func (h *handler) WriteEvent(schema model.EventSchema, tags map[string]string) {
 	writer.Flush()
 }
 
+func (h *handler) LastProcessed() int64 {
+	return 0
+
+}
 func (h *handler) Close() {
 	h.client.Close()
 }

@@ -6,9 +6,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/ethereum/go-ethereum/accounts/abi"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/autonity/autonity/accounts/abi"
+	"github.com/autonity/autonity/common"
+	"github.com/autonity/autonity/core/types"
 
 	"Seer/config"
 	"Seer/interfaces"
@@ -16,21 +16,21 @@ import (
 )
 
 // TODO: insert event with contract tags
-type contractSchema struct {
-	contractAddress common.Address
-	schemas         []model.EventSchema
+type EventDetails struct {
+	abi    abi.Event
+	schema model.EventSchema
 }
 
 type abiParser struct {
 	cfg       config.ABIConfig
-	schemas   map[string]model.EventSchema
+	evDetails map[common.Hash]EventDetails
 	dbHandler interfaces.DatabaseHandler
 }
 
 func NewABIParser(cfg config.ABIConfig, dh interfaces.DatabaseHandler) interfaces.ABIParser {
 	return &abiParser{
 		cfg:       cfg,
-		schemas:   make(map[string]model.EventSchema),
+		evDetails: make(map[common.Hash]EventDetails),
 		dbHandler: dh,
 	}
 }
@@ -58,8 +58,9 @@ func (ap *abiParser) LoadABIS() error {
 	}
 	for _, file := range files {
 		if !file.IsDir() && filepath.Ext(file.Name()) == ".abi" {
-			slog.Info("Parsing...", "file", file.Name())
-			err := ap.Parse(file.Name())
+			absPath := filepath.Join(ap.cfg.Dir, file.Name())
+			slog.Info("Parsing...", "file", absPath)
+			err := ap.Parse(absPath)
 			if err != nil {
 				return err
 			}
@@ -67,15 +68,25 @@ func (ap *abiParser) LoadABIS() error {
 	}
 	//TODO: review
 	// write place-holder event
-	for _, schema := range ap.schemas {
-		ap.dbHandler.WriteEvent(schema, nil)
+	slog.Info("writing events in DB")
+	for _, evDetail := range ap.evDetails {
+		ap.dbHandler.WriteEvent(evDetail.schema, nil)
 	}
+	slog.Info("wrote events in DB")
 	return nil
 }
 
 func (ap *abiParser) DecodeEvent(log types.Log) {
-	//TODO:
-
+	eventDetails := ap.evDetails[log.Topics[0]] // this should give the correctABI
+	decodedEvent := map[string]interface{}{}
+	err := eventDetails.abi.Inputs.UnpackIntoMap(decodedEvent, log.Data)
+	if err != nil {
+		slog.Error("unable to decode event", "error", "err")
+		return
+	}
+	evSchema := model.EventSchema{Name: eventDetails.abi.Name, Fields: decodedEvent}
+	//TODO: tags
+	ap.dbHandler.WriteEvent(evSchema, nil)
 }
 
 func (ap *abiParser) Parse(filename string) error {
@@ -100,11 +111,12 @@ func (ap *abiParser) Parse(filename string) error {
 			fieldType := input.Type.String()
 			schema.Fields[input.Name] = fieldType
 		}
-		ap.schemas[name] = schema
+		ap.evDetails[event.ID] = EventDetails{abi: event, schema: schema}
 	}
 	return nil
 }
 
 func (ap *abiParser) EventSchema(eventName string) model.EventSchema {
-	return ap.schemas[eventName]
+	//TODO:
+	return model.EventSchema{}
 }

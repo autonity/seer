@@ -4,7 +4,7 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/autonity/autonity/core/types"
 
 	"Seer/interfaces"
 )
@@ -26,12 +26,17 @@ func (ep *eventProcessor) Process() {
 		select {
 		case <-ep.ctx.Done():
 			return
-		case _, ok := <-ep.eventCh:
+		case event, ok := <-ep.eventCh:
+			slog.Info("new log event")
 			if !ok {
 				return
 			}
+			ep.Decode(event)
 			slog.Info("new event received")
 		}
 	}
+}
+
+func (ep *eventProcessor) Decode(ev types.Log) {
 
 }

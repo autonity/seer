@@ -31,7 +31,8 @@ test:
 
 clean:
 	@echo "Cleaning build artifacts..."
-	@rm -f $(BIN_DIR)
+	$(GO) clean -cache
+	@rm -rf $(BIN_DIR)
 
 lint:
 	@echo "Linting code..."
