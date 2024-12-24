@@ -3,7 +3,7 @@ seer:
   logLevel: "info"
 node:
   rpc: "https://rpc2.piccadilly.autonity.org"
-  ws: "ws://35.246.52.49:8546"
+  ws: "wss://rpc2.piccadilly.autonity.org/ws"
   sync:
     history: true  # options last, latest or genesis
 db:

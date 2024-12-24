@@ -4,7 +4,6 @@ import (
 	"github.com/autonity/autonity/accounts/abi"
 	"github.com/autonity/autonity/common"
 	"github.com/autonity/autonity/crypto"
-	"github.com/autonity/autonity/params/generated"
 )
 
 var (
@@ -26,7 +25,7 @@ func addressToABI(address common.Address) abi.ABI {
 	//TODO
 	switch address {
 	case AccountabilityContractAddress:
-		return generated.AccountabilityAbi
+		return abi.ABI{}
 
 	}
 	return abi.ABI{}

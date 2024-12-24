@@ -27,12 +27,11 @@ func (ep *eventProcessor) Process() {
 		case <-ep.ctx.Done():
 			return
 		case event, ok := <-ep.eventCh:
-			slog.Info("new log event")
+			slog.Info("new log event received")
 			if !ok {
 				return
 			}
 			ep.Decode(event)
-			slog.Info("new event received")
 		}
 	}
 }

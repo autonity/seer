@@ -30,8 +30,6 @@ func start(cmd *cobra.Command, args []string) {
 		log.Fatalf("Failed to unmarshal config: %v", err)
 	}
 	slog.Info("starting seer")
-	slog.Info("connecting to node", "rpc", cfg.Node.RPC)
-	slog.Info("connecting to DB", "url", cfg.InfluxDB.URL)
 
 	handler := db.NewHandler(cfg.InfluxDB)
 	parser := schema.NewABIParser(cfg.ABIs, handler)

@@ -1,6 +1,7 @@
 package db
 
 import (
+	"log/slog"
 	"time"
 
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
@@ -16,6 +17,7 @@ type handler struct {
 }
 
 func NewHandler(dbConfig config.InfluxDBConfig) interfaces.DatabaseHandler {
+	slog.Info("connecting to DB", "url", dbConfig.URL)
 	h := &handler{cfg: dbConfig}
 	h.client = influxdb2.NewClient(dbConfig.URL, dbConfig.Token)
 	return h

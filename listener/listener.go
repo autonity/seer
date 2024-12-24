@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	maxConcurrency = 1000
+	maxConcurrency = 100
 	batchSize      = uint64(1000)
 )
 
@@ -43,15 +43,13 @@ func NewListener(cfg config.NodeConfig, parser interfaces.ABIParser, dbHandler i
 }
 
 func (l *Listener) Start(ctx context.Context) {
-	slog.Info("connecting to node", "url", l.nodeConfig.RPC)
-
+	slog.Info("connecting to node using websocket", "url", l.nodeConfig.WS)
 	client, err := ethclient.Dial(l.nodeConfig.WS)
 	if err != nil {
-		slog.Error("dial error", "err", err)
+		slog.Error("dial error", "err", err, "url")
 		return
 	}
 	slog.Info("successfully connected to node", "url", l.nodeConfig.RPC)
-
 	l.Add(1)
 	go l.eventReader(ctx, client)
 	l.Add(1)
@@ -60,13 +58,14 @@ func (l *Listener) Start(ctx context.Context) {
 		l.Add(1)
 		// using rpc node endpoint for historical data
 		// todo: can only use ws
-		client, err = ethclient.Dial(l.nodeConfig.RPC)
+		client, err := ethclient.Dial(l.nodeConfig.RPC)
 		if err != nil {
 			slog.Error("dial error", "err", err)
 			return
 		}
 		l.ReadHistoricalData(ctx, client)
 	}
+
 }
 func (l *Listener) ReadBatch(ctx context.Context, cl *ethclient.Client, workQueue chan [2]uint64) {
 	defer l.Done()
@@ -75,6 +74,7 @@ func (l *Listener) ReadBatch(ctx context.Context, cl *ethclient.Client, workQueu
 			FromBlock: big.NewInt(int64(batch[0])),
 			ToBlock:   big.NewInt(int64(batch[1])),
 		}
+		slog.Info("fetching logs from", "startBlock", batch[0], "endBlock", batch[1])
 		logs, err := cl.FilterLogs(ctx, fq)
 		if err != nil {
 			slog.Error("Unable to filter autonity logs", "error", err)
@@ -112,7 +112,7 @@ func (l *Listener) ReadHistoricalData(ctx context.Context, cl *ethclient.Client)
 		go l.ReadBatch(ctx, cl, workQueue)
 	}
 	for i := startBlock; i <= endBlock; i += batchSize {
-		workQueue <- [2]uint64{startBlock, endBlock}
+		workQueue <- [2]uint64{i, i + batchSize}
 	}
 
 }
@@ -148,9 +148,9 @@ func (l *Listener) blockReader(ctx context.Context, cl *ethclient.Client) {
 				slog.Error("unknown error head ch")
 				return
 			}
-			block, err := cl.BlockByHash(ctx, header.Hash())
+			block, err := cl.BlockByNumber(ctx, header.Number)
 			if err != nil {
-				slog.Error("Error fetching block by hash",
+				slog.Error("Error fetching block by number",
 					"hash", header.Hash(),
 					"number", header.Number.Uint64(),
 					"error", err)
