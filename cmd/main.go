@@ -28,7 +28,8 @@ func initLogging() {
 		level = slog.LevelInfo
 	}
 	handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-		Level: level,
+		Level:     level,
+		AddSource: true,
 	})
 	slog.SetDefault(slog.New(handler))
 }

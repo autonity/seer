@@ -10,7 +10,7 @@ db:
   url: "http://127.0.0.1:8086"
   # yamllint disable-line rule:line-length
   token: "70VkIAStV4jk5WrAsKAilGqj_sFtX_C31XpeP9x006vvvUiEhJBYoxpQluepQmZ4gKpCj_0ADM58jwOxdDFA6w=="
-  bucket: "see_test"
+  bucket: "seer_test"
   org: "org"
 abi:
   dir: "../abis"

@@ -35,20 +35,6 @@ func NewABIParser(cfg config.ABIConfig, dh interfaces.DatabaseHandler) interface
 	}
 }
 
-func (ap *abiParser) Start() error {
-	err := ap.LoadABIS()
-	if err != nil {
-		return err
-	}
-	go WatchNewABIs(ap.cfg.Dir, ap)
-	return nil
-}
-
-func (ap *abiParser) Stop() error {
-	//TODO: stop sequence
-	return nil
-}
-
 func (ap *abiParser) LoadABIS() error {
 	slog.Info("Reading ABIs from path", "dir", ap.cfg.Dir)
 	files, err := os.ReadDir(ap.cfg.Dir)
@@ -76,17 +62,31 @@ func (ap *abiParser) LoadABIS() error {
 	return nil
 }
 
-func (ap *abiParser) DecodeEvent(log types.Log) {
+func (ap *abiParser) Start() error {
+	err := ap.LoadABIS()
+	if err != nil {
+		return err
+	}
+	go WatchNewABIs(ap.cfg.Dir, ap)
+	return nil
+}
+
+func (ap *abiParser) Stop() error {
+	//TODO: stop sequence
+	return nil
+}
+
+func (ap *abiParser) Decode(log types.Log) (model.EventSchema, error) {
+	slog.Info("event Decode", "topic-0", log.Topics[0])
 	eventDetails := ap.evDetails[log.Topics[0]] // this should give the correctABI
 	decodedEvent := map[string]interface{}{}
 	err := eventDetails.abi.Inputs.UnpackIntoMap(decodedEvent, log.Data)
 	if err != nil {
-		slog.Error("unable to decode event", "error", "err")
-		return
+		slog.Error("unable to decode event", "error", err)
+		return model.EventSchema{}, err
 	}
 	evSchema := model.EventSchema{Name: eventDetails.abi.Name, Fields: decodedEvent}
-	//TODO: tags
-	ap.dbHandler.WriteEvent(evSchema, nil)
+	return evSchema, nil
 }
 
 func (ap *abiParser) Parse(filename string) error {
@@ -114,9 +114,4 @@ func (ap *abiParser) Parse(filename string) error {
 		ap.evDetails[event.ID] = EventDetails{abi: event, schema: schema}
 	}
 	return nil
-}
-
-func (ap *abiParser) EventSchema(eventName string) model.EventSchema {
-	//TODO:
-	return model.EventSchema{}
 }

@@ -98,7 +98,7 @@ func (l *Listener) ReadHistoricalData(ctx context.Context, cl *ethclient.Client)
 	l.Add(1)
 	go func() {
 		defer l.Done()
-		ep := NewEventProcessor(ctx, l.newEvents)
+		ep := NewEventProcessor(ctx, l.newEvents, l.abiParser, l.dbHandler)
 		ep.Process()
 	}()
 
@@ -181,7 +181,7 @@ func (l *Listener) eventReader(ctx context.Context, cl *ethclient.Client) {
 	l.Add(1)
 	go func() {
 		defer l.Done()
-		ep := NewEventProcessor(ctx, l.newEvents)
+		ep := NewEventProcessor(ctx, l.newEvents, l.abiParser, l.dbHandler)
 		ep.Process()
 	}()
 
@@ -198,21 +198,3 @@ func (l *Listener) eventReader(ctx context.Context, cl *ethclient.Client) {
 func (l *Listener) Stop() {
 	l.Wait()
 }
-
-//func (l *Listener) filterQuery(ctx context.Context, cl *ethclient.Client) ethereum.FilterQuery {
-//	//TODO: block number
-//	fromBlock := big.NewInt(82200)
-//	switch l.nodeConfig.Sync.From {
-//	case "last":
-//		//TODO: pull last processed block
-//	case "latest":
-//		number, err := cl.BlockNumber(ctx)
-//		if err != nil {
-//			return ethereum.FilterQuery{}
-//		}
-//		fromBlock = big.NewInt(int64(number))
-//	}
-//	return ethereum.FilterQuery{
-//		FromBlock: fromBlock,
-//	}
-//}

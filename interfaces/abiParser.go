@@ -1,10 +1,14 @@
 package interfaces
 
-import "Seer/model"
+import (
+	"github.com/autonity/autonity/core/types"
+
+	"Seer/model"
+)
 
 type ABIParser interface {
 	Start() error
 	Parse(filepath string) error
-	EventSchema(eventName string) model.EventSchema
+	Decode(log types.Log) (model.EventSchema,error)
 	Stop() error
 }

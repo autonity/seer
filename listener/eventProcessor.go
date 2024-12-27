@@ -10,14 +10,18 @@ import (
 )
 
 type eventProcessor struct {
-	eventCh <-chan types.Log
-	ctx     context.Context
+	eventCh   <-chan types.Log
+	ctx       context.Context
+	parser    interfaces.ABIParser
+	dbHandler interfaces.DatabaseHandler
 }
 
-func NewEventProcessor(ctx context.Context, eventCh <-chan types.Log) interfaces.Processor {
+func NewEventProcessor(ctx context.Context, eventCh <-chan types.Log, parser interfaces.ABIParser, dbHandler interfaces.DatabaseHandler) interfaces.Processor {
 	return &eventProcessor{
-		eventCh: eventCh,
-		ctx:     ctx,
+		eventCh:   eventCh,
+		ctx:       ctx,
+		parser:    parser,
+		dbHandler: dbHandler,
 	}
 }
 
@@ -27,15 +31,21 @@ func (ep *eventProcessor) Process() {
 		case <-ep.ctx.Done():
 			return
 		case event, ok := <-ep.eventCh:
-			slog.Info("new log event received")
 			if !ok {
 				return
 			}
-			ep.Decode(event)
+			evSchema, err := ep.parser.Decode(event)
+			if err != nil {
+				slog.Error("new event decode", "error", err)
+				continue
+			}
+			if evSchema.Name == "" {
+				slog.Info("Unknown event received")
+				continue
+			}
+			slog.Info("new log event received", "name", evSchema.Name)
+			//todo: tags
+			ep.dbHandler.WriteEvent(evSchema, nil)
 		}
 	}
-}
-
-func (ep *eventProcessor) Decode(ev types.Log) {
-
 }
