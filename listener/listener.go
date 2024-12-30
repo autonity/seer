@@ -11,6 +11,7 @@ import (
 	"github.com/autonity/autonity/ethclient"
 
 	"Seer/config"
+	"Seer/helper"
 	"Seer/interfaces"
 )
 
@@ -26,6 +27,7 @@ type Listener struct {
 	newBlocks          chan *types.Block
 	newEvents          chan types.Log
 	lastProcessedBlock *big.Int
+	blockCache         interfaces.BlockCache
 
 	sync.WaitGroup
 }
@@ -49,6 +51,7 @@ func (l *Listener) Start(ctx context.Context) {
 		slog.Error("dial error", "err", err, "url")
 		return
 	}
+	l.blockCache = helper.NewBlockCache(client)
 	slog.Info("successfully connected to node", "url", l.nodeConfig.RPC)
 	l.Add(1)
 	go l.eventReader(ctx, client)
@@ -98,7 +101,7 @@ func (l *Listener) ReadHistoricalData(ctx context.Context, cl *ethclient.Client)
 	l.Add(1)
 	go func() {
 		defer l.Done()
-		ep := NewEventProcessor(ctx, l.newEvents, l.abiParser, l.dbHandler)
+		ep := NewEventProcessor(ctx, l)
 		ep.Process()
 	}()
 
@@ -181,7 +184,7 @@ func (l *Listener) eventReader(ctx context.Context, cl *ethclient.Client) {
 	l.Add(1)
 	go func() {
 		defer l.Done()
-		ep := NewEventProcessor(ctx, l.newEvents, l.abiParser, l.dbHandler)
+		ep := NewEventProcessor(ctx, l)
 		ep.Process()
 	}()
 

@@ -26,6 +26,7 @@ func (h *handler) getOrg() *domain.Organization {
 		return org
 	}
 	slog.Info("configured org not found, creating new one")
+	//TODO: create doesn't work with org specific token
 	_, err = orgAPI.CreateOrganizationWithName(context.Background(), h.cfg.Org)
 	if err != nil {
 		panic(fmt.Sprintf("Failed to create org error %s", err))
@@ -35,6 +36,7 @@ func (h *handler) getOrg() *domain.Organization {
 }
 
 func (h *handler) ensureBucket() {
+	org := h.getOrg()
 	bucketAPI := h.client.BucketsAPI()
 	buckets, _ := bucketAPI.FindBucketsByOrgName(context.Background(), h.cfg.Org)
 	if buckets != nil {
@@ -46,7 +48,7 @@ func (h *handler) ensureBucket() {
 	}
 
 	slog.Info("configured bucket not found, creating new one")
-	_, err := bucketAPI.CreateBucketWithName(context.Background(), h.getOrg(), h.cfg.Bucket, domain.RetentionRule{})
+	_, err := bucketAPI.CreateBucketWithName(context.Background(), org, h.cfg.Bucket, domain.RetentionRule{})
 	if err != nil {
 		panic(fmt.Sprintf("Failed to create bucket error %s", err))
 	}
@@ -62,10 +64,10 @@ func NewHandler(dbConfig config.InfluxDBConfig) interfaces.DatabaseHandler {
 	return h
 }
 
-func (h *handler) WriteEvent(schema model.EventSchema, tags map[string]string) {
+func (h *handler) WriteEvent(schema model.EventSchema, tags map[string]string, timeStamp time.Time) {
 	writer := h.client.WriteAPI(h.cfg.Org, h.cfg.Bucket)
 	//TODO: what else we need here
-	point := influxdb2.NewPoint(schema.Name, tags, schema.Fields, time.Now())
+	point := influxdb2.NewPoint(schema.Name, tags, schema.Fields, timeStamp)
 	writer.WritePoint(point)
 	writer.Flush()
 }

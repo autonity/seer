@@ -52,13 +52,13 @@ func (ap *abiParser) LoadABIS() error {
 			}
 		}
 	}
-	//TODO: review
-	// write place-holder event
-	slog.Info("writing events in DB")
-	for _, evDetail := range ap.evDetails {
-		ap.dbHandler.WriteEvent(evDetail.schema, nil)
-	}
-	slog.Info("wrote events in DB")
+	////TODO: review
+	//// write place-holder event
+	//slog.Info("writing events in DB")
+	//for _, evDetail := range ap.evDetails {
+	//	ap.dbHandler.WriteEvent(evDetail.schema, nil)
+	//}
+	//slog.Info("wrote events in DB")
 	return nil
 }
 
@@ -78,8 +78,23 @@ func (ap *abiParser) Stop() error {
 
 func (ap *abiParser) Decode(log types.Log) (model.EventSchema, error) {
 	slog.Info("event Decode", "topic-0", log.Topics[0])
-	eventDetails := ap.evDetails[log.Topics[0]] // this should give the correctABI
+
+	eventDetails := ap.evDetails[log.Topics[0]]
 	decodedEvent := map[string]interface{}{}
+	indexed := make([]abi.Argument, 0)
+	for _, input := range eventDetails.abi.Inputs {
+		if input.Indexed {
+			indexed = append(indexed, input)
+		}
+	}
+	if len(indexed) > 0 {
+		err := abi.ParseTopicsIntoMap(decodedEvent, indexed, log.Topics[1:])
+		if err != nil {
+			slog.Error("unable to decode indexed events", "error", err)
+			return model.EventSchema{}, err
+		}
+	}
+
 	err := eventDetails.abi.Inputs.UnpackIntoMap(decodedEvent, log.Data)
 	if err != nil {
 		slog.Error("unable to decode event", "error", err)

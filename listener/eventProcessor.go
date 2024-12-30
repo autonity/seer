@@ -3,25 +3,20 @@ package listener
 import (
 	"context"
 	"log/slog"
-
-	"github.com/autonity/autonity/core/types"
+	"time"
 
 	"Seer/interfaces"
 )
 
 type eventProcessor struct {
-	eventCh   <-chan types.Log
-	ctx       context.Context
-	parser    interfaces.ABIParser
-	dbHandler interfaces.DatabaseHandler
+	ctx      context.Context
+	listener *Listener
 }
 
-func NewEventProcessor(ctx context.Context, eventCh <-chan types.Log, parser interfaces.ABIParser, dbHandler interfaces.DatabaseHandler) interfaces.Processor {
+func NewEventProcessor(ctx context.Context, listener *Listener) interfaces.Processor {
 	return &eventProcessor{
-		eventCh:   eventCh,
-		ctx:       ctx,
-		parser:    parser,
-		dbHandler: dbHandler,
+		ctx:      ctx,
+		listener: listener,
 	}
 }
 
@@ -30,11 +25,11 @@ func (ep *eventProcessor) Process() {
 		select {
 		case <-ep.ctx.Done():
 			return
-		case event, ok := <-ep.eventCh:
+		case event, ok := <-ep.listener.newEvents:
 			if !ok {
 				return
 			}
-			evSchema, err := ep.parser.Decode(event)
+			evSchema, err := ep.listener.abiParser.Decode(event)
 			if err != nil {
 				slog.Error("new event decode", "error", err)
 				continue
@@ -43,9 +38,21 @@ func (ep *eventProcessor) Process() {
 				slog.Info("Unknown event received")
 				continue
 			}
-			slog.Info("new log event received", "name", evSchema.Name)
+
+			block := ep.listener.blockCache.Get(event.BlockHash)
+			if block == nil {
+				slog.Error("couldn't fetch block", "hash", event.BlockHash)
+				continue
+			}
+
 			//todo: tags
-			ep.dbHandler.WriteEvent(evSchema, nil)
+			ts := time.Unix(int64(block.Time()), 0)
+			evSchema.Fields["block"] = block.Number().Uint64()
+			slog.Info("new log event received", "name", evSchema.Name)
+			for key, value := range evSchema.Fields {
+				slog.Info("details", "key", key, "value", value)
+			}
+			ep.listener.dbHandler.WriteEvent(evSchema, nil, ts)
 		}
 	}
 }

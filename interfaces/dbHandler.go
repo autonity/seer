@@ -1,9 +1,13 @@
 package interfaces
 
-import "Seer/model"
+import (
+	"time"
+
+	"Seer/model"
+)
 
 type DatabaseHandler interface {
 	LastProcessed() int64
-	WriteEvent(schema model.EventSchema, tags map[string]string)
+	WriteEvent(schema model.EventSchema, tags map[string]string, timeStamp time.Time)
 	Close()
 }
