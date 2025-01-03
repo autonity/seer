@@ -66,9 +66,8 @@ func (l *Listener) Start(ctx context.Context) {
 	go l.blockReader(ctx, client)
 	if l.nodeConfig.Sync.History {
 		l.Add(1)
-		// using rpc node endpoint for historical data
-		// todo: can only use ws
-		client, err := ethclient.Dial(l.nodeConfig.RPC)
+		// could use rpc node endpoint for historical data
+		client, err = ethclient.Dial(l.nodeConfig.WS)
 		if err != nil {
 			slog.Error("dial error", "err", err)
 			return
