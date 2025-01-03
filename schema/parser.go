@@ -2,6 +2,7 @@ package schema
 
 import (
 	"bytes"
+	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -15,23 +16,31 @@ import (
 	"Seer/model"
 )
 
-// TODO: insert event with contract tags
 type EventDetails struct {
 	abi    abi.Event
 	schema model.EventSchema
+	meta   EventMeta
+}
+
+type EventMeta struct {
+	index int
+	ids   []common.Hash
 }
 
 type abiParser struct {
-	cfg       config.ABIConfig
-	evDetails map[common.Hash]EventDetails
-	dbHandler interfaces.DatabaseHandler
+	cfg config.ABIConfig
+	//TODO: locks
+	eventDetail map[common.Hash]EventDetails
+	eventMeta   map[string]EventMeta // event Name to index
+	dbHandler   interfaces.DatabaseHandler
 }
 
 func NewABIParser(cfg config.ABIConfig, dh interfaces.DatabaseHandler) interfaces.ABIParser {
 	return &abiParser{
-		cfg:       cfg,
-		evDetails: make(map[common.Hash]EventDetails),
-		dbHandler: dh,
+		cfg:         cfg,
+		eventDetail: make(map[common.Hash]EventDetails),
+		eventMeta:   make(map[string]EventMeta),
+		dbHandler:   dh,
 	}
 }
 
@@ -52,14 +61,18 @@ func (ap *abiParser) LoadABIS() error {
 			}
 		}
 	}
-	////TODO: review
-	//// write place-holder event
-	//slog.Info("writing events in DB")
-	//for _, evDetail := range ap.evDetails {
-	//	ap.dbHandler.WriteEvent(evDetail.schema, nil)
-	//}
-	//slog.Info("wrote events in DB")
+	ap.ListEvents()
 	return nil
+}
+
+func (ap *abiParser) ListEvents() {
+	names := make([]string, 0)
+
+	for _, ev := range ap.eventDetail {
+		names = append(names, ev.schema.Measurement)
+	}
+
+	slog.Info("All events", "events", names)
 }
 
 func (ap *abiParser) Start() error {
@@ -79,7 +92,7 @@ func (ap *abiParser) Stop() error {
 func (ap *abiParser) Decode(log types.Log) (model.EventSchema, error) {
 	slog.Info("event Decode", "topic-0", log.Topics[0])
 
-	eventDetails := ap.evDetails[log.Topics[0]]
+	eventDetails := ap.eventDetail[log.Topics[0]]
 	decodedEvent := map[string]interface{}{}
 	indexed := make([]abi.Argument, 0)
 	for _, input := range eventDetails.abi.Inputs {
@@ -100,8 +113,25 @@ func (ap *abiParser) Decode(log types.Log) (model.EventSchema, error) {
 		slog.Error("unable to decode event", "error", err)
 		return model.EventSchema{}, err
 	}
-	evSchema := model.EventSchema{Name: eventDetails.abi.Name, Fields: decodedEvent}
+	evSchema := model.EventSchema{Measurement: eventDetails.abi.Name, Fields: decodedEvent}
 	return evSchema, nil
+}
+
+func (ap *abiParser) getEventName(id common.Hash, name string) string {
+	evMeta, ok := ap.eventMeta[name]
+	if !ok {
+		return name
+	}
+	for _, evID := range evMeta.ids {
+		if evID == id {
+			// we have the event
+			return name
+		}
+	}
+
+	evMeta.index += 1
+	ap.eventMeta[name] = evMeta
+	return fmt.Sprintf("%s_u%d", name, evMeta.index)
 }
 
 func (ap *abiParser) Parse(filename string) error {
@@ -119,14 +149,14 @@ func (ap *abiParser) Parse(filename string) error {
 	// append schemas
 	for name, event := range parsedABI.Events {
 		schema := model.EventSchema{
-			Name:   name,
-			Fields: map[string]interface{}{},
+			Measurement: ap.getEventName(event.ID, name),
+			Fields:      map[string]interface{}{},
 		}
 		for _, input := range event.Inputs {
 			fieldType := input.Type.String()
 			schema.Fields[input.Name] = fieldType
 		}
-		ap.evDetails[event.ID] = EventDetails{abi: event, schema: schema}
+		ap.eventDetail[event.ID] = EventDetails{abi: event, schema: schema}
 	}
 	return nil
 }

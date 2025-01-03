@@ -34,7 +34,7 @@ func (ep *eventProcessor) Process() {
 				slog.Error("new event decode", "error", err)
 				continue
 			}
-			if evSchema.Name == "" {
+			if evSchema.Measurement == "" {
 				slog.Info("Unknown event received")
 				continue
 			}
@@ -48,11 +48,14 @@ func (ep *eventProcessor) Process() {
 			//todo: tags
 			ts := time.Unix(int64(block.Time()), 0)
 			evSchema.Fields["block"] = block.Number().Uint64()
-			slog.Info("new log event received", "name", evSchema.Name)
+			slog.Info("new log event received", "name", evSchema.Measurement)
 			for key, value := range evSchema.Fields {
 				slog.Info("details", "key", key, "value", value)
 			}
-			ep.listener.dbHandler.WriteEvent(evSchema, nil, ts)
+			err = ep.listener.dbHandler.WriteEvent(evSchema, nil, ts)
+			if err != nil {
+				slog.Error("Error writing point to db", "error", err)
+			}
 		}
 	}
 }

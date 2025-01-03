@@ -17,30 +17,37 @@ import (
 
 var (
 	maxConcurrency = 100
-	batchSize      = uint64(1000)
+	batchSize      = uint64(100)
 )
 
-type Listener struct {
-	nodeConfig         config.NodeConfig
-	abiParser          interfaces.ABIParser
-	dbHandler          interfaces.DatabaseHandler
-	newBlocks          chan *types.Block
-	newEvents          chan types.Log
-	lastProcessedBlock *big.Int
-	blockCache         interfaces.BlockCache
+type blockTracker struct {
+	sync.Mutex
+	processed     map[uint64]bool
+	lastProcessed uint64
+}
 
+type Listener struct {
+	nodeConfig config.NodeConfig
+	abiParser  interfaces.ABIParser
+	dbHandler  interfaces.DatabaseHandler
+	newBlocks  chan *types.Block
+	newEvents  chan types.Log
+	blockCache interfaces.BlockCache
+	bt         *blockTracker
 	sync.WaitGroup
 }
 
 func NewListener(cfg config.NodeConfig, parser interfaces.ABIParser, dbHandler interfaces.DatabaseHandler) interfaces.Listener {
-	lastProcessed := dbHandler.LastProcessed()
 	return &Listener{
-		nodeConfig:         cfg,
-		newBlocks:          make(chan *types.Block, 10),
-		newEvents:          make(chan types.Log, 100),
-		abiParser:          parser,
-		dbHandler:          dbHandler,
-		lastProcessedBlock: big.NewInt(lastProcessed),
+		nodeConfig: cfg,
+		newBlocks:  make(chan *types.Block, 10),
+		newEvents:  make(chan types.Log, 100),
+		abiParser:  parser,
+		dbHandler:  dbHandler,
+		bt: &blockTracker{
+			processed:     make(map[uint64]bool),
+			lastProcessed: 0,
+		},
 	}
 }
 
@@ -70,6 +77,52 @@ func (l *Listener) Start(ctx context.Context) {
 	}
 
 }
+
+func (l *Listener) markProcessed(start, end uint64) {
+	l.bt.Lock()
+	defer l.bt.Unlock()
+	l.bt.processed[start] = true
+	diff := end - start
+
+	update := false
+	for l.bt.processed[l.bt.lastProcessed+diff] {
+		delete(l.bt.processed, l.bt.lastProcessed+diff)
+		l.bt.lastProcessed += diff
+		update = true
+	}
+	if update {
+		slog.Info("**************** Saving Last processed********************", "num", l.bt.lastProcessed)
+		l.dbHandler.SaveLastProcessed(l.bt.lastProcessed)
+	}
+}
+
+func (l *Listener) ReadHistoricalData(ctx context.Context, cl *ethclient.Client) {
+	defer l.Done()
+
+	// start event processor
+	l.Add(1)
+	go func() {
+		defer l.Done()
+		ep := NewEventProcessor(ctx, l)
+		ep.Process()
+	}()
+
+	startBlock := l.dbHandler.LastProcessed()
+	endBlock, _ := cl.BlockNumber(ctx)
+
+	workQueue := make(chan [2]uint64, maxConcurrency)
+
+	for i := 0; i <= maxConcurrency; i++ {
+		l.Add(1)
+		go l.ReadBatch(ctx, cl, workQueue)
+	}
+
+	for i := startBlock; i <= endBlock; i += batchSize {
+		workQueue <- [2]uint64{i, i + batchSize}
+	}
+
+}
+
 func (l *Listener) ReadBatch(ctx context.Context, cl *ethclient.Client, workQueue chan [2]uint64) {
 	defer l.Done()
 	for batch := range workQueue {
@@ -90,32 +143,8 @@ func (l *Listener) ReadBatch(ctx context.Context, cl *ethclient.Client, workQueu
 			case l.newEvents <- log:
 			}
 		}
-	}
-
-}
-
-func (l *Listener) ReadHistoricalData(ctx context.Context, cl *ethclient.Client) {
-	defer l.Done()
-
-	// start event processor
-	l.Add(1)
-	go func() {
-		defer l.Done()
-		ep := NewEventProcessor(ctx, l)
-		ep.Process()
-	}()
-
-	startBlock := l.lastProcessedBlock.Uint64()
-	endBlock, _ := cl.BlockNumber(ctx)
-
-	workQueue := make(chan [2]uint64, maxConcurrency)
-
-	for i := 0; i <= maxConcurrency; i++ {
-		l.Add(1)
-		go l.ReadBatch(ctx, cl, workQueue)
-	}
-	for i := startBlock; i <= endBlock; i += batchSize {
-		workQueue <- [2]uint64{i, i + batchSize}
+		// batch complete
+		l.markProcessed(batch[0], batch[1])
 	}
 
 }

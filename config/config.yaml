@@ -1,6 +1,6 @@
 ---
 seer:
-  logLevel: "error"
+  logLevel: "info"
 node:
   rpc: "https://rpc2.piccadilly.autonity.org"
   ws: "wss://rpc2.piccadilly.autonity.org/ws"
