@@ -9,9 +9,9 @@ node:
 db:
   url: "http://127.0.0.1:8086"
   # yamllint disable-line rule:line-length
-  token: "70VkIAStV4jk5WrAsKAilGqj_sFtX_C31XpeP9x006vvvUiEhJBYoxpQluepQmZ4gKpCj_0ADM58jwOxdDFA6w=="
-  bucket: "see_test"
-  org: "org"
+  token: "eHSHkn4oF2t5W8HeB8OSdoM5MvokeVypG6gdmEx4oIYc5hP3w2mISDU3GrQDdDLkhYQxFW0nzg6xtB2m6q0ZJA=="
+  bucket: "seer_v1"
+  org: "autonity"
 abi:
   dir: "../abis"
   contracts:

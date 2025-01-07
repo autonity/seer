@@ -4,20 +4,18 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/autonity/autonity/core/types"
-
 	"Seer/interfaces"
 )
 
 type blockProcessor struct {
-	blockCh <-chan *types.Block
-	ctx     context.Context
+	listener *Listener
+	ctx      context.Context
 }
 
-func NewBlockProcessor(ctx context.Context, blockCh <-chan *types.Block) interfaces.Processor {
+func NewBlockProcessor(ctx context.Context, listener *Listener) interfaces.Processor {
 	return &blockProcessor{
-		blockCh: blockCh,
-		ctx:     ctx,
+		listener: listener,
+		ctx:      ctx,
 	}
 }
 
@@ -26,11 +24,12 @@ func (bp *blockProcessor) Process() {
 		select {
 		case <-bp.ctx.Done():
 			return
-		case block, ok := <-bp.blockCh:
+		case block, ok := <-bp.listener.newBlocks:
 			if !ok {
 				return
 			}
-			slog.Info("new block received", "number", block.Number().Uint64())
+			slog.Debug("new block received", "number", block.Number().Uint64())
+			bp.listener.markProcessed(block.NumberU64(), block.NumberU64())
 		}
 	}
 
