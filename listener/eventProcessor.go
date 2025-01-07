@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"time"
 
+	"Seer/helper"
 	"Seer/interfaces"
 )
 
@@ -35,7 +36,7 @@ func (ep *eventProcessor) Process() {
 				continue
 			}
 			if evSchema.Measurement == "" {
-				slog.Info("Unknown event received")
+				slog.Warn("Unknown event received", "event", event, "schema", evSchema, "Contract", helper.AddressToContractName(event.Address))
 				continue
 			}
 
@@ -48,10 +49,7 @@ func (ep *eventProcessor) Process() {
 			//todo: tags
 			ts := time.Unix(int64(block.Time()), 0)
 			evSchema.Fields["block"] = block.Number().Uint64()
-			slog.Info("new log event received", "name", evSchema.Measurement)
-			for key, value := range evSchema.Fields {
-				slog.Info("details", "key", key, "value", value)
-			}
+			slog.Debug("new log event received", "name", evSchema.Measurement, "block", block.NumberU64())
 			err = ep.listener.dbHandler.WriteEvent(evSchema, nil, ts)
 			if err != nil {
 				slog.Error("Error writing point to db", "error", err)

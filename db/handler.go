@@ -85,11 +85,11 @@ func (h *handler) LastProcessed() uint64 {
 	}
 	for result.Next() {
 		if value, ok := result.Record().Value().(uint64); ok {
-			slog.Info("Last processed block", "number", value)
+			slog.Debug("Last processed block", "number", value)
 			return value
 		}
 	}
-	slog.Info("can't find last processed", "result", result)
+	slog.Debug("can't find last processed", "result", result)
 	return 0
 }
 

@@ -10,7 +10,7 @@ import (
 type ABIParser interface {
 	Start() error
 	Parse(filepath string) error
-	Decode(log types.Log) (model.EventSchema,error)
+	Decode(log types.Log) (model.EventSchema, error)
 	Stop() error
 }
 

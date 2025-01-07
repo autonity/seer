@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"math/big"
 	"sync"
+	"time"
 
 	ethereum "github.com/autonity/autonity"
 	"github.com/autonity/autonity/core/types"
@@ -52,50 +53,47 @@ func NewListener(cfg config.NodeConfig, parser interfaces.ABIParser, dbHandler i
 }
 
 func (l *Listener) Start(ctx context.Context) {
-	slog.Info("connecting to node using websocket", "url", l.nodeConfig.WS)
 	client, err := ethclient.Dial(l.nodeConfig.WS)
 	if err != nil {
-		slog.Error("dial error", "err", err, "url")
+		slog.Error("dial error", "err", err, "url", l.nodeConfig.WS)
 		return
 	}
 	l.blockCache = helper.NewBlockCache(client)
-	slog.Info("successfully connected to node", "url", l.nodeConfig.RPC)
+	slog.Info("successfully connected to node", "url", l.nodeConfig.WS)
+	helper.PrintContractAddresses()
 	l.Add(1)
 	go l.eventReader(ctx, client)
 	l.Add(1)
 	go l.blockReader(ctx, client)
 	if l.nodeConfig.Sync.History {
 		l.Add(1)
-		// could use rpc node endpoint for historical data
-		client, err = ethclient.Dial(l.nodeConfig.WS)
-		if err != nil {
-			slog.Error("dial error", "err", err)
-			return
-		}
 		l.ReadHistoricalData(ctx, client)
 	}
-
 }
 
 func (l *Listener) markProcessed(start, end uint64) {
 	l.bt.Lock()
 	defer l.bt.Unlock()
-	l.bt.processed[start] = true
-	diff := end - start
+
+	// mark all processed
+	for i := start; i <= end; i++ {
+		l.bt.processed[i] = true
+	}
 
 	update := false
-	for l.bt.processed[l.bt.lastProcessed+diff] {
-		delete(l.bt.processed, l.bt.lastProcessed+diff)
-		l.bt.lastProcessed += diff
+	for l.bt.processed[l.bt.lastProcessed+1] {
+		delete(l.bt.processed, l.bt.lastProcessed+1)
+		l.bt.lastProcessed++
 		update = true
 	}
+
 	if update {
-		slog.Info("**************** Saving Last processed********************", "num", l.bt.lastProcessed)
+		slog.Info("saving Last processed", "number", l.bt.lastProcessed)
 		l.dbHandler.SaveLastProcessed(l.bt.lastProcessed)
 	}
 }
 
-func (l *Listener) ReadHistoricalData(ctx context.Context, cl *ethclient.Client) {
+func (l *Listener) ReadHistoricalData(ctx context.Context, cl interfaces.EthClient) {
 	defer l.Done()
 
 	// start event processor
@@ -105,9 +103,17 @@ func (l *Listener) ReadHistoricalData(ctx context.Context, cl *ethclient.Client)
 		ep := NewEventProcessor(ctx, l)
 		ep.Process()
 	}()
-
-	startBlock := l.dbHandler.LastProcessed()
+	var startBlock uint64
+	lastProcessed := l.dbHandler.LastProcessed()
+	if lastProcessed < batchSize {
+		startBlock = 1
+	} else {
+		//ensure we don't miss any blocks, duplicate processing is acceptable
+		startBlock = lastProcessed - batchSize
+	}
+	l.bt.lastProcessed = startBlock
 	endBlock, _ := cl.BlockNumber(ctx)
+	slog.Debug("Reading Historical Data", "lastProcessed", startBlock, "current block", endBlock)
 
 	workQueue := make(chan [2]uint64, maxConcurrency)
 
@@ -119,21 +125,22 @@ func (l *Listener) ReadHistoricalData(ctx context.Context, cl *ethclient.Client)
 	for i := startBlock; i <= endBlock; i += batchSize {
 		workQueue <- [2]uint64{i, i + batchSize}
 	}
-
 }
 
-func (l *Listener) ReadBatch(ctx context.Context, cl *ethclient.Client, workQueue chan [2]uint64) {
+func (l *Listener) ReadBatch(ctx context.Context, cl interfaces.EthClient, workQueue chan [2]uint64) {
 	defer l.Done()
 	for batch := range workQueue {
+	retry:
 		fq := ethereum.FilterQuery{
 			FromBlock: big.NewInt(int64(batch[0])),
 			ToBlock:   big.NewInt(int64(batch[1])),
 		}
-		slog.Info("fetching logs from", "startBlock", batch[0], "endBlock", batch[1])
+		slog.Info("Starting Batch from", "startBlock", batch[0], "endBlock", batch[1])
 		logs, err := cl.FilterLogs(ctx, fq)
 		if err != nil {
-			slog.Error("Unable to filter autonity logs", "error", err)
-			return
+			slog.Error("Unable to filter autonity logs", "error", err, "batch start", batch[0], "batch end", batch[1])
+			time.Sleep(time.Second)
+			goto retry
 		}
 		for _, log := range logs {
 			select {
@@ -142,16 +149,18 @@ func (l *Listener) ReadBatch(ctx context.Context, cl *ethclient.Client, workQueu
 			case l.newEvents <- log:
 			}
 		}
+		slog.Info("Batch Complete", "startBlock", batch[0], "endBlock", batch[1])
 		// batch complete
 		l.markProcessed(batch[0], batch[1])
 	}
 
 }
 
-func (l *Listener) blockReader(ctx context.Context, cl *ethclient.Client) {
+func (l *Listener) blockReader(ctx context.Context, cl interfaces.EthClient) {
 	defer l.Done()
 	headCh := make(chan *types.Header)
 	slog.Info("subscribing to block events")
+
 	newHeadSub, err := cl.SubscribeNewHead(context.Background(), headCh)
 	if err != nil {
 		slog.Error("new head subscription failed", "error", err)
@@ -162,7 +171,7 @@ func (l *Listener) blockReader(ctx context.Context, cl *ethclient.Client) {
 	// start block processor
 	l.Add(1)
 	go func() {
-		bp := NewBlockProcessor(ctx, l.newBlocks)
+		bp := NewBlockProcessor(ctx, l)
 		bp.Process()
 		defer l.Done()
 	}()
@@ -174,7 +183,7 @@ func (l *Listener) blockReader(ctx context.Context, cl *ethclient.Client) {
 		case <-ctx.Done():
 			return
 		case header, ok := <-headCh:
-			slog.Info("new head event")
+			slog.Debug("new head event")
 			if !ok {
 				slog.Error("unknown error head ch")
 				return
@@ -192,7 +201,7 @@ func (l *Listener) blockReader(ctx context.Context, cl *ethclient.Client) {
 	}
 }
 
-func (l *Listener) eventReader(ctx context.Context, cl *ethclient.Client) {
+func (l *Listener) eventReader(ctx context.Context, cl interfaces.EthClient) {
 	defer l.Done()
 	number, err := cl.BlockNumber(ctx)
 	if err != nil {
@@ -206,7 +215,7 @@ func (l *Listener) eventReader(ctx context.Context, cl *ethclient.Client) {
 		return
 	}
 	defer sub.Unsubscribe()
-	slog.Info("subscribing to log events")
+	slog.Debug("subscribing to log events")
 
 	// start event processor
 	l.Add(1)

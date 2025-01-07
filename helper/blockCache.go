@@ -7,7 +7,6 @@ import (
 	"github.com/autonity/autonity/common"
 	"github.com/autonity/autonity/common/fixsizecache"
 	"github.com/autonity/autonity/core/types"
-	"github.com/autonity/autonity/ethclient"
 
 	"Seer/interfaces"
 )
@@ -19,10 +18,10 @@ var (
 
 type blockCache struct {
 	cache *fixsizecache.Cache[common.Hash, *types.Block]
-	cl    *ethclient.Client
+	cl    interfaces.EthClient
 }
 
-func NewBlockCache(cl *ethclient.Client) interfaces.BlockCache {
+func NewBlockCache(cl interfaces.EthClient) interfaces.BlockCache {
 	return &blockCache{
 		cache: fixsizecache.New[common.Hash, *types.Block](numBuckets, entryPerBucket, fixsizecache.HashKey[common.Hash]),
 		cl:    cl,

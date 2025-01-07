@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/autonity/autonity/accounts/abi"
 	"github.com/autonity/autonity/common"
@@ -17,30 +18,46 @@ import (
 )
 
 type EventDetails struct {
-	abi    abi.Event
-	schema model.EventSchema
-	meta   EventMeta
+	sync.RWMutex
+	data map[common.Hash]struct {
+		abi    abi.Event
+		schema model.EventSchema
+	}
 }
 
 type EventMeta struct {
-	index int
-	ids   []common.Hash
+	sync.RWMutex
+	data map[string]struct {
+		index int
+		ids   []common.Hash
+	}
 }
 
 type abiParser struct {
-	cfg config.ABIConfig
-	//TODO: locks
-	eventDetail map[common.Hash]EventDetails
-	eventMeta   map[string]EventMeta // event Name to index
+	cfg         config.ABIConfig
+	eventDetail EventDetails // id to abi
+	eventMeta   EventMeta    // event Name to index
 	dbHandler   interfaces.DatabaseHandler
 }
 
 func NewABIParser(cfg config.ABIConfig, dh interfaces.DatabaseHandler) interfaces.ABIParser {
 	return &abiParser{
-		cfg:         cfg,
-		eventDetail: make(map[common.Hash]EventDetails),
-		eventMeta:   make(map[string]EventMeta),
-		dbHandler:   dh,
+		cfg: cfg,
+		eventDetail: EventDetails{
+			sync.RWMutex{},
+			make(map[common.Hash]struct {
+				abi    abi.Event
+				schema model.EventSchema
+			}),
+		},
+		eventMeta: EventMeta{
+			sync.RWMutex{},
+			make(map[string]struct {
+				index int
+				ids   []common.Hash
+			}),
+		},
+		dbHandler: dh,
 	}
 }
 
@@ -54,7 +71,7 @@ func (ap *abiParser) LoadABIS() error {
 	for _, file := range files {
 		if !file.IsDir() && filepath.Ext(file.Name()) == ".abi" {
 			absPath := filepath.Join(ap.cfg.Dir, file.Name())
-			slog.Info("Parsing...", "file", absPath)
+			slog.Debug("Parsing...", "file", absPath)
 			err := ap.Parse(absPath)
 			if err != nil {
 				return err
@@ -67,12 +84,14 @@ func (ap *abiParser) LoadABIS() error {
 
 func (ap *abiParser) ListEvents() {
 	names := make([]string, 0)
+	ap.eventDetail.RLock()
+	defer ap.eventDetail.RUnlock()
 
-	for _, ev := range ap.eventDetail {
+	for _, ev := range ap.eventDetail.data {
 		names = append(names, ev.schema.Measurement)
 	}
 
-	slog.Info("All events", "events", names)
+	slog.Debug("All events", "events", names)
 }
 
 func (ap *abiParser) Start() error {
@@ -90,9 +109,11 @@ func (ap *abiParser) Stop() error {
 }
 
 func (ap *abiParser) Decode(log types.Log) (model.EventSchema, error) {
-	slog.Info("event Decode", "topic-0", log.Topics[0])
+	slog.Debug("event Decode", "topic-0", log.Topics[0])
 
-	eventDetails := ap.eventDetail[log.Topics[0]]
+	ap.eventDetail.RLock()
+	defer ap.eventDetail.RUnlock()
+	eventDetails := ap.eventDetail.data[log.Topics[0]]
 	decodedEvent := map[string]interface{}{}
 	indexed := make([]abi.Argument, 0)
 	for _, input := range eventDetails.abi.Inputs {
@@ -118,7 +139,9 @@ func (ap *abiParser) Decode(log types.Log) (model.EventSchema, error) {
 }
 
 func (ap *abiParser) getEventName(id common.Hash, name string) string {
-	evMeta, ok := ap.eventMeta[name]
+	ap.eventMeta.Lock()
+	defer ap.eventMeta.Unlock()
+	evMeta, ok := ap.eventMeta.data[name]
 	if !ok {
 		return name
 	}
@@ -130,7 +153,7 @@ func (ap *abiParser) getEventName(id common.Hash, name string) string {
 	}
 
 	evMeta.index += 1
-	ap.eventMeta[name] = evMeta
+	ap.eventMeta.data[name] = evMeta
 	return fmt.Sprintf("%s_u%d", name, evMeta.index)
 }
 
@@ -146,6 +169,8 @@ func (ap *abiParser) Parse(filename string) error {
 		return err
 	}
 
+	ap.eventDetail.Lock()
+	defer ap.eventDetail.Unlock()
 	// append schemas
 	for name, event := range parsedABI.Events {
 		schema := model.EventSchema{
@@ -156,7 +181,13 @@ func (ap *abiParser) Parse(filename string) error {
 			fieldType := input.Type.String()
 			schema.Fields[input.Name] = fieldType
 		}
-		ap.eventDetail[event.ID] = EventDetails{abi: event, schema: schema}
+		ap.eventDetail.data[event.ID] = struct {
+			abi    abi.Event
+			schema model.EventSchema
+		}{
+			abi:    event,
+			schema: schema,
+		}
 	}
 	return nil
 }
