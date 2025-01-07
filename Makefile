@@ -5,6 +5,7 @@ SRC_DIR := ./cmd
 VERSION := $(shell git describe --tags --always --dirty)
 BUILD_TIME := $(shell date -u '+%Y-%m-%dT%H:%M:%S')
 GO := go
+MOCK_GEN := mockgen
 
 
 #Linting and formatting
@@ -15,7 +16,13 @@ FMT := gofmt
 
 all: build
 
-build:
+mock-gen:
+	@echo "generating mocks..."
+	$(MOCK_GEN) -source=./interfaces/abiParser.go -destination=./mocks/abiParser_mock.go -package=mocks
+	$(MOCK_GEN) -source=./interfaces/dbHandler.go -destination=./mocks/dbHandler_mock.go -package=mocks
+	$(MOCK_GEN) -source=./interfaces/listener.go -destination=./mocks/listener_mock.go -package=mocks
+
+build: mock-gen
 	@echo "Building $(APP_NAME)..."
 	@mkdir -p $(BIN_DIR)
 	$(GO) build -o $(BIN_DIR)/$(APP_NAME) \
@@ -23,7 +30,7 @@ build:
 
 run: build
 	@echo "Running $(APP_NAME)..."
-	$(BIN_DIR)/$(APP_NAME) start
+	$(BIN_DIR)/$(APP_NAME) $(START_CMD)
 
 test:
 	@echo "Running tests..."
@@ -31,7 +38,8 @@ test:
 
 clean:
 	@echo "Cleaning build artifacts..."
-	@rm -f $(BIN_DIR)
+	$(GO) clean -cache
+	@rm -rf $(BIN_DIR)
 
 lint:
 	@echo "Linting code..."

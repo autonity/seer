@@ -35,7 +35,7 @@ func WatchNewABIs(dir string, parser interfaces.ABIParser) {
 				slog.Error("exiting abi directory watcher", "error", err)
 				return
 			}
-			if event.Op.Has(fsnotify.Create) && strings.HasSuffix(event.Name, ".abi") {
+			if event.Op.Has(fsnotify.Create|fsnotify.Write) && strings.HasSuffix(event.Name, ".abi") {
 				slog.Info("New abi detected", "name", event.Name)
 				err = parser.Parse(event.Name)
 				if err != nil {

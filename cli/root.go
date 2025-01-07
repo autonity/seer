@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"log/slog"
+	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -54,10 +56,31 @@ func initConfig() {
 
 	viper.SetEnvPrefix("SEER")
 	viper.AutomaticEnv()
-	viper.SetDefault("logging.level", "info")
+	viper.SetDefault("seer.logLevel", "info")
 
 	if err := viper.ReadInConfig(); err != nil {
 		log.Printf("Failed to read config file: %v", err)
 	}
+	initLogging()
+}
 
+func initLogging() {
+	logLevel := viper.GetString("seer.logLevel")
+	var level slog.Level
+	switch logLevel {
+	case "debug":
+		level = slog.LevelDebug
+	case "error":
+		level = slog.LevelError
+	case "warn":
+		level = slog.LevelWarn
+	default:
+		level = slog.LevelInfo
+	}
+	slog.Info("Setting log level", "level", logLevel)
+	handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		Level:     level,
+		AddSource: true,
+	})
+	slog.SetDefault(slog.New(handler))
 }
