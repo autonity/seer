@@ -129,29 +129,34 @@ func (l *Listener) ReadHistoricalData(ctx context.Context, cl interfaces.EthClie
 
 func (l *Listener) ReadBatch(ctx context.Context, cl interfaces.EthClient, workQueue chan [2]uint64) {
 	defer l.Done()
-	for batch := range workQueue {
-	retry:
-		fq := ethereum.FilterQuery{
-			FromBlock: big.NewInt(int64(batch[0])),
-			ToBlock:   big.NewInt(int64(batch[1])),
-		}
-		slog.Info("Starting Batch from", "startBlock", batch[0], "endBlock", batch[1])
-		logs, err := cl.FilterLogs(ctx, fq)
-		if err != nil {
-			slog.Error("Unable to filter autonity logs", "error", err, "batch start", batch[0], "batch end", batch[1])
-			time.Sleep(time.Second)
-			goto retry
-		}
-		for _, log := range logs {
-			select {
-			case <-ctx.Done():
-				return
-			case l.newEvents <- log:
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case batch := <-workQueue:
+		retry:
+			fq := ethereum.FilterQuery{
+				FromBlock: big.NewInt(int64(batch[0])),
+				ToBlock:   big.NewInt(int64(batch[1])),
 			}
+			slog.Info("Starting Batch from", "startBlock", batch[0], "endBlock", batch[1])
+			logs, err := cl.FilterLogs(ctx, fq)
+			if err != nil {
+				slog.Error("Unable to filter autonity logs", "error", err, "batch start", batch[0], "batch end", batch[1])
+				time.Sleep(time.Second)
+				goto retry
+			}
+			for _, log := range logs {
+				select {
+				case <-ctx.Done():
+					return
+				case l.newEvents <- log:
+				}
+			}
+			// batch complete
+			l.markProcessed(batch[0], batch[1])
+			slog.Info("Batch Complete", "startBlock", batch[0], "endBlock", batch[1])
 		}
-		slog.Info("Batch Complete", "startBlock", batch[0], "endBlock", batch[1])
-		// batch complete
-		l.markProcessed(batch[0], batch[1])
 	}
 
 }

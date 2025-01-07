@@ -106,14 +106,18 @@ func TestListener_ReadHistoricalData(t *testing.T) {
 	mockDBHandler.EXPECT().LastProcessed().Return(uint64(0)).Times(1)
 	mockDBHandler.EXPECT().SaveLastProcessed(gomock.Any()).AnyTimes()
 
+	logs := make([]types.Log, 0)
+	logs = append(logs, types.Log{})
+
 	// Mock Ethereum client behavior
 	mockClient.EXPECT().BlockNumber(gomock.Any()).Return(uint64(100), nil).Times(1)
+	mockClient.EXPECT().FilterLogs(gomock.Any(), gomock.Any()).Return(logs, nil)
 
 	// Test ReadHistoricalData
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	listener.Add(1)
 	go listener.ReadHistoricalData(ctx, mockClient)
+	cancel()
 	listener.Wait()
 }
