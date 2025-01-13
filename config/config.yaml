@@ -2,7 +2,8 @@
 seer:
   logLevel: "info"
 node:
-  rpc: "https://rpc2.piccadilly.autonity.org"
+  #rpc: "https://rpc2.piccadilly.autonity.org"
+  rpc: "http://35.242.168.170:8545"
   ws: "wss://rpc2.piccadilly.autonity.org/ws"
   sync:
     history: true  # options last, latest or genesis

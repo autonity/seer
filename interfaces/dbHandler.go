@@ -8,7 +8,10 @@ import (
 
 type DatabaseHandler interface {
 	LastProcessed() uint64
-	WriteEvent(schema model.EventSchema, tags map[string]string, timeStamp time.Time) error
+	WriteEventBlocking(schema model.EventSchema, tags map[string]string, timeStamp time.Time) error
+	WriteEvent(schema model.EventSchema, tags map[string]string, timeStamp time.Time)
+	WritePoint(measurement string, tags map[string]string, fields map[string]interface{}, ts time.Time)
 	Close()
+	Flush()
 	SaveLastProcessed(uint64)
 }

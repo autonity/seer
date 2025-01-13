@@ -3,8 +3,20 @@ package listener
 import (
 	"context"
 	"log/slog"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/autonity/autonity/autonity"
+	"github.com/autonity/autonity/core/types"
+	"github.com/autonity/autonity/p2p"
 
 	"Seer/interfaces"
+)
+
+var (
+	acnPeers    = "ACNPeers"
+	BlockHeader = "BlockHeader"
 )
 
 type blockProcessor struct {
@@ -28,9 +40,107 @@ func (bp *blockProcessor) Process() {
 			if !ok {
 				return
 			}
-			slog.Debug("new block received", "number", block.Number().Uint64())
+			slog.Info("new block received", "number", block.Number().Uint64())
 			bp.listener.markProcessed(block.NumberU64(), block.NumberU64())
+			bp.recordBlock(block)
+			bp.recordACNPeers(block)
 		}
 	}
+}
 
+func (bp *blockProcessor) recordACNPeers(block *types.Block) {
+	var result []*p2p.PeerInfo
+	err := bp.listener.rpc.CallContext(bp.ctx, &result, "admin_acnPeers")
+	if err != nil {
+		slog.Error("Error fetching ACN peers", "error", err)
+		return
+	}
+
+	ts := time.Unix(int64(block.Time()), 0)
+	tags := map[string]string{}
+	//slog.Info("ACN Peers", "list", result)
+	for _, peer := range result {
+		fields := map[string]interface{}{}
+		fields["enode"] = peer.Enode
+		fields["localAddress"] = peer.Network.LocalAddress
+		fields["RemoteAddress"] = peer.Network.RemoteAddress
+		tags["block"] = strconv.Itoa(int(block.NumberU64()))
+		tags["id"] = peer.ID
+		bp.listener.dbHandler.WritePoint(acnPeers, tags, fields, ts)
+	}
+	bp.listener.dbHandler.Flush()
+}
+
+func (bp *blockProcessor) recordBlock(block *types.Block) {
+	tags := map[string]string{}
+	tags["block"] = strconv.Itoa(int(block.NumberU64()))
+
+	header := block.Header()
+	fields := map[string]interface{}{}
+	fields["round"] = header.Round
+	fields["activityProofRound"] = header.ActivityProofRound
+
+	//TODO: review correct epoch is pulled
+	autCommittee := make([]autonity.AutonityCommitteeMember, 0)
+	if block.IsEpochHead() {
+		fields["epoch"] = block.NumberU64()
+		committee := header.Epoch.Committee
+		for _, member := range committee.Members {
+			autCommittee = append(autCommittee, autonity.AutonityCommitteeMember{
+				Addr:         member.Address,
+				ConsensusKey: member.ConsensusKeyBytes,
+				VotingPower:  member.VotingPower,
+			})
+		}
+	} else {
+		epochInfo := bp.listener.epochInfoCache.Get(block.Number())
+		fields["epoch"] = epochInfo.EpochBlock.Uint64()
+		autCommittee = epochInfo.Committee
+	}
+
+	getMembers := func(ag *types.AggregateSignature) []string {
+		var members []string
+		if ag == nil {
+			return members
+		}
+		err := ag.Signers.Validate(len(autCommittee))
+		if err != nil {
+			return members
+		}
+		indexes := ag.Signers.Flatten()
+		for _, index := range indexes {
+			member := autCommittee[index]
+			members = append(members, member.Addr.String())
+		}
+		return members
+	}
+
+	absentees := func(signers []string) []string {
+		ab := make([]string, 0)
+		for _, cm := range autCommittee {
+			found := false
+			for _, signer := range signers {
+				if cm.Addr.String() == signer {
+					found = true
+					break
+				}
+			}
+			if !found {
+				ab = append(ab, cm.Addr.String())
+			}
+		}
+		return ab
+	}
+	qcAbs := strings.Join(absentees(getMembers(header.QuorumCertificate)), ",")
+	fields["qc-absentees"] = qcAbs
+	fields["ap-absentees"] = strings.Join(absentees(getMembers(header.ActivityProof)), ",")
+
+	cm := make([]string, 0, len(autCommittee))
+	for _, mem := range autCommittee {
+		cm = append(cm, mem.Addr.String())
+	}
+	fields["committee"] = strings.Join(cm, ",")
+
+	ts := time.Unix(int64(block.Time()), 0)
+	bp.listener.dbHandler.WritePoint(BlockHeader, tags, fields, ts)
 }

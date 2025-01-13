@@ -10,6 +10,7 @@ import (
 	ethereum "github.com/autonity/autonity"
 	"github.com/autonity/autonity/core/types"
 	"github.com/autonity/autonity/ethclient"
+	"github.com/autonity/autonity/rpc"
 
 	"Seer/config"
 	"Seer/helper"
@@ -34,7 +35,10 @@ type Listener struct {
 	newBlocks  chan *types.Block
 	newEvents  chan types.Log
 	blockCache interfaces.BlockCache
+	epochInfoCache *helper.EpochCache
 	bt         *blockTracker
+	client     *ethclient.Client
+	rpc        *rpc.Client
 	sync.WaitGroup
 }
 
@@ -53,21 +57,28 @@ func NewListener(cfg config.NodeConfig, parser interfaces.ABIParser, dbHandler i
 }
 
 func (l *Listener) Start(ctx context.Context) {
-	client, err := ethclient.Dial(l.nodeConfig.WS)
+	var err error
+	l.client, err = ethclient.Dial(l.nodeConfig.WS)
 	if err != nil {
 		slog.Error("dial error", "err", err, "url", l.nodeConfig.WS)
 		return
 	}
-	l.blockCache = helper.NewBlockCache(client)
+	l.rpc, err = rpc.Dial(l.nodeConfig.RPC)
+	if err != nil {
+		slog.Error("rpc dial error", "err", err, "url", l.nodeConfig.RPC)
+		return
+	}
+	l.blockCache = helper.NewBlockCache(l.client)
+	l.epochInfoCache = helper.NewEpochInfoCache(l.client)
 	slog.Info("successfully connected to node", "url", l.nodeConfig.WS)
 	helper.PrintContractAddresses()
 	l.Add(1)
-	go l.eventReader(ctx, client)
+	go l.eventReader(ctx)
 	l.Add(1)
-	go l.blockReader(ctx, client)
+	go l.blockReader(ctx)
 	if l.nodeConfig.Sync.History {
 		l.Add(1)
-		l.ReadHistoricalData(ctx, client)
+		l.ReadHistoricalData(ctx)
 	}
 }
 
@@ -93,7 +104,7 @@ func (l *Listener) markProcessed(start, end uint64) {
 	}
 }
 
-func (l *Listener) ReadHistoricalData(ctx context.Context, cl interfaces.EthClient) {
+func (l *Listener) ReadHistoricalData(ctx context.Context) {
 	defer l.Done()
 
 	// start event processor
@@ -112,14 +123,14 @@ func (l *Listener) ReadHistoricalData(ctx context.Context, cl interfaces.EthClie
 		startBlock = lastProcessed - batchSize
 	}
 	l.bt.lastProcessed = startBlock
-	endBlock, _ := cl.BlockNumber(ctx)
+	endBlock, _ := l.client.BlockNumber(ctx)
 	slog.Debug("Reading Historical Data", "lastProcessed", startBlock, "current block", endBlock)
 
 	workQueue := make(chan [2]uint64, maxConcurrency)
 
 	for i := 0; i <= maxConcurrency; i++ {
 		l.Add(1)
-		go l.ReadBatch(ctx, cl, workQueue)
+		go l.ReadBatch(ctx, workQueue)
 	}
 
 	for i := startBlock; i <= endBlock; i += batchSize {
@@ -127,7 +138,7 @@ func (l *Listener) ReadHistoricalData(ctx context.Context, cl interfaces.EthClie
 	}
 }
 
-func (l *Listener) ReadBatch(ctx context.Context, cl interfaces.EthClient, workQueue chan [2]uint64) {
+func (l *Listener) ReadBatch(ctx context.Context, workQueue chan [2]uint64) {
 	defer l.Done()
 	for {
 		select {
@@ -138,9 +149,11 @@ func (l *Listener) ReadBatch(ctx context.Context, cl interfaces.EthClient, workQ
 			fq := ethereum.FilterQuery{
 				FromBlock: big.NewInt(int64(batch[0])),
 				ToBlock:   big.NewInt(int64(batch[1])),
+				Addresses: helper.ContractAddresses,
 			}
 			slog.Info("Starting Batch from", "startBlock", batch[0], "endBlock", batch[1])
-			logs, err := cl.FilterLogs(ctx, fq)
+			now := time.Now()
+			logs, err := l.client.FilterLogs(ctx, fq)
 			if err != nil {
 				slog.Error("Unable to filter autonity logs", "error", err, "batch start", batch[0], "batch end", batch[1])
 				time.Sleep(time.Second)
@@ -154,19 +167,20 @@ func (l *Listener) ReadBatch(ctx context.Context, cl interfaces.EthClient, workQ
 				}
 			}
 			// batch complete
+			slog.Info("Batch Complete", "startBlock", batch[0], "endBlock", batch[1], "time taken", time.Since(now).Seconds())
 			l.markProcessed(batch[0], batch[1])
-			slog.Info("Batch Complete", "startBlock", batch[0], "endBlock", batch[1])
+			slog.Info("Batch Complete and mark processed", "startBlock", batch[0], "endBlock", batch[1], "time taken", time.Since(now).Seconds())
 		}
 	}
 
 }
 
-func (l *Listener) blockReader(ctx context.Context, cl interfaces.EthClient) {
+func (l *Listener) blockReader(ctx context.Context) {
 	defer l.Done()
 	headCh := make(chan *types.Header)
 	slog.Info("subscribing to block events")
 
-	newHeadSub, err := cl.SubscribeNewHead(context.Background(), headCh)
+	newHeadSub, err := l.client.SubscribeNewHead(context.Background(), headCh)
 	if err != nil {
 		slog.Error("new head subscription failed", "error", err)
 		return
@@ -193,7 +207,7 @@ func (l *Listener) blockReader(ctx context.Context, cl interfaces.EthClient) {
 				slog.Error("unknown error head ch")
 				return
 			}
-			block, err := cl.BlockByNumber(ctx, header.Number)
+			block, err := l.client.BlockByNumber(ctx, header.Number)
 			if err != nil {
 				slog.Error("Error fetching block by number",
 					"hash", header.Hash(),
@@ -206,15 +220,15 @@ func (l *Listener) blockReader(ctx context.Context, cl interfaces.EthClient) {
 	}
 }
 
-func (l *Listener) eventReader(ctx context.Context, cl interfaces.EthClient) {
+func (l *Listener) eventReader(ctx context.Context) {
 	defer l.Done()
-	number, err := cl.BlockNumber(ctx)
+	number, err := l.client.BlockNumber(ctx)
 	if err != nil {
 		slog.Error("Unable to get the latest block number", "error", err)
 		return
 	}
-	fq := ethereum.FilterQuery{FromBlock: big.NewInt(int64(number))}
-	sub, err := cl.SubscribeFilterLogs(ctx, fq, l.newEvents)
+	fq := ethereum.FilterQuery{FromBlock: big.NewInt(int64(number)), Addresses: helper.ContractAddresses}
+	sub, err := l.client.SubscribeFilterLogs(ctx, fq, l.newEvents)
 	if err != nil {
 		slog.Error("Unable to filter autonity logs", "error", err)
 		return

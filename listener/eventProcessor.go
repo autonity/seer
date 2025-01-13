@@ -3,6 +3,7 @@ package listener
 import (
 	"context"
 	"log/slog"
+	"math/big"
 	"time"
 
 	"Seer/helper"
@@ -40,7 +41,7 @@ func (ep *eventProcessor) Process() {
 				continue
 			}
 
-			block := ep.listener.blockCache.Get(event.BlockHash)
+			block := ep.listener.blockCache.Get(big.NewInt(int64(event.BlockNumber)))
 			if block == nil {
 				slog.Error("couldn't fetch block", "hash", event.BlockHash)
 				continue
@@ -50,10 +51,7 @@ func (ep *eventProcessor) Process() {
 			ts := time.Unix(int64(block.Time()), 0)
 			evSchema.Fields["block"] = block.Number().Uint64()
 			slog.Debug("new log event received", "name", evSchema.Measurement, "block", block.NumberU64())
-			err = ep.listener.dbHandler.WriteEvent(evSchema, nil, ts)
-			if err != nil {
-				slog.Error("Error writing point to db", "error", err)
-			}
+			go ep.listener.dbHandler.WriteEvent(evSchema, nil, ts)
 		}
 	}
 }

@@ -6,9 +6,9 @@ package mocks
 
 import (
 	model "Seer/model"
+	big "math/big"
 	reflect "reflect"
 
-	common "github.com/autonity/autonity/common"
 	types "github.com/autonity/autonity/core/types"
 	gomock "github.com/golang/mock/gomock"
 )
@@ -117,15 +117,15 @@ func (m *MockBlockCache) EXPECT() *MockBlockCacheMockRecorder {
 }
 
 // Get mocks base method.
-func (m *MockBlockCache) Get(hash common.Hash) *types.Block {
+func (m *MockBlockCache) Get(number *big.Int) *types.Block {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Get", hash)
+	ret := m.ctrl.Call(m, "Get", number)
 	ret0, _ := ret[0].(*types.Block)
 	return ret0
 }
 
 // Get indicates an expected call of Get.
-func (mr *MockBlockCacheMockRecorder) Get(hash interface{}) *gomock.Call {
+func (mr *MockBlockCacheMockRecorder) Get(number interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockBlockCache)(nil).Get), hash)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockBlockCache)(nil).Get), number)
 }

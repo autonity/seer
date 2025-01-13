@@ -21,6 +21,20 @@ var (
 	StakeableVestingManagerContractAddress = crypto.CreateAddress(DeployerAddress, 8)
 	NonStakeableVestingContractAddress     = crypto.CreateAddress(DeployerAddress, 9)
 	OmissionAccountabilityContractAddress  = crypto.CreateAddress(DeployerAddress, 10)
+
+	ContractAddresses = append([]common.Address{
+		AutonityContractAddress,
+		AccountabilityContractAddress,
+		OracleContractAddress,
+		ACUContractAddress,
+		SupplyControlContractAddress,
+		StabilizationContractAddress,
+		UpgradeManagerContractAddress,
+		InflationControllerContractAddress,
+		StakeableVestingManagerContractAddress,
+		NonStakeableVestingContractAddress,
+		OmissionAccountabilityContractAddress,
+	})
 )
 
 func PrintContractAddresses() {

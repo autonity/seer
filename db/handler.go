@@ -7,6 +7,7 @@ import (
 	"time"
 
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
+	"github.com/influxdata/influxdb-client-go/v2/api"
 	"github.com/influxdata/influxdb-client-go/v2/domain"
 
 	"Seer/config"
@@ -20,8 +21,11 @@ var (
 )
 
 type handler struct {
-	cfg    config.InfluxDBConfig
-	client influxdb2.Client
+	cfg         config.InfluxDBConfig
+	client      influxdb2.Client
+	writer      api.WriteAPIBlocking
+	asyncWriter api.WriteAPI
+	reader      api.QueryAPI
 }
 
 func (h *handler) getOrg() *domain.Organization {
@@ -64,13 +68,16 @@ func (h *handler) ensureBucket() {
 func NewHandler(dbConfig config.InfluxDBConfig) interfaces.DatabaseHandler {
 	slog.Info("connecting to DB", "url", dbConfig.URL)
 	h := &handler{cfg: dbConfig}
-	h.client = influxdb2.NewClient(dbConfig.URL, dbConfig.Token)
+	client := influxdb2.NewClient(dbConfig.URL, dbConfig.Token)
+	h.reader = client.QueryAPI(h.cfg.Org)
+	h.writer = client.WriteAPIBlocking(h.cfg.Org, h.cfg.Bucket)
+	h.asyncWriter = client.WriteAPI(h.cfg.Org, h.cfg.Bucket)
+	h.client = client
 	h.ensureBucket()
 	return h
 }
 
 func (h *handler) LastProcessed() uint64 {
-	queryAPI := h.client.QueryAPI(h.cfg.Org)
 	query := fmt.Sprintf(`
 			from(bucket:"%s")
 			|> range(start: 0)
@@ -78,7 +85,7 @@ func (h *handler) LastProcessed() uint64 {
 			|> sort(columns: ["_time"], desc: true)
 			|> limit(n: 1)
 		`, h.cfg.Bucket, LastProcessed)
-	result, err := queryAPI.Query(context.Background(), query)
+	result, err := h.reader.Query(context.Background(), query)
 	if err != nil {
 		slog.Error("Unable to fetch last processed", "error", err)
 		return 0
@@ -94,7 +101,6 @@ func (h *handler) LastProcessed() uint64 {
 }
 
 func (h *handler) SaveLastProcessed(lp uint64) {
-	writer := h.client.WriteAPI(h.cfg.Org, h.cfg.Bucket)
 	point := influxdb2.NewPoint(LastProcessed,
 		nil,
 		map[string]interface{}{
@@ -102,19 +108,31 @@ func (h *handler) SaveLastProcessed(lp uint64) {
 		},
 		time.Now(),
 	)
-	writer.WritePoint(point)
-	writer.Flush()
+	h.asyncWriter.WritePoint(point)
+	h.asyncWriter.Flush()
 }
 
-func (h *handler) WriteEvent(schema model.EventSchema, tags map[string]string, timeStamp time.Time) error {
-	writer := h.client.WriteAPIBlocking(h.cfg.Org, h.cfg.Bucket)
-	//TODO: what else we need here
+func (h *handler) WriteEventBlocking(schema model.EventSchema, tags map[string]string, timeStamp time.Time) error {
 	point := influxdb2.NewPoint(schema.Measurement, tags, schema.Fields, timeStamp)
-	err := writer.WritePoint(context.Background(), point)
+	err := h.writer.WritePoint(context.Background(), point)
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+func (h *handler) WriteEvent(schema model.EventSchema, tags map[string]string, timeStamp time.Time) {
+	point := influxdb2.NewPoint(schema.Measurement, tags, schema.Fields, timeStamp)
+	h.asyncWriter.WritePoint(point)
+}
+
+func (h *handler) WritePoint(measurement string, tags map[string]string, fields map[string]interface{}, ts time.Time) {
+	point := influxdb2.NewPoint(measurement, tags, fields, ts)
+	h.asyncWriter.WritePoint(point)
+}
+
+func (h *handler) Flush() {
+	h.asyncWriter.Flush()
 }
 
 func (h *handler) Close() {
