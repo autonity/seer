@@ -6,6 +6,8 @@ VERSION := $(shell git describe --tags --always --dirty)
 BUILD_TIME := $(shell date -u '+%Y-%m-%dT%H:%M:%S')
 GO := go
 MOCK_GEN := mockgen
+MOCKS_DIR := ./mocks
+INTERFACES_DIR := ./interfaces
 
 
 #Linting and formatting
@@ -18,9 +20,15 @@ all: build
 
 mock-gen:
 	@echo "generating mocks..."
-	$(MOCK_GEN) -source=./interfaces/abiParser.go -destination=./mocks/abiParser_mock.go -package=mocks
-	$(MOCK_GEN) -source=./interfaces/dbHandler.go -destination=./mocks/dbHandler_mock.go -package=mocks
-	$(MOCK_GEN) -source=./interfaces/listener.go -destination=./mocks/listener_mock.go -package=mocks
+	@for file in $(INTERFACES_DIR)/*.go; do \
+    		filename=$$(basename $$file .go); \
+    		$(MOCK_GEN) -source=$$file -destination=$(MOCKS_DIR)/$$filename\_mock.go -package=mocks; \
+    		echo "Generated mock for $$file"; \
+    	done
+
+#	$(MOCK_GEN) -source=./interfaces/abiParser.go -destination=./mocks/abiParser_mock.go -package=mocks
+#	$(MOCK_GEN) -source=./interfaces/databseHandler.go -destination=./mocks/dbHandler_mock.go -package=mocks
+#	$(MOCK_GEN) -source=./interfaces/listener.go -destination=./mocks/listener_mock.go -package=mocks
 
 build: mock-gen
 	@echo "Building $(APP_NAME)..."

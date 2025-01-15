@@ -13,6 +13,7 @@ import (
 	"github.com/autonity/autonity/ethclient"
 
 	"Seer/interfaces"
+	"Seer/net"
 )
 
 var (
@@ -22,60 +23,62 @@ var (
 
 type blockCache struct {
 	cache *fixsizecache.Cache[common.Hash, *types.Block]
-
-	cl interfaces.EthClient
+	cl    interfaces.EthClient
 }
 
-func NewBlockCache(cl interfaces.EthClient) interfaces.BlockCache {
+func NewBlockCache(cp net.ConnectionProvider) interfaces.BlockCache {
 	return &blockCache{
 		cache: fixsizecache.New[common.Hash, *types.Block](numBuckets, entryPerBucket, fixsizecache.HashKey[common.Hash]),
-		cl:    cl,
+		cl:    cp.GetWebSocketConnection().Client,
 	}
 }
 
-func (bc *blockCache) Get(number *big.Int) *types.Block {
+func (bc *blockCache) Get(number *big.Int) (*types.Block, bool) {
 	blk, ok := bc.cache.Get(common.BigToHash(number))
 	if ok {
-		return blk.(*types.Block)
+		return blk.(*types.Block), true
 	}
-
 	block, err := bc.cl.BlockByNumber(context.Background(), number)
 	if err != nil {
 		slog.Error("unable to fetch block", "error", err)
 		//todo: error handling module
-		return nil
+		return nil, false
 	}
 	bc.cache.Add(common.BigToHash(number), block)
-	return block
+	return block, false
+}
+
+func (bc *blockCache) Add(block *types.Block) {
+	bc.cache.Add(common.BigToHash(block.Number()), block)
 }
 
 type EpochCache struct {
 	cache        *fixsizecache.Cache[common.Hash, *autonity.AutonityEpochInfo]
 	blockToEpoch *fixsizecache.Cache[common.Hash, *big.Int]
-	cl           *ethclient.Client
+	cl           interfaces.EthClient
 }
 
-func NewEpochInfoCache(cl *ethclient.Client) *EpochCache {
+func NewEpochInfoCache(cp net.ConnectionProvider) *EpochCache {
 	return &EpochCache{
 		cache:        fixsizecache.New[common.Hash, *autonity.AutonityEpochInfo](numBuckets, entryPerBucket, fixsizecache.HashKey[common.Hash]),
 		blockToEpoch: fixsizecache.New[common.Hash, *big.Int](numBuckets, entryPerBucket, fixsizecache.HashKey[common.Hash]),
-		cl:           cl,
+		cl:           cp.GetWebSocketConnection().Client,
 	}
 }
 
-func (bc *EpochCache) Get(number *big.Int) *autonity.AutonityEpochInfo {
-	epochBlockNum, ok := bc.blockToEpoch.Get(common.BigToHash(number))
+func (ec *EpochCache) Get(number *big.Int) *autonity.AutonityEpochInfo {
+	epochBlockNum, ok := ec.blockToEpoch.Get(common.BigToHash(number))
 	if !ok {
-		return bc.retrieveEpochInfo(number)
+		return ec.retrieveEpochInfo(number)
 	}
-	epochBlock, ok := bc.cache.Get(common.BigToHash(epochBlockNum.(*big.Int)))
+	epochBlock, ok := ec.cache.Get(common.BigToHash(epochBlockNum.(*big.Int)))
 	if !ok {
-		return bc.retrieveEpochInfo(number)
+		return ec.retrieveEpochInfo(number)
 	}
 	return epochBlock.(*autonity.AutonityEpochInfo)
 }
 
-func (bc *EpochCache) Add(block *types.Block) {
+func (ec *EpochCache) Add(block *types.Block) {
 	if block.Header().Epoch == nil {
 		return
 	}
@@ -94,20 +97,20 @@ func (bc *EpochCache) Add(block *types.Block) {
 		EpochBlock:         block.Number(),
 		Committee:          committee,
 	}
-	bc.cache.Add(common.BigToHash(block.Number()), epochInfo)
+	ec.cache.Add(common.BigToHash(block.Number()), epochInfo)
 
-	previousEpoch := block.Header().Epoch.PreviousEpochBlock
+	nextEpoch := block.Header().Epoch.NextEpochBlock
 	currentEpoch := block.Number()
 	//TODO: hash based look up for range search
-	i := previousEpoch.Add(previousEpoch, big.NewInt(1))
-	for i.Cmp(currentEpoch) < 0 {
-		bc.blockToEpoch.Add(common.BigToHash(i), block.Number())
+	i := currentEpoch
+	for i.Cmp(nextEpoch) == -1 {
+		ec.blockToEpoch.Add(common.BigToHash(i), block.Number())
 		i.Add(i, big.NewInt(1))
 	}
 }
 
-func (bc *EpochCache) retrieveEpochInfo(number *big.Int) *autonity.AutonityEpochInfo {
-	autonityBindings, err := autonity.NewAutonity(AutonityContractAddress, bc.cl)
+func (ec *EpochCache) retrieveEpochInfo(number *big.Int) *autonity.AutonityEpochInfo {
+	autonityBindings, err := autonity.NewAutonity(AutonityContractAddress, ec.cl.(*ethclient.Client))
 	if err != nil {
 		slog.Error("unable to create autonity bindings", "error", err)
 		return nil
@@ -118,12 +121,11 @@ func (bc *EpochCache) retrieveEpochInfo(number *big.Int) *autonity.AutonityEpoch
 	}
 	previousEpoch := epochInfo.PreviousEpochBlock
 	currentEpoch := epochInfo.EpochBlock
-	bc.cache.Add(common.BigToHash(currentEpoch), &epochInfo)
+	ec.cache.Add(common.BigToHash(currentEpoch), &epochInfo)
 	//TODO: hash based look up for range search
 	i := previousEpoch.Add(previousEpoch, big.NewInt(1))
-	//TODO - check whther to do epoch block or nextEpochBlock
 	for i.Cmp(currentEpoch) < 0 {
-		bc.blockToEpoch.Add(common.BigToHash(i), currentEpoch)
+		ec.blockToEpoch.Add(common.BigToHash(i), currentEpoch)
 		i.Add(i, big.NewInt(1))
 	}
 	return &epochInfo

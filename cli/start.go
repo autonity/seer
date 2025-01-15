@@ -5,12 +5,15 @@ import (
 	"log"
 	"log/slog"
 
+	"github.com/autonity/autonity/ethclient"
+	"github.com/autonity/autonity/rpc"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
 	"Seer/config"
+	"Seer/core"
 	"Seer/db"
-	"Seer/listener"
+	"Seer/net"
 	"Seer/schema"
 )
 
@@ -38,7 +41,10 @@ func start(cmd *cobra.Command, args []string) {
 		slog.Error("Error parsing ", "error ", err)
 		return
 	}
-	l := listener.NewListener(cfg.Node, parser, handler)
+	rpcPool := net.NewConnectionPool[*rpc.Client](cfg.Node.RPC, 10)
+	wsPool := net.NewConnectionPool[*ethclient.Client](cfg.Node.WS, 10)
+	cp := net.NewConnectionProvider(wsPool, rpcPool)
+	l := core.New(cfg.Node, parser, handler, cp)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	l.Start(ctx)

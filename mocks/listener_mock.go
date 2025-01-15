@@ -15,51 +15,51 @@ import (
 	gomock "github.com/golang/mock/gomock"
 )
 
-// MockListener is a mock of Listener interface.
-type MockListener struct {
+// MockCore is a mock of Core interface.
+type MockCore struct {
 	ctrl     *gomock.Controller
-	recorder *MockListenerMockRecorder
+	recorder *MockCoreMockRecorder
 }
 
-// MockListenerMockRecorder is the mock recorder for MockListener.
-type MockListenerMockRecorder struct {
-	mock *MockListener
+// MockCoreMockRecorder is the mock recorder for MockCore.
+type MockCoreMockRecorder struct {
+	mock *MockCore
 }
 
-// NewMockListener creates a new mock instance.
-func NewMockListener(ctrl *gomock.Controller) *MockListener {
-	mock := &MockListener{ctrl: ctrl}
-	mock.recorder = &MockListenerMockRecorder{mock}
+// NewMockCore creates a new mock instance.
+func NewMockCore(ctrl *gomock.Controller) *MockCore {
+	mock := &MockCore{ctrl: ctrl}
+	mock.recorder = &MockCoreMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockListener) EXPECT() *MockListenerMockRecorder {
+func (m *MockCore) EXPECT() *MockCoreMockRecorder {
 	return m.recorder
 }
 
 // Start mocks base method.
-func (m *MockListener) Start(ctx context.Context) {
+func (m *MockCore) Start(ctx context.Context) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "Start", ctx)
 }
 
 // Start indicates an expected call of Start.
-func (mr *MockListenerMockRecorder) Start(ctx interface{}) *gomock.Call {
+func (mr *MockCoreMockRecorder) Start(ctx interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Start", reflect.TypeOf((*MockListener)(nil).Start), ctx)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Start", reflect.TypeOf((*MockCore)(nil).Start), ctx)
 }
 
 // Stop mocks base method.
-func (m *MockListener) Stop() {
+func (m *MockCore) Stop() {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "Stop")
 }
 
 // Stop indicates an expected call of Stop.
-func (mr *MockListenerMockRecorder) Stop() *gomock.Call {
+func (mr *MockCoreMockRecorder) Stop() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stop", reflect.TypeOf((*MockListener)(nil).Stop))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stop", reflect.TypeOf((*MockCore)(nil).Stop))
 }
 
 // MockProcessor is a mock of Processor interface.

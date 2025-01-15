@@ -1,9 +1,8 @@
-package listener
+package core
 
 import (
 	"context"
 	"log/slog"
-	"strconv"
 	"strings"
 	"time"
 
@@ -20,14 +19,14 @@ var (
 )
 
 type blockProcessor struct {
-	listener *Listener
-	ctx      context.Context
+	core *core
+	ctx  context.Context
 }
 
-func NewBlockProcessor(ctx context.Context, listener *Listener) interfaces.Processor {
+func NewBlockProcessor(ctx context.Context, core *core) interfaces.Processor {
 	return &blockProcessor{
-		listener: listener,
-		ctx:      ctx,
+		core: core,
+		ctx:  ctx,
 	}
 }
 
@@ -36,49 +35,62 @@ func (bp *blockProcessor) Process() {
 		select {
 		case <-bp.ctx.Done():
 			return
-		case block, ok := <-bp.listener.newBlocks:
+		case block, ok := <-bp.core.newBlocks:
 			if !ok {
 				return
 			}
+			//todo concurrency
 			slog.Info("new block received", "number", block.Number().Uint64())
-			bp.listener.markProcessed(block.NumberU64(), block.NumberU64())
+			bp.core.markProcessed(block.NumberU64(), block.NumberU64())
 			bp.recordBlock(block)
 			bp.recordACNPeers(block)
+
+			bp.core.blockCache.Add(block)
+			bp.core.epochInfoCache.Add(block)
 		}
 	}
 }
 
 func (bp *blockProcessor) recordACNPeers(block *types.Block) {
+	now := time.Now().Unix()
+	if now-int64(block.Time()) > 5 {
+		slog.Debug("block older than 5 seconds. not retrieving acn peers")
+		return
+	}
+
 	var result []*p2p.PeerInfo
-	err := bp.listener.rpc.CallContext(bp.ctx, &result, "admin_acnPeers")
+	con := bp.core.cp.GetRPCConnection()
+	defer bp.core.cp.PutRPCConnection(con)
+	err := con.Client.CallContext(bp.ctx, &result, "admin_acnPeers")
 	if err != nil {
 		slog.Error("Error fetching ACN peers", "error", err)
 		return
 	}
 
-	ts := time.Unix(int64(block.Time()), 0)
 	tags := map[string]string{}
-	//slog.Info("ACN Peers", "list", result)
+	ts := time.Unix(int64(block.NumberU64()), 0)
 	for _, peer := range result {
 		fields := map[string]interface{}{}
 		fields["enode"] = peer.Enode
 		fields["localAddress"] = peer.Network.LocalAddress
 		fields["RemoteAddress"] = peer.Network.RemoteAddress
-		tags["block"] = strconv.Itoa(int(block.NumberU64()))
 		tags["id"] = peer.ID
-		bp.listener.dbHandler.WritePoint(acnPeers, tags, fields, ts)
+
+		bp.core.dbHandler.WritePoint(acnPeers, tags, fields, ts)
 	}
-	bp.listener.dbHandler.Flush()
+	bp.core.dbHandler.Flush()
 }
 
 func (bp *blockProcessor) recordBlock(block *types.Block) {
 	tags := map[string]string{}
-	tags["block"] = strconv.Itoa(int(block.NumberU64()))
 
 	header := block.Header()
 	fields := map[string]interface{}{}
 	fields["round"] = header.Round
 	fields["activityProofRound"] = header.ActivityProofRound
+	fields["proposer"] = header.Coinbase
+
+	slog.Debug("Recording block", "num", block.NumberU64())
 
 	//TODO: review correct epoch is pulled
 	autCommittee := make([]autonity.AutonityCommitteeMember, 0)
@@ -93,7 +105,11 @@ func (bp *blockProcessor) recordBlock(block *types.Block) {
 			})
 		}
 	} else {
-		epochInfo := bp.listener.epochInfoCache.Get(block.Number())
+		epochInfo := bp.core.epochInfoCache.Get(block.Number())
+		if epochInfo == nil {
+			slog.Error("not pushing the block in DB due to processing errors", "number", block.NumberU64())
+			return
+		}
 		fields["epoch"] = epochInfo.EpochBlock.Uint64()
 		autCommittee = epochInfo.Committee
 	}
@@ -131,8 +147,8 @@ func (bp *blockProcessor) recordBlock(block *types.Block) {
 		}
 		return ab
 	}
-	qcAbs := strings.Join(absentees(getMembers(header.QuorumCertificate)), ",")
-	fields["qc-absentees"] = qcAbs
+
+	fields["qc-absentees"] = strings.Join(absentees(getMembers(header.QuorumCertificate)), ",")
 	fields["ap-absentees"] = strings.Join(absentees(getMembers(header.ActivityProof)), ",")
 
 	cm := make([]string, 0, len(autCommittee))
@@ -141,6 +157,6 @@ func (bp *blockProcessor) recordBlock(block *types.Block) {
 	}
 	fields["committee"] = strings.Join(cm, ",")
 
-	ts := time.Unix(int64(block.Time()), 0)
-	bp.listener.dbHandler.WritePoint(BlockHeader, tags, fields, ts)
+	ts := time.Unix(int64(block.NumberU64()), 0)
+	bp.core.dbHandler.WritePoint(BlockHeader, tags, fields, ts)
 }

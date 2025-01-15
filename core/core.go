@@ -1,4 +1,4 @@
-package listener
+package core
 
 import (
 	"context"
@@ -9,17 +9,16 @@ import (
 
 	ethereum "github.com/autonity/autonity"
 	"github.com/autonity/autonity/core/types"
-	"github.com/autonity/autonity/ethclient"
-	"github.com/autonity/autonity/rpc"
 
 	"Seer/config"
 	"Seer/helper"
 	"Seer/interfaces"
+	"Seer/net"
 )
 
 var (
 	maxConcurrency = 100
-	batchSize      = uint64(100)
+	batchSize      = uint64(50)
 )
 
 type blockTracker struct {
@@ -28,27 +27,30 @@ type blockTracker struct {
 	lastProcessed uint64
 }
 
-type Listener struct {
+type core struct {
 	nodeConfig config.NodeConfig
 	abiParser  interfaces.ABIParser
 	dbHandler  interfaces.DatabaseHandler
-	newBlocks  chan *types.Block
-	newEvents  chan types.Log
-	blockCache interfaces.BlockCache
+	cp         net.ConnectionProvider
+
+	newBlocks chan *types.Block
+	newEvents chan types.Log
+
+	blockCache     interfaces.BlockCache
 	epochInfoCache *helper.EpochCache
-	bt         *blockTracker
-	client     *ethclient.Client
-	rpc        *rpc.Client
+
+	bt *blockTracker
 	sync.WaitGroup
 }
 
-func NewListener(cfg config.NodeConfig, parser interfaces.ABIParser, dbHandler interfaces.DatabaseHandler) interfaces.Listener {
-	return &Listener{
+func New(cfg config.NodeConfig, parser interfaces.ABIParser, dbHandler interfaces.DatabaseHandler, cp net.ConnectionProvider) interfaces.Core {
+	return &core{
 		nodeConfig: cfg,
 		newBlocks:  make(chan *types.Block, 10),
 		newEvents:  make(chan types.Log, 100),
 		abiParser:  parser,
 		dbHandler:  dbHandler,
+		cp:         cp,
 		bt: &blockTracker{
 			processed:     make(map[uint64]bool),
 			lastProcessed: 0,
@@ -56,20 +58,10 @@ func NewListener(cfg config.NodeConfig, parser interfaces.ABIParser, dbHandler i
 	}
 }
 
-func (l *Listener) Start(ctx context.Context) {
-	var err error
-	l.client, err = ethclient.Dial(l.nodeConfig.WS)
-	if err != nil {
-		slog.Error("dial error", "err", err, "url", l.nodeConfig.WS)
-		return
-	}
-	l.rpc, err = rpc.Dial(l.nodeConfig.RPC)
-	if err != nil {
-		slog.Error("rpc dial error", "err", err, "url", l.nodeConfig.RPC)
-		return
-	}
-	l.blockCache = helper.NewBlockCache(l.client)
-	l.epochInfoCache = helper.NewEpochInfoCache(l.client)
+func (l *core) Start(ctx context.Context) {
+	//var err error
+	l.blockCache = helper.NewBlockCache(l.cp)
+	l.epochInfoCache = helper.NewEpochInfoCache(l.cp)
 	slog.Info("successfully connected to node", "url", l.nodeConfig.WS)
 	helper.PrintContractAddresses()
 	l.Add(1)
@@ -82,7 +74,7 @@ func (l *Listener) Start(ctx context.Context) {
 	}
 }
 
-func (l *Listener) markProcessed(start, end uint64) {
+func (l *core) markProcessed(start, end uint64) {
 	l.bt.Lock()
 	defer l.bt.Unlock()
 
@@ -104,7 +96,7 @@ func (l *Listener) markProcessed(start, end uint64) {
 	}
 }
 
-func (l *Listener) ReadHistoricalData(ctx context.Context) {
+func (l *core) ReadHistoricalData(ctx context.Context) {
 	defer l.Done()
 
 	// start event processor
@@ -123,23 +115,38 @@ func (l *Listener) ReadHistoricalData(ctx context.Context) {
 		startBlock = lastProcessed - batchSize
 	}
 	l.bt.lastProcessed = startBlock
-	endBlock, _ := l.client.BlockNumber(ctx)
+
+	con := l.cp.GetWebSocketConnection()
+	defer l.cp.PutWebSocketConnection(con)
+	endBlock, _ := con.Client.BlockNumber(ctx)
 	slog.Debug("Reading Historical Data", "lastProcessed", startBlock, "current block", endBlock)
 
-	workQueue := make(chan [2]uint64, maxConcurrency)
+	eventWorkQueue := make(chan [2]uint64, maxConcurrency)
+	blockWorkQueue := make(chan [2]uint64, maxConcurrency)
 
 	for i := 0; i <= maxConcurrency; i++ {
 		l.Add(1)
-		go l.ReadBatch(ctx, workQueue)
+		go l.ReadEventBatch(ctx, eventWorkQueue)
+		l.Add(1)
+		go l.ReadBlockBatch(ctx, blockWorkQueue)
 	}
 
-	for i := startBlock; i <= endBlock; i += batchSize {
-		workQueue <- [2]uint64{i, i + batchSize}
-	}
+	go func() {
+		for i := startBlock; i <= endBlock; i += batchSize {
+			blockWorkQueue <- [2]uint64{i, i + batchSize}
+		}
+	}()
+	go func() {
+		for i := startBlock; i <= endBlock; i += batchSize {
+			eventWorkQueue <- [2]uint64{i, i + batchSize}
+		}
+	}()
 }
 
-func (l *Listener) ReadBatch(ctx context.Context, workQueue chan [2]uint64) {
+func (l *core) ReadEventBatch(ctx context.Context, workQueue chan [2]uint64) {
 	defer l.Done()
+	con := l.cp.GetWebSocketConnection()
+	defer l.cp.PutWebSocketConnection(con)
 	for {
 		select {
 		case <-ctx.Done():
@@ -152,8 +159,7 @@ func (l *Listener) ReadBatch(ctx context.Context, workQueue chan [2]uint64) {
 				Addresses: helper.ContractAddresses,
 			}
 			slog.Info("Starting Batch from", "startBlock", batch[0], "endBlock", batch[1])
-			now := time.Now()
-			logs, err := l.client.FilterLogs(ctx, fq)
+			logs, err := con.Client.FilterLogs(ctx, fq)
 			if err != nil {
 				slog.Error("Unable to filter autonity logs", "error", err, "batch start", batch[0], "batch end", batch[1])
 				time.Sleep(time.Second)
@@ -166,21 +172,53 @@ func (l *Listener) ReadBatch(ctx context.Context, workQueue chan [2]uint64) {
 				case l.newEvents <- log:
 				}
 			}
-			// batch complete
+		}
+	}
+}
+
+func (l *core) ReadBlockBatch(ctx context.Context, workQueue chan [2]uint64) {
+	defer l.Done()
+	con := l.cp.GetWebSocketConnection()
+	defer l.cp.PutWebSocketConnection(con)
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case batch := <-workQueue:
+			now := time.Now()
+
+			////TODO: batch requests for blocks
+			//for i := batch[0]; i <= batch[1]; i++ {
+			//	requests = append(requests, JSONRPCRequest{
+			//		Jsonrpc: "2.0",
+			//		Method:  "eth_getBlockByNumber",
+			//		Params:  []interface{}{fmt.Sprintf("0x%x", i), false}, // true to include full transaction details
+			//		ID:      i,
+			//	})
+			//}
+			for num := batch[0]; num < batch[1]; num++ {
+				block, err := con.Client.BlockByNumber(ctx, big.NewInt(int64(num)))
+				if err != nil {
+					slog.Error("Unable to fetch block", "error", err, "batch start", batch[0], "batch end", batch[1])
+					continue
+				}
+				l.newBlocks <- block
+			}
+
 			slog.Info("Batch Complete", "startBlock", batch[0], "endBlock", batch[1], "time taken", time.Since(now).Seconds())
 			l.markProcessed(batch[0], batch[1])
 			slog.Info("Batch Complete and mark processed", "startBlock", batch[0], "endBlock", batch[1], "time taken", time.Since(now).Seconds())
 		}
 	}
-
 }
 
-func (l *Listener) blockReader(ctx context.Context) {
+func (l *core) blockReader(ctx context.Context) {
 	defer l.Done()
 	headCh := make(chan *types.Header)
 	slog.Info("subscribing to block events")
 
-	newHeadSub, err := l.client.SubscribeNewHead(context.Background(), headCh)
+	con := l.cp.GetWebSocketConnection()
+	newHeadSub, err := con.Client.SubscribeNewHead(context.Background(), headCh)
 	if err != nil {
 		slog.Error("new head subscription failed", "error", err)
 		return
@@ -207,7 +245,8 @@ func (l *Listener) blockReader(ctx context.Context) {
 				slog.Error("unknown error head ch")
 				return
 			}
-			block, err := l.client.BlockByNumber(ctx, header.Number)
+
+			block, err := con.Client.BlockByNumber(ctx, header.Number)
 			if err != nil {
 				slog.Error("Error fetching block by number",
 					"hash", header.Hash(),
@@ -220,15 +259,17 @@ func (l *Listener) blockReader(ctx context.Context) {
 	}
 }
 
-func (l *Listener) eventReader(ctx context.Context) {
+func (l *core) eventReader(ctx context.Context) {
 	defer l.Done()
-	number, err := l.client.BlockNumber(ctx)
+	con := l.cp.GetWebSocketConnection()
+	defer l.cp.PutWebSocketConnection(con)
+	number, err := con.Client.BlockNumber(ctx)
 	if err != nil {
 		slog.Error("Unable to get the latest block number", "error", err)
 		return
 	}
 	fq := ethereum.FilterQuery{FromBlock: big.NewInt(int64(number)), Addresses: helper.ContractAddresses}
-	sub, err := l.client.SubscribeFilterLogs(ctx, fq, l.newEvents)
+	sub, err := con.Client.SubscribeFilterLogs(ctx, fq, l.newEvents)
 	if err != nil {
 		slog.Error("Unable to filter autonity logs", "error", err)
 		return
@@ -254,6 +295,6 @@ func (l *Listener) eventReader(ctx context.Context) {
 	}
 }
 
-func (l *Listener) Stop() {
+func (l *core) Stop() {
 	l.Wait()
 }

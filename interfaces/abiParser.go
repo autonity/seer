@@ -16,5 +16,6 @@ type ABIParser interface {
 }
 
 type BlockCache interface {
-	Get(number *big.Int) *types.Block
+	Get(number *big.Int) (*types.Block, bool)
+	Add(block *types.Block)
 }

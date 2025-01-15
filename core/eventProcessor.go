@@ -1,4 +1,4 @@
-package listener
+package core
 
 import (
 	"context"
@@ -6,19 +6,20 @@ import (
 	"math/big"
 	"time"
 
+	"Seer/events/registry"
 	"Seer/helper"
 	"Seer/interfaces"
 )
 
 type eventProcessor struct {
-	ctx      context.Context
-	listener *Listener
+	ctx  context.Context
+	core *core
 }
 
-func NewEventProcessor(ctx context.Context, listener *Listener) interfaces.Processor {
+func NewEventProcessor(ctx context.Context, core *core) interfaces.Processor {
 	return &eventProcessor{
-		ctx:      ctx,
-		listener: listener,
+		ctx:  ctx,
+		core: core,
 	}
 }
 
@@ -27,11 +28,11 @@ func (ep *eventProcessor) Process() {
 		select {
 		case <-ep.ctx.Done():
 			return
-		case event, ok := <-ep.listener.newEvents:
+		case event, ok := <-ep.core.newEvents:
 			if !ok {
 				return
 			}
-			evSchema, err := ep.listener.abiParser.Decode(event)
+			evSchema, err := ep.core.abiParser.Decode(event)
 			if err != nil {
 				slog.Error("new event decode", "error", err)
 				continue
@@ -41,17 +42,23 @@ func (ep *eventProcessor) Process() {
 				continue
 			}
 
-			block := ep.listener.blockCache.Get(big.NewInt(int64(event.BlockNumber)))
+			block, _ := ep.core.blockCache.Get(big.NewInt(int64(event.BlockNumber)))
 			if block == nil {
 				slog.Error("couldn't fetch block", "hash", event.BlockHash)
 				continue
 			}
 
-			//todo: tags
-			ts := time.Unix(int64(block.Time()), 0)
-			evSchema.Fields["block"] = block.Number().Uint64()
+			ts := time.Unix(int64(block.NumberU64()), 0)
+			tags := map[string]string{}
+			tags["event_type"] = "protocol"
+			handler := registry.GetHandler(evSchema.Measurement)
+			//custom event handling only if registered
+			if handler != nil {
+				handler.Handle(evSchema, block, tags, ep.core.cp)
+			}
+
 			slog.Debug("new log event received", "name", evSchema.Measurement, "block", block.NumberU64())
-			go ep.listener.dbHandler.WriteEvent(evSchema, nil, ts)
+			go ep.core.dbHandler.WriteEvent(evSchema, tags, ts)
 		}
 	}
 }

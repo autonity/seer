@@ -29,6 +29,44 @@
         "x": 0,
         "y": 0
       },
+      "id": 34,
+      "panels": [],
+      "title": "Note",
+      "type": "row"
+    },
+    {
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 11,
+        "x": 0,
+        "y": 1
+      },
+      "id": 35,
+      "options": {
+        "code": {
+          "language": "plaintext",
+          "showLineNumbers": false,
+          "showMiniMap": false
+        },
+        "content": "Seer ingests block number as timestamp in the db. This helps us \nin filtering using block range. because Influx range usages time field\nas default filtering.\nThe actual time is pushed as a separate field in DB.",
+        "mode": "markdown"
+      },
+      "pluginVersion": "11.4.0",
+      "title": "Notes",
+      "type": "text"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 4
+      },
       "id": 22,
       "panels": [],
       "title": "Summary",
@@ -49,6 +87,7 @@
             "cellOptions": {
               "type": "color-text"
             },
+            "filterable": true,
             "inspect": false
           },
           "mappings": [],
@@ -68,7 +107,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 1
+        "y": 5
       },
       "id": 4,
       "options": {
@@ -86,7 +125,7 @@
       "pluginVersion": "11.4.0",
       "targets": [
         {
-          "query": "from(bucket:\"${bucket}\")\n  |>range(start: $__from/1000, stop: $__to/1000)\n  |> group(columns: [\"_measurement\"]) // Group by measurement\n  |> count(column: \"_value\")            // Sum the values for each measurement\n  |> group()                          // Ungroup to return a flat table\n  |> keep(columns: [\"_measurement\", \"_value\"]) // Keep only the measurement and total values\n  |> rename(columns: {_value: \"count\"}) // Rename the total column",
+          "query": "from(bucket:\"${bucket}\")\n  |>range(start: int(v: \"${block_start}\"), stop: int(v: \"${block_end}\"))\n  |> filter(fn: (r) => r[\"event_type\"]== \"protocol\")\n  |> group(columns: [\"_measurement\"]) \n  |> count(column: \"_value\") \n  |> group() \n  |> keep(columns: [\"_measurement\", \"_value\"]) \n  |> rename(columns: {_value: \"count\"}) ",
           "refId": "A"
         }
       ],
@@ -111,12 +150,464 @@
       "type": "table"
     },
     {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "de85digryc1dsb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true,
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "committee"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 492
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "block"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 132
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 5
+      },
+      "id": 32,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "frameIndex": 0,
+        "showHeader": true,
+        "sortBy": []
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: int(v: \"${block_start}\"), stop: int(v: \"${block_end}\"))\n|>filter(fn:(r)=>r[\"_measurement\"]==\"BlockHeader\")\n|>pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|> map(fn: (r) => ({ r with block: uint(v: uint(v: r._time) / uint(v :1000000000)) }))\n|>keep(columns: [\"block\", \"ap-absentees\", \"qc-absentees\"])\n|>group()\n|>sort(columns:[\"block\"], desc:true)\n|> limit(n:1000)\n\n",
+          "refId": "A"
+        }
+      ],
+      "title": "Block Absentees",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "_measurement": true,
+              "_start": true,
+              "_stop": true
+            },
+            "includeByName": {},
+            "indexByName": {
+              "_measurement": 3,
+              "_start": 0,
+              "_stop": 1,
+              "_time": 2,
+              "activityProofRound": 9,
+              "ap-absentees": 5,
+              "block": 4,
+              "committee": 7,
+              "epoch": 8,
+              "qc-absentees": 6,
+              "round": 10
+            },
+            "renameByName": {}
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "de85digryc1dsb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true,
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "committee"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 492
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "block"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 132
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 13
+      },
+      "id": 36,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "frameIndex": 0,
+        "showHeader": true,
+        "sortBy": []
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: int(v: \"${block_start}\"), stop: int(v: \"${block_end}\"))\n|>filter(fn:(r)=>r[\"_measurement\"]==\"BlockHeader\")\n|>pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|> map(fn: (r) => ({ r with block: uint(v: uint(v: r._time) / uint(v :1000000000)) }))\n|>drop(columns: [\"_time\", \"committee\", \"proposer\", \"ap-absentees\", \"qc-absentees\"])\n|>group()\n|>sort(columns:[\"block\"], desc:true)\n|> limit(n:1000)\n\n\n\n",
+          "refId": "A"
+        }
+      ],
+      "title": "Block Header",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "_measurement": true,
+              "_start": true,
+              "_stop": true
+            },
+            "includeByName": {},
+            "indexByName": {
+              "_measurement": 3,
+              "_start": 0,
+              "_stop": 1,
+              "_time": 2,
+              "activityProofRound": 9,
+              "ap-absentees": 5,
+              "block": 4,
+              "committee": 7,
+              "epoch": 8,
+              "qc-absentees": 6,
+              "round": 10
+            },
+            "renameByName": {}
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "de85digryc1dsb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true,
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "committee"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 492
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "block"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 132
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 13
+      },
+      "id": 33,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "frameIndex": 0,
+        "showHeader": true,
+        "sortBy": []
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: int(v: \"${block_start}\"), stop: int(v: \"${block_end}\"))\n|>filter(fn:(r)=>r[\"_measurement\"]==\"BlockHeader\")\n|>pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|> map(fn: (r) => ({ r with block: uint(v: uint(v: r._time) / uint(v :1000000000)) }))\n|>keep(columns: [\"block\", \"committee\", \"proposer\"])\n|>group()\n|>sort(columns:[\"block\"], desc:true)\n|> limit(n:1000)\n\n\n\n",
+          "refId": "A"
+        }
+      ],
+      "title": "Block Committee",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "_measurement": true,
+              "_start": true,
+              "_stop": true
+            },
+            "includeByName": {},
+            "indexByName": {
+              "_measurement": 3,
+              "_start": 0,
+              "_stop": 1,
+              "_time": 2,
+              "activityProofRound": 9,
+              "ap-absentees": 5,
+              "block": 4,
+              "committee": 7,
+              "epoch": 8,
+              "qc-absentees": 6,
+              "round": 10
+            },
+            "renameByName": {}
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "de85digryc1dsb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true,
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 21
+      },
+      "id": 30,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "block"
+          }
+        ]
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: int(v: \"${block_start}\"), stop: int(v: \"${block_end}\"))\n|>filter(fn:(r)=>r[\"_measurement\"]==\"ACNPeers\")\n|>pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|> map(fn: (r) => ({ r with block: uint(v: uint(v: r._time) / uint(v :1000000000)) }))\n|> drop (columns: [\"_time\"])\n|> group()\n|> limit(n:1000)\n\n",
+          "refId": "A"
+        }
+      ],
+      "title": "ACN Peers",
+      "transformations": [
+        {
+          "id": "labelsToFields",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "_measurement": true,
+              "_start": true,
+              "_stop": true
+            },
+            "includeByName": {},
+            "indexByName": {
+              "RemoteAddress": 5,
+              "_start": 6,
+              "_stop": 7,
+              "_time": 0,
+              "block": 1,
+              "enode": 2,
+              "id": 3,
+              "localAddress": 4
+            },
+            "renameByName": {}
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
       "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 9
+        "y": 29
       },
       "id": 21,
       "panels": [],
@@ -162,7 +653,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 10
+        "y": 30
       },
       "id": 18,
       "options": {
@@ -175,13 +666,14 @@
           ],
           "show": false
         },
+        "frameIndex": 0,
         "showHeader": true,
         "sortBy": []
       },
       "pluginVersion": "11.4.0",
       "targets": [
         {
-          "query": "from(bucket:\"${bucket}\")\n|>range(start: $__from/1000, stop: $__to/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"RegisteredValidator\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:10000)\n",
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: int(v: \"${block_start}\"), stop: int(v: \"${block_end}\"))\n|>filter(fn:(r)=>r[\"_measurement\"]==\"RegisteredValidator\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|> map(fn: (r) => ({ r with block: uint(v: uint(v: r._time) / uint(v :1000000000)) }))\n|> drop (columns: [\"_time\"])\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:10000)\n",
           "refId": "A"
         }
       ],
@@ -201,12 +693,15 @@
             },
             "includeByName": {},
             "indexByName": {
+              "_start": 7,
+              "_stop": 8,
               "_time": 0,
-              "amount {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": 1,
-              "block {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": 2,
-              "delegator {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": 3,
-              "selfBonded {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": 4,
-              "validator {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": 5
+              "addr": 2,
+              "block": 1,
+              "enode": 3,
+              "liquidStateContract": 4,
+              "oracleAddress": 5,
+              "treasury": 6
             },
             "renameByName": {
               "amount {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": ""
@@ -254,7 +749,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 10
+        "y": 30
       },
       "id": 3,
       "options": {
@@ -272,11 +767,37 @@
       "pluginVersion": "11.4.0",
       "targets": [
         {
-          "query": "from(bucket:\"seer_test\")\n|>range(start: $__from/1000, stop: $__to/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"ActivatedValidator\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>sort(columns: [\"block\"], desc: true)\n|>keep(columns:[\"block\", \"addr\", \"_time\",  \"effectiveBlock\", \"treasury\"])\n\n\n\n",
+          "query": "from(bucket:\"seer_test\")\n|>range(start: int(v: \"${block_start}\"), stop: int(v: \"${block_end}\"))\n|>filter(fn:(r)=>r[\"_measurement\"]==\"ActivatedValidator\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|> map(fn: (r) => ({ r with block: uint(v: uint(v: r._time) / uint(v :1000000000)) }))\n|> drop (columns: [\"_time\"])\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:10000)\n\n\n\n\n",
           "refId": "A"
         }
       ],
       "title": "ActivatedValidator",
+      "transformations": [
+        {
+          "id": "labelsToFields",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "_start": true,
+              "_stop": true
+            },
+            "includeByName": {},
+            "indexByName": {
+              "_start": 5,
+              "_stop": 6,
+              "_time": 0,
+              "addr": 2,
+              "block": 1,
+              "effectiveBlock": 3,
+              "treasury": 4
+            },
+            "renameByName": {}
+          }
+        }
+      ],
       "type": "table"
     },
     {
@@ -318,7 +839,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 18
+        "y": 38
       },
       "id": 8,
       "options": {
@@ -337,7 +858,7 @@
       "pluginVersion": "11.4.0",
       "targets": [
         {
-          "query": "from(bucket:\"${bucket}\")\n|>range(start: $__from/1000, stop: $__to/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"CommissionRateChange\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>keep(columns:[\"block\", \"rate\", \"validator\", \"_time\"])\n|>limit(n:10000)\n",
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: int(v: \"${block_start}\"), stop: int(v: \"${block_end}\"))\n|>filter(fn:(r)=>r[\"_measurement\"]==\"CommissionRateChange\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|> map(fn: (r) => ({ r with block: uint(v: uint(v: r._time) / uint(v :1000000000)) }))\n|> drop (columns: [\"_time\"])\n|>keep(columns:[\"block\", \"rate\", \"validator\", \"_time\"])\n|>limit(n:10000)\n",
           "refId": "A"
         }
       ],
@@ -383,7 +904,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 18
+        "y": 38
       },
       "id": 17,
       "options": {
@@ -402,7 +923,7 @@
       "pluginVersion": "11.4.0",
       "targets": [
         {
-          "query": "from(bucket:\"${bucket}\")\n|>range(start: $__from/1000, stop: $__to/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"PausedValidator\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>limit(n:10000)\n",
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: int(v: \"${block_start}\"), stop: int(v: \"${block_end}\"))\n|>filter(fn:(r)=>r[\"_measurement\"]==\"PausedValidator\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|> map(fn: (r) => ({ r with block: uint(v: uint(v: r._time) / uint(v :1000000000)) }))\n|> drop (columns: [\"_time\"])\n|>limit(n:1000)\n",
           "refId": "A"
         }
       ],
@@ -422,12 +943,13 @@
             },
             "includeByName": {},
             "indexByName": {
+              "_start": 5,
+              "_stop": 6,
               "_time": 0,
-              "amount {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": 1,
-              "block {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": 2,
-              "delegator {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": 3,
-              "selfBonded {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": 4,
-              "validator {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": 5
+              "addr": 2,
+              "block": 1,
+              "effectiveBlock": 3,
+              "treasury": 4
             },
             "renameByName": {
               "amount {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": ""
@@ -453,7 +975,7 @@
               "type": "auto"
             },
             "filterable": true,
-            "inspect": false
+            "inspect": true
           },
           "mappings": [],
           "thresholds": {
@@ -470,13 +992,26 @@
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "block"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 107
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 26
+        "y": 46
       },
       "id": 12,
       "options": {
@@ -495,7 +1030,7 @@
       "pluginVersion": "11.4.0",
       "targets": [
         {
-          "query": "from(bucket:\"${bucket}\")\n|>range(start: $__from/1000, stop: $__to/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"MintedStake\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:10000)\n",
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: int(v: \"${block_start}\"), stop: int(v: \"${block_end}\"))\n|>filter(fn:(r)=>r[\"_measurement\"]==\"MintedStake\" and r[\"event_type\"] == \"protocol\" )\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|> map(fn: (r) => ({ r with block: uint(v: uint(v: r._time) / uint(v :1000000000)) }))\n|>sort(columns: [\"block\"], desc: true)\n|>drop(columns:[\"event_type\", \"_time\"])\n|>limit(n:10000)\n",
           "refId": "A"
         }
       ],
@@ -567,7 +1102,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 26
+        "y": 46
       },
       "id": 1,
       "options": {
@@ -590,7 +1125,7 @@
             "type": "influxdb",
             "uid": "de85digryc1dsb"
           },
-          "query": "from(bucket: \"seer_test\")\n|>range(start: $__from/1000, stop: $__to/1000)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"Rewarded\")\n  |> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n\n",
+          "query": "from(bucket: \"seer_test\")\n|>range(start: int(v: \"${block_start}\"), stop: int(v: \"${block_end}\"))\n  |> filter(fn: (r) => r[\"_measurement\"] == \"Rewarded\")\n  |> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> map(fn: (r) => ({ r with block: uint(v: uint(v: r._time) / uint(v :1000000000)) }))\n|> drop (columns: [\"_time\"])\n  |> limit(n:1000)\n\n",
           "refId": "Rewarded"
         }
       ],
@@ -666,7 +1201,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 34
+        "y": 54
       },
       "id": 13,
       "options": {
@@ -679,13 +1214,14 @@
           ],
           "show": false
         },
+        "frameIndex": 0,
         "showHeader": true,
         "sortBy": []
       },
       "pluginVersion": "11.4.0",
       "targets": [
         {
-          "query": "from(bucket:\"${bucket}\")\n|>range(start: $__from/1000, stop: $__to/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"NewBondingRequest\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:10000)\n",
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: int(v: \"${block_start}\"), stop: int(v: \"${block_end}\"))\n|>filter(fn:(r)=>r[\"_measurement\"]==\"NewBondingRequest\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|> map(fn: (r) => ({ r with block: uint(v: uint(v: r._time) / uint(v :1000000000)) }))\n|> drop (columns: [\"_time\"])\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:1000)\n",
           "refId": "A"
         }
       ],
@@ -752,13 +1288,26 @@
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "block"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 95
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 34
+        "y": 54
       },
       "id": 16,
       "options": {
@@ -771,13 +1320,14 @@
           ],
           "show": false
         },
+        "frameIndex": 1,
         "showHeader": true,
         "sortBy": []
       },
       "pluginVersion": "11.4.0",
       "targets": [
         {
-          "query": "from(bucket:\"${bucket}\")\n|>range(start: $__from/1000, stop: $__to/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"NewUnbondingRequest\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:10000)\n",
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: int(v: \"${block_start}\"), stop: int(v: \"${block_end}\"))\n|>filter(fn:(r)=>r[\"_measurement\"]==\"NewUnbondingRequest\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|> map(fn: (r) => ({ r with block: uint(v: uint(v: r._time) / uint(v :1000000000)) }))\n|> drop (columns: [\"_time\", \"event_type\"])\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:1000)\n",
           "refId": "A"
         }
       ],
@@ -847,13 +1397,38 @@
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "block"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 80
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "committee"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 1135
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 42
+        "y": 62
       },
       "id": 14,
       "options": {
@@ -872,11 +1447,32 @@
       "pluginVersion": "11.4.0",
       "targets": [
         {
-          "query": "from(bucket:\"${bucket}\")\n|>range(start: $__from/1000, stop: $__to/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"NewEpoch\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>keep(columns:[ \"_time\", \"block\", \"epoch\"])\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:10000)\n",
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: int(v: \"${block_start}\"), stop: int(v: \"${block_end}\"))\n|>filter(fn:(r)=>r[\"_measurement\"]==\"NewEpoch\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|> map(fn: (r) => ({ r with block: uint(v: uint(v: r._time) / uint(v :1000000000)) }))\n|> drop (columns: [\"_time\"])\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:10000)\n",
           "refId": "A"
         }
       ],
       "title": "NewEpoch",
+      "transformations": [
+        {
+          "id": "labelsToFields",
+          "options": {
+            "keepLabels": [
+              "event_type"
+            ]
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "event_type": true
+            },
+            "includeByName": {},
+            "indexByName": {},
+            "renameByName": {}
+          }
+        }
+      ],
       "type": "table"
     },
     {
@@ -885,7 +1481,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 50
+        "y": 70
       },
       "id": 25,
       "panels": [],
@@ -925,13 +1521,26 @@
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "block"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 92
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 51
+        "y": 71
       },
       "id": 10,
       "options": {
@@ -944,13 +1553,14 @@
           ],
           "show": false
         },
+        "frameIndex": 1,
         "showHeader": true,
         "sortBy": []
       },
       "pluginVersion": "11.4.0",
       "targets": [
         {
-          "query": "from(bucket:\"${bucket}\")\n|>range(start: $__from/1000, stop: $__to/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"InactivityJailingEvent\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:10000)\n",
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: int(v: \"${block_start}\"), stop: int(v: \"${block_end}\"))\n|>filter(fn:(r)=>r[\"_measurement\"]==\"InactivityJailingEvent\" and r[\"event_type\"]==\"protocol\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|> map(fn: (r) => ({ r with block: uint(v: uint(v: r._time) / uint(v :1000000000)) }))\n|> drop (columns: [\"_time\"])\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:1000)\n",
           "refId": "A"
         }
       ],
@@ -965,10 +1575,19 @@
           "options": {
             "excludeByName": {
               "_start": true,
-              "_stop": true
+              "_stop": true,
+              "event_type": true
             },
             "includeByName": {},
-            "indexByName": {},
+            "indexByName": {
+              "InactivityScore": 1,
+              "_start": 4,
+              "_stop": 5,
+              "block": 0,
+              "event_type": 6,
+              "releaseBlock": 2,
+              "validator": 3
+            },
             "renameByName": {}
           }
         }
@@ -981,7 +1600,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 59
+        "y": 79
       },
       "id": 24,
       "panels": [],
@@ -1021,13 +1640,26 @@
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "block"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 76
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 60
+        "y": 80
       },
       "id": 15,
       "options": {
@@ -1046,7 +1678,7 @@
       "pluginVersion": "11.4.0",
       "targets": [
         {
-          "query": "from(bucket:\"${bucket}\")\n|>range(start: $__from/1000, stop: $__to/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"NewRound\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:10000)\n",
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: int(v: \"${block_start}\"), stop: int(v: \"${block_end}\"))\n|>filter(fn:(r)=>r[\"_measurement\"]==\"NewRound\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|> map(fn: (r) => ({ r with block: uint(v: uint(v: r._time) / uint(v :1000000000)) }))\n|> drop (columns: [\"_time\", \"event_type\", \"_height\"])\n\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:1000)\n",
           "refId": "A"
         }
       ],
@@ -1156,7 +1788,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 60
+        "y": 80
       },
       "id": 2,
       "options": {
@@ -1175,7 +1807,7 @@
       "pluginVersion": "11.4.0",
       "targets": [
         {
-          "query": "from(bucket:\"seer_test\")\n|>range(start: $__from/1000, stop: $__to/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"Penalized\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:10000)",
+          "query": "from(bucket:\"seer_test\")\n|>range(start: int(v: \"${block_start}\"), stop: int(v: \"${block_end}\"))\n|>filter(fn:(r)=>r[\"_measurement\"]==\"Penalized\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|> map(fn: (r) => ({ r with block: uint(v: uint(v: r._time) / uint(v :1000000000)) }))\n|> drop (columns: [\"_time\"])\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:10000)",
           "refId": "A"
         }
       ],
@@ -1215,7 +1847,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 68
+        "y": 88
       },
       "id": 26,
       "panels": [],
@@ -1255,13 +1887,26 @@
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "block"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 95
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 69
+        "y": 89
       },
       "id": 11,
       "options": {
@@ -1280,7 +1925,7 @@
       "pluginVersion": "11.4.0",
       "targets": [
         {
-          "query": "from(bucket:\"${bucket}\")\n|>range(start: $__from/1000, stop: $__to/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"Mint\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>limit(n:10000)\n",
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: int(v: \"${block_start}\"), stop: int(v: \"${block_end}\"))\n|>filter(fn:(r)=>r[\"_measurement\"]==\"Mint\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|> map(fn: (r) => ({ r with block: uint(v: uint(v: r._time) / uint(v :1000000000)) }))\n|> drop (columns: [\"_time\", \"event_type\"])\n|>limit(n:1000)\n",
           "refId": "A"
         }
       ],
@@ -1318,7 +1963,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 77
+        "y": 97
       },
       "id": 23,
       "panels": [],
@@ -1358,13 +2003,26 @@
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "block"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 80
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 78
+        "y": 98
       },
       "id": 7,
       "options": {
@@ -1383,7 +2041,7 @@
       "pluginVersion": "11.4.0",
       "targets": [
         {
-          "query": "from(bucket:\"${bucket}\")\n|>range(start: $__from/1000, stop: $__to/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"Borrow\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>limit(n:10000)\n",
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: int(v: \"${block_start}\"), stop: int(v: \"${block_end}\"))\n|>filter(fn:(r)=>r[\"_measurement\"]==\"Borrow\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|> map(fn: (r) => ({ r with block: uint(v: uint(v: r._time) / uint(v :1000000000)) }))\n|> drop (columns: [\"_time\", \"event_type\"])\n|>limit(n:1000)\n",
           "refId": "A"
         }
       ],
@@ -1448,13 +2106,26 @@
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "block"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 83
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 78
+        "y": 98
       },
       "id": 9,
       "options": {
@@ -1473,7 +2144,7 @@
       "pluginVersion": "11.4.0",
       "targets": [
         {
-          "query": "from(bucket:\"${bucket}\")\n|>range(start: $__from/1000, stop: $__to/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"Deposit\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>limit(n:10000)\n",
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: int(v: \"${block_start}\"), stop: int(v: \"${block_end}\"))\n|>filter(fn:(r)=>r[\"_measurement\"]==\"Deposit\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|> map(fn: (r) => ({ r with block: uint(v: uint(v: r._time) / uint(v :1000000000)) }))\n|> drop (columns: [\"_time\", \"event_type\"])\n|>limit(n:1000)\n",
           "refId": "A"
         }
       ],
@@ -1511,7 +2182,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 86
+        "y": 106
       },
       "id": 28,
       "panels": [],
@@ -1551,13 +2222,26 @@
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "block"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 73
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 87
+        "y": 107
       },
       "id": 20,
       "options": {
@@ -1581,7 +2265,7 @@
       "pluginVersion": "11.4.0",
       "targets": [
         {
-          "query": "from(bucket:\"${bucket}\")\n|>range(start: $__from/1000, stop: $__to/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"Updated\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:10000)\n",
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: int(v: \"${block_start}\"), stop: int(v: \"${block_end}\"))\n|>filter(fn:(r)=>r[\"_measurement\"]==\"Updated\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|> map(fn: (r) => ({ r with block: uint(v: uint(v: r._time) / uint(v :1000000000)) }))\n|> drop (columns: [\"_time\", \"height\", \"event_type\"])\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:1000)\n",
           "refId": "A"
         }
       ],
@@ -1617,283 +2301,298 @@
       "type": "table"
     },
     {
-      "collapsed": true,
+      "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 95
+        "y": 115
       },
       "id": 27,
-      "panels": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "de85digryc1dsb"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "thresholds"
-              },
-              "custom": {
-                "align": "auto",
-                "cellOptions": {
-                  "type": "auto"
-                },
-                "filterable": true,
-                "inspect": false
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 0,
-            "y": 344
-          },
-          "id": 6,
-          "options": {
-            "cellHeight": "sm",
-            "footer": {
-              "countRows": false,
-              "fields": "",
-              "reducer": [
-                "sum"
-              ],
-              "show": false
-            },
-            "showHeader": true,
-            "sortBy": []
-          },
-          "pluginVersion": "11.4.0",
-          "targets": [
-            {
-              "query": "from(bucket:\"${bucket}\")\n|>range(start: $__from/1000, stop: $__to/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"Approval\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>limit(n:10000)\n",
-              "refId": "A"
-            }
-          ],
-          "title": "Approval",
-          "transformations": [
-            {
-              "id": "labelsToFields",
-              "options": {}
-            },
-            {
-              "id": "organize",
-              "options": {
-                "excludeByName": {
-                  "_start": true,
-                  "_stop": true
-                },
-                "includeByName": {},
-                "indexByName": {},
-                "renameByName": {}
-              }
-            }
-          ],
-          "type": "table"
-        },
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "de85digryc1dsb"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "thresholds"
-              },
-              "custom": {
-                "align": "auto",
-                "cellOptions": {
-                  "type": "auto"
-                },
-                "filterable": true,
-                "inspect": false
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 12,
-            "y": 344
-          },
-          "id": 19,
-          "options": {
-            "cellHeight": "sm",
-            "footer": {
-              "countRows": false,
-              "fields": "",
-              "reducer": [
-                "sum"
-              ],
-              "show": false
-            },
-            "showHeader": true,
-            "sortBy": []
-          },
-          "pluginVersion": "11.4.0",
-          "targets": [
-            {
-              "query": "from(bucket:\"${bucket}\")\n|>range(start: $__from/1000, stop: $__to/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"Transfer\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>limit(n:10000)\n",
-              "refId": "A"
-            }
-          ],
-          "title": "Transfer",
-          "transformations": [
-            {
-              "id": "labelsToFields",
-              "options": {}
-            },
-            {
-              "id": "organize",
-              "options": {
-                "excludeByName": {
-                  "_start": true,
-                  "_stop": true,
-                  "amount {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": false
-                },
-                "includeByName": {},
-                "indexByName": {
-                  "_time": 0,
-                  "amount {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": 1,
-                  "block {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": 2,
-                  "delegator {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": 3,
-                  "selfBonded {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": 4,
-                  "validator {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": 5
-                },
-                "renameByName": {
-                  "amount {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": ""
-                }
-              }
-            }
-          ],
-          "type": "table"
-        },
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "de85digryc1dsb"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "drawStyle": "line",
-                "fillOpacity": 0,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "auto",
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 0,
-            "y": 352
-          },
-          "id": 5,
-          "options": {
-            "legend": {
-              "calcs": [],
-              "displayMode": "list",
-              "placement": "bottom",
-              "showLegend": true
-            },
-            "tooltip": {
-              "mode": "single",
-              "sort": "none"
-            }
-          },
-          "pluginVersion": "11.4.0",
-          "targets": [
-            {
-              "query": "\n\tfrom(bucket:\"seer_test\")\n\t\t\t|> range(start: 0)\n\t\t\t|> filter(fn: (r) => r[\"_measurement\"]==\"LastProcessed\")\n\t\t\t|> sort(columns: [\"_time\"], desc: true)\n\t\t\t|> limit(n: 10)",
-              "refId": "A"
-            }
-          ],
-          "title": "LastProcessed",
-          "type": "timeseries"
-        }
-      ],
+      "panels": [],
       "title": "Misc",
       "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "de85digryc1dsb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true,
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "block"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 71
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 116
+      },
+      "id": 6,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": []
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: int(v: \"${block_start}\"), stop: int(v: \"${block_end}\"))\n|>filter(fn:(r)=>r[\"_measurement\"]==\"Approval\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|> map(fn: (r) => ({ r with block: uint(v: uint(v: r._time) / uint(v :1000000000)) }))\n|> drop (columns: [\"_time\", \"event_type\"])\n|>limit(n:1000)\n",
+          "refId": "A"
+        }
+      ],
+      "title": "Approval",
+      "transformations": [
+        {
+          "id": "labelsToFields",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "_start": true,
+              "_stop": true
+            },
+            "includeByName": {},
+            "indexByName": {},
+            "renameByName": {}
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "de85digryc1dsb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true,
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "block"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 91
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 116
+      },
+      "id": 19,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": []
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: int(v: \"${block_start}\"), stop: int(v: \"${block_end}\"))\n|>filter(fn:(r)=>r[\"_measurement\"]==\"Transfer\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|> map(fn: (r) => ({ r with block: uint(v: uint(v: r._time) / uint(v :1000000000)) }))\n|> drop (columns: [\"_time\", \"event_type\"])\n|>limit(n:1000)\n",
+          "refId": "A"
+        }
+      ],
+      "title": "Transfer",
+      "transformations": [
+        {
+          "id": "labelsToFields",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "_start": true,
+              "_stop": true,
+              "amount {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": false
+            },
+            "includeByName": {},
+            "indexByName": {
+              "_time": 0,
+              "amount {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": 1,
+              "block {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": 2,
+              "delegator {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": 3,
+              "selfBonded {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": 4,
+              "validator {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": 5
+            },
+            "renameByName": {
+              "amount {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": ""
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "de85digryc1dsb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 124
+      },
+      "id": 5,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "query": "\n\tfrom(bucket:\"${bucket}\")\n\t\t\t|>range(start: -1y)\n\t\t\t|> filter(fn: (r) => r[\"_measurement\"]==\"LastProcessed\")\n\t\t\t|> sort(columns: [\"_time\"], desc: true)\n\t\t\t|> limit(n: 1000)",
+          "refId": "A"
+        }
+      ],
+      "title": "LastProcessed",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "includeByName": {},
+            "indexByName": {
+              "Time": 1,
+              "block": 0
+            },
+            "renameByName": {}
+          }
+        }
+      ],
+      "type": "table"
     }
   ],
   "preload": false,
@@ -1903,8 +2602,8 @@
     "list": [
       {
         "current": {
-          "text": "seer_test",
-          "value": "seer_test"
+          "text": "seer_temp",
+          "value": "seer_temp"
         },
         "definition": "buckets()",
         "description": "",
@@ -1917,17 +2616,52 @@
         "refresh": 1,
         "regex": "",
         "type": "query"
+      },
+      {
+        "current": {
+          "text": "0",
+          "value": "0"
+        },
+        "description": "",
+        "label": "block_start",
+        "name": "block_start",
+        "options": [
+          {
+            "selected": true,
+            "text": "0",
+            "value": "0"
+          }
+        ],
+        "query": "0",
+        "type": "textbox"
+      },
+      {
+        "current": {
+          "text": "100000",
+          "value": "100000"
+        },
+        "label": "block_end",
+        "name": "block_end",
+        "options": [
+          {
+            "selected": true,
+            "text": "100000",
+            "value": "100000"
+          }
+        ],
+        "query": "100000",
+        "type": "textbox"
       }
     ]
   },
   "time": {
-    "from": "2024-08-20T13:39:03.700Z",
-    "to": "2025-04-17T13:39:03.708Z"
+    "from": "2025-01-14T14:11:01.591Z",
+    "to": "2025-01-14T14:41:01.591Z"
   },
   "timepicker": {},
   "timezone": "browser",
   "title": "Autonity Events",
   "uid": "fe86msn60epdsf",
-  "version": 53,
+  "version": 106,
   "weekStart": ""
 }

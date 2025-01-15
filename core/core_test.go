@@ -1,4 +1,4 @@
-package listener
+package core
 
 import (
 	"context"
@@ -13,9 +13,9 @@ import (
 	"Seer/mocks"
 )
 
-func defaultListener() *Listener {
+func defaultListener() *core {
 	cfg := config.NodeConfig{}
-	return &Listener{
+	return &core{
 		nodeConfig: cfg,
 		newBlocks:  make(chan *types.Block, 10),
 		newEvents:  make(chan types.Log, 100),
@@ -35,7 +35,7 @@ func TestListener_markProcessed(t *testing.T) {
 	// Mock dependencies
 	mockDBHandler := mocks.NewMockDatabaseHandler(ctrl)
 
-	// Setup Listener
+	// Setup core
 	l := defaultListener()
 	l.dbHandler = mockDBHandler
 
@@ -62,7 +62,7 @@ func TestListener_ReadBatch(t *testing.T) {
 	mockDBHandler := mocks.NewMockDatabaseHandler(ctrl)
 	mockABIParser := mocks.NewMockABIParser(ctrl)
 
-	// Setup Listener
+	// Setup core
 	listener := defaultListener()
 	listener.dbHandler = mockDBHandler
 	listener.abiParser = mockABIParser
@@ -77,7 +77,7 @@ func TestListener_ReadBatch(t *testing.T) {
 	// Test ReadBatch
 	workQueue := make(chan [2]uint64, 1)
 	listener.Add(1)
-	go listener.ReadBatch(context.Background(), mockClient, workQueue)
+	go listener.ReadEventBatch(context.Background(), mockClient, workQueue)
 
 	workQueue <- [2]uint64{1, 10}
 	workQueue <- [2]uint64{10, 20}
@@ -94,7 +94,7 @@ func TestListener_ReadHistoricalData(t *testing.T) {
 	mockDBHandler := mocks.NewMockDatabaseHandler(ctrl)
 	mockABIParser := mocks.NewMockABIParser(ctrl)
 
-	// Setup Listener
+	// Setup core
 	listener := defaultListener()
 	listener.dbHandler = mockDBHandler
 	listener.abiParser = mockABIParser

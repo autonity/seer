@@ -9,7 +9,7 @@ import (
 	"github.com/autonity/autonity/core/types"
 )
 
-type Listener interface {
+type Core interface {
 	Start(ctx context.Context)
 	Stop()
 }
