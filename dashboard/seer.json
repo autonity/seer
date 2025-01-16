@@ -207,6 +207,30 @@
                 "value": 132
               }
             ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "num-ap-absentees"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 198
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "num-qc-absentees"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 187
+              }
+            ]
           }
         ]
       },
@@ -234,7 +258,7 @@
       "pluginVersion": "11.4.0",
       "targets": [
         {
-          "query": "from(bucket:\"${bucket}\")\n|>range(start: int(v: \"${block_start}\"), stop: int(v: \"${block_end}\"))\n|>filter(fn:(r)=>r[\"_measurement\"]==\"BlockHeader\")\n|>pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|> map(fn: (r) => ({ r with block: uint(v: uint(v: r._time) / uint(v :1000000000)) }))\n|>keep(columns: [\"block\", \"ap-absentees\", \"qc-absentees\"])\n|>group()\n|>sort(columns:[\"block\"], desc:true)\n|> limit(n:1000)\n\n",
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: int(v: \"${block_start}\"), stop: int(v: \"${block_end}\"))\n|>filter(fn:(r)=>r[\"_measurement\"]==\"BlockHeader\")\n|>pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|> map(fn: (r) => ({ r with block: uint(v: uint(v: r._time) / uint(v :1000000000)) }))\n|>keep(columns: [\"block\", \"ap-absentees\", \"qc-absentees\", \"num-qc-absentees\", \"num-ap-absentees\"])\n|>group()\n|>sort(columns:[\"block\"], desc:true)\n|> limit(n:1000)\n\n",
           "refId": "A"
         }
       ],
@@ -250,17 +274,11 @@
             },
             "includeByName": {},
             "indexByName": {
-              "_measurement": 3,
-              "_start": 0,
-              "_stop": 1,
-              "_time": 2,
-              "activityProofRound": 9,
-              "ap-absentees": 5,
-              "block": 4,
-              "committee": 7,
-              "epoch": 8,
-              "qc-absentees": 6,
-              "round": 10
+              "ap-absentees": 2,
+              "block": 0,
+              "num-ap-absentees": 1,
+              "num-qc-absentees": 3,
+              "qc-absentees": 4
             },
             "renameByName": {}
           }
@@ -307,6 +325,10 @@
               {
                 "color": "green",
                 "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
               }
             ]
           }
@@ -378,7 +400,7 @@
           "refId": "B"
         }
       ],
-      "title": "Summary",
+      "title": "Accountability Events Over blocks",
       "transformations": [
         {
           "id": "organize",
@@ -440,7 +462,7 @@
             "properties": [
               {
                 "id": "custom.width",
-                "value": 492
+                "value": 1029
               }
             ]
           },
@@ -452,7 +474,7 @@
             "properties": [
               {
                 "id": "custom.width",
-                "value": 132
+                "value": 81
               }
             ]
           }
@@ -482,7 +504,7 @@
       "pluginVersion": "11.4.0",
       "targets": [
         {
-          "query": "from(bucket:\"${bucket}\")\n|>range(start: int(v: \"${block_start}\"), stop: int(v: \"${block_end}\"))\n|>filter(fn:(r)=>r[\"_measurement\"]==\"BlockHeader\")\n|>pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|> map(fn: (r) => ({ r with block: uint(v: uint(v: r._time) / uint(v :1000000000)) }))\n|>keep(columns: [\"block\", \"committee\", \"proposer\"])\n|>group()\n|>sort(columns:[\"block\"], desc:true)\n|> limit(n:1000)\n\n\n\n",
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: int(v: \"${block_start}\"), stop: int(v: \"${block_end}\"))\n|>filter(fn:(r)=>r[\"_measurement\"]==\"BlockHeader\")\n|>pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|> map(fn: (r) => ({ r with block: uint(v: uint(v: r._time) / uint(v :1000000000)) }))\n|>keep(columns: [\"block\", \"committee\", \"proposer\", \"skipped-proposer\"])\n|>group()\n|>sort(columns:[\"block\"], desc:true)\n|> limit(n:1000)\n\n\n\n",
           "refId": "A"
         }
       ],
@@ -1113,7 +1135,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -1216,7 +1239,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -1314,7 +1338,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -1406,7 +1431,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -1514,7 +1540,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -1637,7 +1664,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -1755,7 +1783,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -1859,7 +1888,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -2000,7 +2030,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -2115,7 +2146,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -2217,7 +2249,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -2332,7 +2365,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -2455,7 +2489,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -2550,7 +2585,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -2654,7 +2690,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -2718,8 +2755,8 @@
     "list": [
       {
         "current": {
-          "text": "seer_temp",
-          "value": "seer_temp"
+          "text": "seer_temp_1",
+          "value": "seer_temp_1"
         },
         "definition": "buckets()",
         "description": "",
@@ -2735,8 +2772,8 @@
       },
       {
         "current": {
-          "text": "70000",
-          "value": "70000"
+          "text": "0",
+          "value": "0"
         },
         "description": "",
         "label": "block_start",
@@ -2744,11 +2781,11 @@
         "options": [
           {
             "selected": true,
-            "text": "70000",
-            "value": "70000"
+            "text": "0",
+            "value": "0"
           }
         ],
-        "query": "70000",
+        "query": "0",
         "type": "textbox"
       },
       {
@@ -2778,6 +2815,6 @@
   "timezone": "browser",
   "title": "Autonity Events",
   "uid": "fe86msn60epdsf",
-  "version": 109,
+  "version": 111,
   "weekStart": ""
 }

@@ -26,10 +26,6 @@ mock-gen:
     		echo "Generated mock for $$file"; \
     	done
 
-#	$(MOCK_GEN) -source=./interfaces/abiParser.go -destination=./mocks/abiParser_mock.go -package=mocks
-#	$(MOCK_GEN) -source=./interfaces/databseHandler.go -destination=./mocks/dbHandler_mock.go -package=mocks
-#	$(MOCK_GEN) -source=./interfaces/listener.go -destination=./mocks/listener_mock.go -package=mocks
-
 build: mock-gen
 	@echo "Building $(APP_NAME)..."
 	@mkdir -p $(BIN_DIR)
@@ -38,7 +34,7 @@ build: mock-gen
 
 run: build
 	@echo "Running $(APP_NAME)..."
-	$(BIN_DIR)/$(APP_NAME) $(START_CMD)
+	cd $(BIN_DIR) && ./$(APP_NAME) $(START_CMD) --config ../config/config.yaml
 
 test:
 	@echo "Running tests..."

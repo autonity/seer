@@ -49,24 +49,23 @@ Seer uses **Viper** for configuration management. You can specify options via:
 
 ### Sample `config.yaml`:
 ```yaml
-node: #autonity node config
-  rpc: ""  
-db: # influx db config
-  url:
-  token:
-  bucket:
-  user:
-  password:
-  org: "autonity"
-contracts: # contracts config
-  - address:
-    name:
-    abi: # abi file name
-  - address:
-    name:
-    abi:
-logging:
-  level: "info"
+seer:
+   logLevel: "info"
+node:
+   rpc:
+      - "http://35.242.168.170:8545"
+   ws:
+      - "wss://rpc2.piccadilly.autonity.org/ws"
+   sync:
+      history: true 
+db:
+   url: "http://127.0.0.1:8086"
+   # yamllint disable-line rule:line-length
+   token: "" # provide influxdb access token
+   bucket: "seer_temp_1" #will be created automatically, if not exist already
+   org: "autonity" #organisation needs to be created manually
+abi:
+   dir: "../abis"
 ```
 ---
 
