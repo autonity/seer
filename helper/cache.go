@@ -12,8 +12,8 @@ import (
 	"github.com/autonity/autonity/core/types"
 	"github.com/autonity/autonity/ethclient"
 
-	"Seer/interfaces"
-	"Seer/net"
+	"seer/interfaces"
+	"seer/net"
 )
 
 var (

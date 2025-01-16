@@ -6,16 +6,19 @@ import (
 	"strings"
 	"time"
 
+	"github.com/autonity/autonity/accounts/abi/bind"
 	"github.com/autonity/autonity/autonity"
 	"github.com/autonity/autonity/core/types"
 	"github.com/autonity/autonity/p2p"
 
-	"Seer/interfaces"
+	"seer/helper"
+	"seer/interfaces"
 )
 
 var (
-	acnPeers    = "ACNPeers"
-	BlockHeader = "BlockHeader"
+	acnPeers        = "ACNPeers"
+	BlockHeader     = "BlockHeader"
+	InactivityScore = "InactivityScore"
 )
 
 type blockProcessor struct {
@@ -94,16 +97,12 @@ func (bp *blockProcessor) recordBlock(block *types.Block) {
 
 	//TODO: review correct epoch is pulled
 	autCommittee := make([]autonity.AutonityCommitteeMember, 0)
+	committeeMembers := make([]types.CommitteeMember, 0)
 	if block.IsEpochHead() {
 		fields["epoch"] = block.NumberU64()
-		committee := header.Epoch.Committee
-		for _, member := range committee.Members {
-			autCommittee = append(autCommittee, autonity.AutonityCommitteeMember{
-				Addr:         member.Address,
-				ConsensusKey: member.ConsensusKeyBytes,
-				VotingPower:  member.VotingPower,
-			})
-		}
+		committeeMembers = header.Epoch.Committee.Members
+		autCommittee = helper.CommitteeToAutCommittee(committeeMembers)
+
 	} else {
 		epochInfo := bp.core.epochInfoCache.Get(block.Number())
 		if epochInfo == nil {
@@ -112,7 +111,18 @@ func (bp *blockProcessor) recordBlock(block *types.Block) {
 		}
 		fields["epoch"] = epochInfo.EpochBlock.Uint64()
 		autCommittee = epochInfo.Committee
+		committeeMembers = helper.AutCommitteeToCommittee(autCommittee)
 	}
+
+	com := &types.Committee{
+		Members: committeeMembers,
+	}
+	skippedProposers := make([]string, 0)
+	for i := 0; i < int(header.Round); i++ {
+		sk := com.Proposer(header.Number.Uint64(), int64(header.Round))
+		skippedProposers = append(skippedProposers, sk.String())
+	}
+	fields["skipped-proposer"] = strings.Join(skippedProposers, ",")
 
 	getMembers := func(ag *types.AggregateSignature) []string {
 		var members []string
@@ -147,9 +157,13 @@ func (bp *blockProcessor) recordBlock(block *types.Block) {
 		}
 		return ab
 	}
+	qcAbsentees := absentees(getMembers(header.QuorumCertificate))
+	apAbsentees := absentees(getMembers(header.ActivityProof))
+	fields["qc-absentees"] = strings.Join(qcAbsentees, ",")
+	fields["ap-absentees"] = strings.Join(apAbsentees, ",")
 
-	fields["qc-absentees"] = strings.Join(absentees(getMembers(header.QuorumCertificate)), ",")
-	fields["ap-absentees"] = strings.Join(absentees(getMembers(header.ActivityProof)), ",")
+	fields["num-qc-absentees"] = len(qcAbsentees)
+	fields["num-ap-absentees"] = len(apAbsentees)
 
 	cm := make([]string, 0, len(autCommittee))
 	for _, mem := range autCommittee {
@@ -159,4 +173,29 @@ func (bp *blockProcessor) recordBlock(block *types.Block) {
 
 	ts := time.Unix(int64(block.NumberU64()), 0)
 	bp.core.dbHandler.WritePoint(BlockHeader, tags, fields, ts)
+	go bp.trackInactivity(block, com.Members)
+}
+
+func (bp *blockProcessor) trackInactivity(block *types.Block, committee []types.CommitteeMember) {
+	con := bp.core.cp.GetWebSocketConnection()
+	defer bp.core.cp.PutWebSocketConnection(con)
+	omissionBindings, err := autonity.NewOmissionAccountability(helper.OmissionAccountabilityContractAddress, con.Client)
+	if err != nil {
+		slog.Error("unable to create autonity bindings", "error", err)
+	}
+
+	fields := make(map[string]interface{}, 0)
+	tags := make(map[string]string, 0)
+	ts := time.Unix(int64(block.NumberU64()), 0)
+	for _, m := range committee {
+		inactivityScore, err := omissionBindings.GetInactivityScore(&bind.CallOpts{
+			BlockNumber: block.Number(),
+		}, m.Address)
+		if err != nil {
+			continue
+		}
+		fields["InactivityScore"] = inactivityScore
+		tags["validator"] = m.Address.String()
+		bp.core.dbHandler.WritePoint(InactivityScore, tags, fields, ts)
+	}
 }

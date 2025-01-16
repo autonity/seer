@@ -10,11 +10,11 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	"Seer/config"
-	"Seer/core"
-	"Seer/db"
-	"Seer/net"
-	"Seer/schema"
+	"seer/config"
+	"seer/core"
+	"seer/db"
+	"seer/net"
+	"seer/schema"
 )
 
 var startCommand = &cobra.Command{

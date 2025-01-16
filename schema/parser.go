@@ -6,16 +6,17 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strconv"
 	"sync"
 
 	"github.com/autonity/autonity/accounts/abi"
 	"github.com/autonity/autonity/common"
 	"github.com/autonity/autonity/core/types"
 
-	"Seer/config"
-	"Seer/events/registry"
-	"Seer/interfaces"
-	"Seer/model"
+	"seer/config"
+	"seer/events/registry"
+	"seer/interfaces"
+	"seer/model"
 )
 
 type EventDetails struct {
@@ -116,6 +117,7 @@ func (ap *abiParser) Decode(log types.Log) (model.EventSchema, error) {
 	defer ap.eventDetail.RUnlock()
 	eventDetails := ap.eventDetail.data[log.Topics[0]]
 	decodedEvent := map[string]interface{}{}
+
 	indexed := make([]abi.Argument, 0)
 	for _, input := range eventDetails.abi.Inputs {
 		if input.Indexed {
@@ -135,6 +137,7 @@ func (ap *abiParser) Decode(log types.Log) (model.EventSchema, error) {
 		slog.Error("unable to decode event", "error", err)
 		return model.EventSchema{}, err
 	}
+	decodedEvent["eventID_seer"] = log.TxHash.String() + "_" + strconv.Itoa(int(log.TxIndex))
 	evSchema := model.EventSchema{Measurement: eventDetails.abi.Name, Fields: decodedEvent}
 	return evSchema, nil
 }

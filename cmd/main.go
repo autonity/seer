@@ -3,7 +3,7 @@ package main
 import (
 	"log/slog"
 
-	"Seer/cli"
+	"seer/cli"
 )
 
 var (

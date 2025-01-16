@@ -4,7 +4,9 @@ import (
 	"log/slog"
 
 	"github.com/autonity/autonity/accounts/abi"
+	"github.com/autonity/autonity/autonity"
 	"github.com/autonity/autonity/common"
+	"github.com/autonity/autonity/core/types"
 	"github.com/autonity/autonity/crypto"
 )
 
@@ -90,4 +92,27 @@ func AddressToContractName(address common.Address) string {
 		return "OmissionAccountability"
 	}
 	return "Unknown"
+}
+
+func AutCommitteeToCommittee(autCommittee []autonity.AutonityCommitteeMember) []types.CommitteeMember {
+	committee := make([]types.CommitteeMember, 0)
+	for _, member := range autCommittee {
+		committee = append(committee, types.CommitteeMember{
+			Address:           member.Addr,
+			ConsensusKeyBytes: member.ConsensusKey,
+			VotingPower:       member.VotingPower,
+		})
+	}
+	return committee
+}
+func CommitteeToAutCommittee(committee []types.CommitteeMember) []autonity.AutonityCommitteeMember {
+	autCommittee := make([]autonity.AutonityCommitteeMember, 0)
+	for _, member := range committee {
+		autCommittee = append(autCommittee, autonity.AutonityCommitteeMember{
+			Addr:         member.Address,
+			ConsensusKey: member.ConsensusKeyBytes,
+			VotingPower:  member.VotingPower,
+		})
+	}
+	return autCommittee
 }

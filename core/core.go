@@ -10,10 +10,10 @@ import (
 	ethereum "github.com/autonity/autonity"
 	"github.com/autonity/autonity/core/types"
 
-	"Seer/config"
-	"Seer/helper"
-	"Seer/interfaces"
-	"Seer/net"
+	"seer/config"
+	"seer/helper"
+	"seer/interfaces"
+	"seer/net"
 )
 
 var (

@@ -3,8 +3,8 @@ package interfaces
 import (
 	"github.com/autonity/autonity/core/types"
 
-	"Seer/model"
-	"Seer/net"
+	"seer/model"
+	"seer/net"
 )
 
 type EventHandler interface {

@@ -5,8 +5,8 @@ import (
 
 	"github.com/autonity/autonity/core/types"
 
-	"Seer/model"
-	"Seer/net"
+	"seer/model"
+	"seer/net"
 )
 
 // Note: stick to this naming convention for handlers

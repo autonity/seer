@@ -6,9 +6,9 @@ import (
 	"math/big"
 	"time"
 
-	"Seer/events/registry"
-	"Seer/helper"
-	"Seer/interfaces"
+	"seer/events/registry"
+	"seer/helper"
+	"seer/interfaces"
 )
 
 type eventProcessor struct {

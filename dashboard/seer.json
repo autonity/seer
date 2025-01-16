@@ -120,12 +120,13 @@
           ],
           "show": false
         },
+        "frameIndex": 3,
         "showHeader": true
       },
       "pluginVersion": "11.4.0",
       "targets": [
         {
-          "query": "from(bucket:\"${bucket}\")\n  |>range(start: int(v: \"${block_start}\"), stop: int(v: \"${block_end}\"))\n  |> filter(fn: (r) => r[\"event_type\"]== \"protocol\")\n  |> group(columns: [\"_measurement\"]) \n  |> count(column: \"_value\") \n  |> group() \n  |> keep(columns: [\"_measurement\", \"_value\"]) \n  |> rename(columns: {_value: \"count\"}) ",
+          "query": "from(bucket:\"${bucket}\")\n  |>range(start: int(v: \"${block_start}\"), stop: int(v: \"${block_end}\"))\n  |> filter(fn: (r) => r[\"event_type\"]== \"protocol\")\n  |> pivot(\n      rowKey:[\"_time\"],          \n      columnKey: [\"_field\"],     \n      valueColumn: \"_value\"    \n  )\n  |> group(columns: [\"_measurement\"]) \n  |> count(column: \"event_type\") \n  |> group() \n  |> rename(columns: {event_type: \"count\"}) ",
           "refId": "A"
         }
       ],
@@ -275,15 +276,29 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "thresholds"
+            "mode": "palette-classic"
           },
           "custom": {
-            "align": "auto",
-            "cellOptions": {
-              "type": "auto"
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "fillOpacity": 50,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
             },
-            "filterable": true,
-            "inspect": false
+            "pointShape": "circle",
+            "pointSize": {
+              "fixed": 5
+            },
+            "pointStrokeWidth": 1,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "show": "points"
           },
           "mappings": [],
           "thresholds": {
@@ -292,36 +307,33 @@
               {
                 "color": "green",
                 "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
               }
             ]
           }
         },
         "overrides": [
           {
+            "__systemRef": "hideSeriesFrom",
             "matcher": {
-              "id": "byName",
-              "options": "committee"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 492
+              "id": "byNames",
+              "options": {
+                "mode": "exclude",
+                "names": [
+                  "penalized",
+                  "inactivityJaillingEvent"
+                ],
+                "prefix": "All except:",
+                "readOnly": true
               }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "block"
             },
             "properties": [
               {
-                "id": "custom.width",
-                "value": 132
+                "id": "custom.hideFrom",
+                "value": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": true
+                }
               }
             ]
           }
@@ -333,57 +345,58 @@
         "x": 0,
         "y": 13
       },
-      "id": 36,
+      "id": 37,
       "options": {
-        "cellHeight": "sm",
-        "footer": {
-          "countRows": false,
-          "fields": "",
-          "reducer": [
-            "sum"
-          ],
-          "show": false
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
         },
-        "frameIndex": 0,
-        "showHeader": true,
-        "sortBy": []
+        "mapping": "auto",
+        "series": [
+          {}
+        ],
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
       },
       "pluginVersion": "11.4.0",
       "targets": [
         {
-          "query": "from(bucket:\"${bucket}\")\n|>range(start: int(v: \"${block_start}\"), stop: int(v: \"${block_end}\"))\n|>filter(fn:(r)=>r[\"_measurement\"]==\"BlockHeader\")\n|>pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|> map(fn: (r) => ({ r with block: uint(v: uint(v: r._time) / uint(v :1000000000)) }))\n|>drop(columns: [\"_time\", \"committee\", \"proposer\", \"ap-absentees\", \"qc-absentees\"])\n|>group()\n|>sort(columns:[\"block\"], desc:true)\n|> limit(n:1000)\n\n\n\n",
+          "query": "from(bucket:\"${bucket}\")\n |>range(start: int(v: \"${block_start}\"), stop: int(v: \"${block_end}\"))\n |> filter(fn: (r) => r[\"_measurement\"]== \"Penalized\")\n |> pivot(\n     rowKey:[\"_time\"],         \n     columnKey: [\"_field\"],    \n     valueColumn: \"_value\"   \n )\n |> group(columns: [\"_time\"])\n |> count(column: \"event_type\")\n |> group()\n |> rename(columns: {event_type: \"count\"})\n |> map(fn: (r)=> ({block:uint(v:r._time)/uint(v:1000000000), penalized:r.count}))\n\n\n",
           "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "de85digryc1dsb"
+          },
+          "hide": false,
+          "query": "from(bucket:\"${bucket}\")\n |>range(start: int(v: \"${block_start}\"), stop: int(v: \"${block_end}\"))\n |> filter(fn: (r) => r[\"_measurement\"]== \"InactivityJailingEvent\")\n |> pivot(\n     rowKey:[\"_time\"],         \n     columnKey: [\"_field\"],    \n     valueColumn: \"_value\"   \n )\n |> group(columns: [\"_time\"])\n |> count(column: \"event_type\")\n |> group()\n |> rename(columns: {event_type: \"count\"})\n |> map(fn: (r)=> ({block:uint(v:r._time)/uint(v:1000000000), inactivityJaillingEvent:r.count}))\n\n\n",
+          "refId": "B"
         }
       ],
-      "title": "Block Header",
+      "title": "Summary",
       "transformations": [
         {
           "id": "organize",
           "options": {
-            "excludeByName": {
-              "_measurement": true,
-              "_start": true,
-              "_stop": true
-            },
+            "excludeByName": {},
             "includeByName": {},
             "indexByName": {
-              "_measurement": 3,
-              "_start": 0,
-              "_stop": 1,
-              "_time": 2,
-              "activityProofRound": 9,
-              "ap-absentees": 5,
-              "block": 4,
-              "committee": 7,
-              "epoch": 8,
-              "qc-absentees": 6,
-              "round": 10
+              "_measurement": 0,
+              "total_values": 1
             },
-            "renameByName": {}
+            "renameByName": {
+              "_measurement": "event",
+              "total_values": ""
+            }
           }
         }
       ],
-      "type": "table"
+      "type": "xychart"
     },
     {
       "datasource": {
@@ -536,13 +549,131 @@
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "committee"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 492
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "block"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 132
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 0,
         "y": 21
+      },
+      "id": 36,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "frameIndex": 0,
+        "showHeader": true,
+        "sortBy": []
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: int(v: \"${block_start}\"), stop: int(v: \"${block_end}\"))\n|>filter(fn:(r)=>r[\"_measurement\"]==\"BlockHeader\")\n|>pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|> map(fn: (r) => ({ r with block: uint(v: uint(v: r._time) / uint(v :1000000000)) }))\n|>drop(columns: [\"_time\", \"committee\", \"proposer\", \"ap-absentees\", \"qc-absentees\"])\n|>group()\n|>sort(columns:[\"block\"], desc:true)\n|> limit(n:1000)\n\n\n\n",
+          "refId": "A"
+        }
+      ],
+      "title": "Block Header",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "_measurement": true,
+              "_start": true,
+              "_stop": true
+            },
+            "includeByName": {},
+            "indexByName": {
+              "_measurement": 3,
+              "_start": 0,
+              "_stop": 1,
+              "_time": 2,
+              "activityProofRound": 9,
+              "ap-absentees": 5,
+              "block": 4,
+              "committee": 7,
+              "epoch": 8,
+              "qc-absentees": 6,
+              "round": 10
+            },
+            "renameByName": {}
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "de85digryc1dsb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true,
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 29
       },
       "id": 30,
       "options": {
@@ -607,7 +738,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 29
+        "y": 37
       },
       "id": 21,
       "panels": [],
@@ -653,7 +784,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 30
+        "y": 38
       },
       "id": 18,
       "options": {
@@ -749,7 +880,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 30
+        "y": 38
       },
       "id": 3,
       "options": {
@@ -839,7 +970,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 38
+        "y": 46
       },
       "id": 8,
       "options": {
@@ -904,7 +1035,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 38
+        "y": 46
       },
       "id": 17,
       "options": {
@@ -982,8 +1113,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1011,7 +1141,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 46
+        "y": 54
       },
       "id": 12,
       "options": {
@@ -1086,8 +1216,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1102,7 +1231,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 46
+        "y": 54
       },
       "id": 1,
       "options": {
@@ -1185,8 +1314,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1201,7 +1329,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 54
+        "y": 62
       },
       "id": 13,
       "options": {
@@ -1278,8 +1406,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1307,7 +1434,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 54
+        "y": 62
       },
       "id": 16,
       "options": {
@@ -1387,8 +1514,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1428,7 +1554,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 62
+        "y": 70
       },
       "id": 14,
       "options": {
@@ -1481,7 +1607,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 70
+        "y": 78
       },
       "id": 25,
       "panels": [],
@@ -1511,8 +1637,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1540,7 +1665,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 71
+        "y": 79
       },
       "id": 10,
       "options": {
@@ -1600,7 +1725,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 79
+        "y": 87
       },
       "id": 24,
       "panels": [],
@@ -1630,8 +1755,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1659,7 +1783,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 80
+        "y": 88
       },
       "id": 15,
       "options": {
@@ -1735,8 +1859,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1788,7 +1911,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 80
+        "y": 88
       },
       "id": 2,
       "options": {
@@ -1807,7 +1930,7 @@
       "pluginVersion": "11.4.0",
       "targets": [
         {
-          "query": "from(bucket:\"seer_test\")\n|>range(start: int(v: \"${block_start}\"), stop: int(v: \"${block_end}\"))\n|>filter(fn:(r)=>r[\"_measurement\"]==\"Penalized\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|> map(fn: (r) => ({ r with block: uint(v: uint(v: r._time) / uint(v :1000000000)) }))\n|> drop (columns: [\"_time\"])\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:10000)",
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: int(v: \"${block_start}\"), stop: int(v: \"${block_end}\"))\n|>filter(fn:(r)=>r[\"_measurement\"]==\"Penalized\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|> map(fn: (r) => ({ r with block: uint(v: uint(v: r._time) / uint(v :1000000000)) }))\n|> drop (columns: [\"_time\"])\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:10000)",
           "refId": "A"
         }
       ],
@@ -1847,7 +1970,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 88
+        "y": 96
       },
       "id": 26,
       "panels": [],
@@ -1877,8 +2000,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1906,7 +2028,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 89
+        "y": 97
       },
       "id": 11,
       "options": {
@@ -1963,7 +2085,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 97
+        "y": 105
       },
       "id": 23,
       "panels": [],
@@ -1993,8 +2115,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -2022,7 +2143,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 98
+        "y": 106
       },
       "id": 7,
       "options": {
@@ -2096,8 +2217,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -2125,7 +2245,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 98
+        "y": 106
       },
       "id": 9,
       "options": {
@@ -2182,7 +2302,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 106
+        "y": 114
       },
       "id": 28,
       "panels": [],
@@ -2212,8 +2332,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -2241,7 +2360,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 107
+        "y": 115
       },
       "id": 20,
       "options": {
@@ -2306,7 +2425,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 115
+        "y": 123
       },
       "id": 27,
       "panels": [],
@@ -2336,8 +2455,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -2365,7 +2483,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 116
+        "y": 124
       },
       "id": 6,
       "options": {
@@ -2432,8 +2550,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -2461,7 +2578,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 116
+        "y": 124
       },
       "id": 19,
       "options": {
@@ -2537,8 +2654,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -2553,7 +2669,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 124
+        "y": 132
       },
       "id": 5,
       "options": {
@@ -2619,8 +2735,8 @@
       },
       {
         "current": {
-          "text": "0",
-          "value": "0"
+          "text": "70000",
+          "value": "70000"
         },
         "description": "",
         "label": "block_start",
@@ -2628,11 +2744,11 @@
         "options": [
           {
             "selected": true,
-            "text": "0",
-            "value": "0"
+            "text": "70000",
+            "value": "70000"
           }
         ],
-        "query": "0",
+        "query": "70000",
         "type": "textbox"
       },
       {
@@ -2655,13 +2771,13 @@
     ]
   },
   "time": {
-    "from": "2025-01-14T14:11:01.591Z",
-    "to": "2025-01-14T14:41:01.591Z"
+    "from": "2025-01-16T00:18:59.177Z",
+    "to": "2025-01-16T12:18:59.179Z"
   },
   "timepicker": {},
   "timezone": "browser",
   "title": "Autonity Events",
   "uid": "fe86msn60epdsf",
-  "version": 106,
+  "version": 109,
   "weekStart": ""
 }

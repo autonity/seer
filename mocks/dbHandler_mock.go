@@ -5,7 +5,7 @@
 package mocks
 
 import (
-	model "Seer/model"
+	model "seer/model"
 	reflect "reflect"
 	time "time"
 

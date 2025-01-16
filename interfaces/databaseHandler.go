@@ -3,7 +3,7 @@ package interfaces
 import (
 	"time"
 
-	"Seer/model"
+	"seer/model"
 )
 
 type DatabaseHandler interface {

@@ -9,8 +9,8 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 
-	"Seer/config"
-	"Seer/mocks"
+	"seer/config"
+	"seer/mocks"
 )
 
 func defaultListener() *core {

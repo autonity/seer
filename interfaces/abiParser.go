@@ -5,7 +5,7 @@ import (
 
 	"github.com/autonity/autonity/core/types"
 
-	"Seer/model"
+	"seer/model"
 )
 
 type ABIParser interface {

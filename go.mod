@@ -1,4 +1,4 @@
-module Seer
+module seer
 
 go 1.23.1
 

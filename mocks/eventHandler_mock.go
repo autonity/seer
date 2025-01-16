@@ -5,9 +5,9 @@
 package mocks
 
 import (
-	model "Seer/model"
-	net "Seer/net"
 	reflect "reflect"
+	model "seer/model"
+	net "seer/net"
 
 	types "github.com/autonity/autonity/core/types"
 	gomock "github.com/golang/mock/gomock"

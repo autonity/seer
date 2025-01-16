@@ -10,9 +10,9 @@ import (
 	"github.com/influxdata/influxdb-client-go/v2/api"
 	"github.com/influxdata/influxdb-client-go/v2/domain"
 
-	"Seer/config"
-	"Seer/interfaces"
-	"Seer/model"
+	"seer/config"
+	"seer/interfaces"
+	"seer/model"
 )
 
 var (

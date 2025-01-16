@@ -6,7 +6,7 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 
-	"Seer/interfaces"
+	"seer/interfaces"
 )
 
 func WatchNewABIs(dir string, parser interfaces.ABIParser) {

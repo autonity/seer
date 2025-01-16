@@ -3,8 +3,8 @@ package registry
 import (
 	"sync"
 
-	"Seer/events/handlers"
-	"Seer/interfaces"
+	"seer/events/handlers"
+	"seer/interfaces"
 )
 
 var (
