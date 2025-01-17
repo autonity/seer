@@ -3,9 +3,13 @@ seer:
   logLevel: "info"
 node:
   rpc:
-    - "http://35.242.168.170:8545"
+    maxConnections: 25
+    urls:
+      - "http://35.242.168.170:8545"
   ws:
-    - "wss://rpc2.piccadilly.autonity.org/ws"
+    maxConnections: 5
+    urls:
+      - "wss://rpc2.piccadilly.autonity.org/ws"
   sync:
     history: true  # options last, latest or genesis
 db:
