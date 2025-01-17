@@ -77,7 +77,7 @@ func TestListener_ReadBatch(t *testing.T) {
 	// Test ReadBatch
 	workQueue := make(chan [2]uint64, 1)
 	listener.Add(1)
-	go listener.ReadEventBatch(context.Background(), mockClient, workQueue)
+	go listener.ReadEventHistory(context.Background(), mockClient, workQueue)
 
 	workQueue <- [2]uint64{1, 10}
 	workQueue <- [2]uint64{10, 20}

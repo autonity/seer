@@ -34,24 +34,26 @@ func NewBlockProcessor(ctx context.Context, core *core) interfaces.Processor {
 }
 
 func (bp *blockProcessor) Process() {
-	for {
-		select {
-		case <-bp.ctx.Done():
-			return
-		case block, ok := <-bp.core.newBlocks:
-			if !ok {
+	go func() {
+		for {
+			select {
+			case <-bp.ctx.Done():
 				return
-			}
-			//todo concurrency
-			slog.Info("new block received", "number", block.Number().Uint64())
-			bp.core.markProcessed(block.NumberU64(), block.NumberU64())
-			bp.recordBlock(block)
-			bp.recordACNPeers(block)
+			case block, ok := <-bp.core.newBlocks:
+				if !ok {
+					return
+				}
+				//todo concurrency
+				slog.Info("new block received", "number", block.Number().Uint64())
+				bp.core.markProcessed(block.NumberU64(), block.NumberU64())
+				bp.recordBlock(block)
+				bp.recordACNPeers(block)
 
-			bp.core.blockCache.Add(block)
-			bp.core.epochInfoCache.Add(block)
+				bp.core.blockCache.Add(block)
+				//bp.core.epochInfoCache.Add(block)
+			}
 		}
-	}
+	}()
 }
 
 func (bp *blockProcessor) recordACNPeers(block *types.Block) {

@@ -82,6 +82,7 @@ func (ec *EpochCache) Add(block *types.Block) {
 	if block.Header().Epoch == nil {
 		return
 	}
+	//TODO : epoch cache info for the epoch block is wrong
 	epoch := block.Header().Epoch
 	committee := make([]autonity.AutonityCommitteeMember, 0)
 	for _, member := range epoch.Committee.Members {

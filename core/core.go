@@ -45,12 +45,14 @@ type core struct {
 
 func New(cfg config.NodeConfig, parser interfaces.ABIParser, dbHandler interfaces.DatabaseHandler, cp net.ConnectionProvider) interfaces.Core {
 	return &core{
-		nodeConfig: cfg,
-		newBlocks:  make(chan *types.Block, 10),
-		newEvents:  make(chan types.Log, 100),
-		abiParser:  parser,
-		dbHandler:  dbHandler,
-		cp:         cp,
+		nodeConfig:     cfg,
+		newBlocks:      make(chan *types.Block, 10),
+		newEvents:      make(chan types.Log, 100),
+		abiParser:      parser,
+		dbHandler:      dbHandler,
+		cp:             cp,
+		blockCache:     helper.NewBlockCache(cp),
+		epochInfoCache: helper.NewEpochInfoCache(cp),
 		bt: &blockTracker{
 			processed:     make(map[uint64]bool),
 			lastProcessed: 0,
@@ -59,19 +61,49 @@ func New(cfg config.NodeConfig, parser interfaces.ABIParser, dbHandler interface
 }
 
 func (l *core) Start(ctx context.Context) {
-	//var err error
-	l.blockCache = helper.NewBlockCache(l.cp)
-	l.epochInfoCache = helper.NewEpochInfoCache(l.cp)
-	slog.Info("successfully connected to node", "url", l.nodeConfig.WS)
 	helper.PrintContractAddresses()
-	l.Add(1)
-	go l.eventReader(ctx)
-	l.Add(1)
-	go l.blockReader(ctx)
+
+	l.runInGoroutine(ctx, l.eventReader)
+	l.runInGoroutine(ctx, l.blockReader)
+
+	NewEventProcessor(ctx, l).Process()
+	NewBlockProcessor(ctx, l).Process()
+
 	if l.nodeConfig.Sync.History {
-		l.Add(1)
-		l.ReadHistoricalData(ctx)
+		start, end := l.getHistoricalRange(ctx)
+		l.runInGoroutine(ctx, func(ctx context.Context) {
+			l.ReadHistoricalData(ctx, start, end, l.ReadEventHistory)
+		})
+		l.runInGoroutine(ctx, func(ctx context.Context) {
+			l.ReadHistoricalData(ctx, start, end, l.ReadBlockHistory)
+		})
 	}
+}
+
+func (l *core) Stop() {
+	l.Wait()
+}
+
+func (c *core) runInGoroutine(ctx context.Context, fn func(ctx context.Context)) {
+	c.Add(1)
+	go func() {
+		defer c.Done()
+		fn(ctx)
+	}()
+}
+
+func (l *core) ProcessRange(ctx context.Context, start, end uint64) {
+	helper.PrintContractAddresses()
+
+	NewEventProcessor(ctx, l).Process()
+	NewBlockProcessor(ctx, l).Process()
+
+	l.runInGoroutine(ctx, func(ctx context.Context) {
+		l.ReadHistoricalData(ctx, start, end, l.ReadEventHistory)
+	})
+	l.runInGoroutine(ctx, func(ctx context.Context) {
+		l.ReadHistoricalData(ctx, start, end, l.ReadBlockHistory)
+	})
 }
 
 func (l *core) markProcessed(start, end uint64) {
@@ -96,16 +128,7 @@ func (l *core) markProcessed(start, end uint64) {
 	}
 }
 
-func (l *core) ReadHistoricalData(ctx context.Context) {
-	defer l.Done()
-
-	// start event processor
-	l.Add(1)
-	go func() {
-		defer l.Done()
-		ep := NewEventProcessor(ctx, l)
-		ep.Process()
-	}()
+func (l *core) getHistoricalRange(ctx context.Context) (uint64, uint64) {
 	var startBlock uint64
 	lastProcessed := l.dbHandler.LastProcessed()
 	if lastProcessed < batchSize {
@@ -115,35 +138,27 @@ func (l *core) ReadHistoricalData(ctx context.Context) {
 		startBlock = lastProcessed - batchSize
 	}
 	l.bt.lastProcessed = startBlock
-
 	con := l.cp.GetWebSocketConnection()
 	endBlock, _ := con.Client.BlockNumber(ctx)
 	slog.Info("Reading Historical Data", "lastProcessed", startBlock, "current block", endBlock)
-
-	eventWorkQueue := make(chan [2]uint64, maxConcurrency)
-	blockWorkQueue := make(chan [2]uint64, maxConcurrency)
-
-	for i := 0; i <= maxConcurrency; i++ {
-		l.Add(1)
-		go l.ReadEventBatch(ctx, eventWorkQueue)
-		l.Add(1)
-		go l.ReadBlockBatch(ctx, blockWorkQueue)
-	}
-
-	go func() {
-		for i := startBlock; i <= endBlock; i += batchSize {
-			blockWorkQueue <- [2]uint64{i, i + batchSize}
-		}
-	}()
-	go func() {
-		for i := startBlock; i <= endBlock; i += batchSize {
-			eventWorkQueue <- [2]uint64{i, i + batchSize}
-		}
-	}()
+	return startBlock, endBlock
 }
 
-func (l *core) ReadEventBatch(ctx context.Context, workQueue chan [2]uint64) {
-	defer l.Done()
+func (l *core) ReadHistoricalData(ctx context.Context, start, end uint64, batchReader func(ctx context.Context, wq chan [2]uint64)) {
+	workQueue := make(chan [2]uint64, maxConcurrency)
+	for i := 0; i <= maxConcurrency; i++ {
+		l.runInGoroutine(ctx, func(ctx context.Context) {
+			batchReader(ctx, workQueue)
+		},
+		)
+	}
+	for i := start; i <= end; i += batchSize {
+		workQueue <- [2]uint64{i, i + batchSize}
+	}
+
+}
+
+func (l *core) ReadEventHistory(ctx context.Context, workQueue chan [2]uint64) {
 	con := l.cp.GetWebSocketConnection()
 	for {
 		select {
@@ -174,8 +189,7 @@ func (l *core) ReadEventBatch(ctx context.Context, workQueue chan [2]uint64) {
 	}
 }
 
-func (l *core) ReadBlockBatch(ctx context.Context, workQueue chan [2]uint64) {
-	defer l.Done()
+func (l *core) ReadBlockHistory(ctx context.Context, workQueue chan [2]uint64) {
 	con := l.cp.GetWebSocketConnection()
 	for {
 		select {
@@ -210,10 +224,9 @@ func (l *core) ReadBlockBatch(ctx context.Context, workQueue chan [2]uint64) {
 }
 
 func (l *core) blockReader(ctx context.Context) {
-	defer l.Done()
-	headCh := make(chan *types.Header)
 	slog.Info("subscribing to block events")
 
+	headCh := make(chan *types.Header)
 	con := l.cp.GetWebSocketConnection()
 	newHeadSub, err := con.Client.SubscribeNewHead(context.Background(), headCh)
 	if err != nil {
@@ -221,14 +234,6 @@ func (l *core) blockReader(ctx context.Context) {
 		return
 	}
 	defer newHeadSub.Unsubscribe()
-
-	// start block processor
-	l.Add(1)
-	go func() {
-		bp := NewBlockProcessor(ctx, l)
-		bp.Process()
-		defer l.Done()
-	}()
 
 	for {
 		select {
@@ -274,12 +279,7 @@ func (l *core) eventReader(ctx context.Context) {
 	slog.Debug("subscribing to log events")
 
 	// start event processor
-	l.Add(1)
-	go func() {
-		defer l.Done()
-		ep := NewEventProcessor(ctx, l)
-		ep.Process()
-	}()
+	NewEventProcessor(ctx, l).Process()
 
 	for {
 		select {
@@ -289,8 +289,4 @@ func (l *core) eventReader(ctx context.Context) {
 			return
 		}
 	}
-}
-
-func (l *core) Stop() {
-	l.Wait()
 }

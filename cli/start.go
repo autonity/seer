@@ -32,7 +32,7 @@ func start(cmd *cobra.Command, args []string) {
 	if err := viper.Unmarshal(&cfg); err != nil {
 		log.Fatalf("Failed to unmarshal config: %v", err)
 	}
-	slog.Info("starting seer")
+
 
 	handler := db.NewHandler(cfg.InfluxDB)
 	parser := schema.NewABIParser(cfg.ABIs, handler)

@@ -25,6 +25,7 @@ var rootCmd = &cobra.Command{
 }
 
 func Execute() error {
+	slog.Info("starting seer")
 	err := rootCmd.Execute()
 	if err != nil {
 		return errors.New("unable to run root command")
