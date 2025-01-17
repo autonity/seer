@@ -41,8 +41,8 @@ func start(cmd *cobra.Command, args []string) {
 		slog.Error("Error parsing ", "error ", err)
 		return
 	}
-	rpcPool := net.NewConnectionPool[*rpc.Client](cfg.Node.RPC, 10)
-	wsPool := net.NewConnectionPool[*ethclient.Client](cfg.Node.WS, 10)
+	rpcPool := net.NewConnectionPool[*rpc.Client](cfg.Node.RPC, 25)
+	wsPool := net.NewConnectionPool[*ethclient.Client](cfg.Node.WS, 25)
 	cp := net.NewConnectionProvider(wsPool, rpcPool)
 	l := core.New(cfg.Node, parser, handler, cp)
 	ctx, cancel := context.WithCancel(context.Background())

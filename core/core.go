@@ -117,7 +117,6 @@ func (l *core) ReadHistoricalData(ctx context.Context) {
 	l.bt.lastProcessed = startBlock
 
 	con := l.cp.GetWebSocketConnection()
-	defer l.cp.PutWebSocketConnection(con)
 	endBlock, _ := con.Client.BlockNumber(ctx)
 	slog.Debug("Reading Historical Data", "lastProcessed", startBlock, "current block", endBlock)
 
@@ -146,7 +145,6 @@ func (l *core) ReadHistoricalData(ctx context.Context) {
 func (l *core) ReadEventBatch(ctx context.Context, workQueue chan [2]uint64) {
 	defer l.Done()
 	con := l.cp.GetWebSocketConnection()
-	defer l.cp.PutWebSocketConnection(con)
 	for {
 		select {
 		case <-ctx.Done():
@@ -179,7 +177,6 @@ func (l *core) ReadEventBatch(ctx context.Context, workQueue chan [2]uint64) {
 func (l *core) ReadBlockBatch(ctx context.Context, workQueue chan [2]uint64) {
 	defer l.Done()
 	con := l.cp.GetWebSocketConnection()
-	defer l.cp.PutWebSocketConnection(con)
 	for {
 		select {
 		case <-ctx.Done():
@@ -262,7 +259,6 @@ func (l *core) blockReader(ctx context.Context) {
 func (l *core) eventReader(ctx context.Context) {
 	defer l.Done()
 	con := l.cp.GetWebSocketConnection()
-	defer l.cp.PutWebSocketConnection(con)
 	number, err := con.Client.BlockNumber(ctx)
 	if err != nil {
 		slog.Error("Unable to get the latest block number", "error", err)

@@ -7,9 +7,7 @@ import (
 
 type ConnectionProvider interface {
 	GetWebSocketConnection() *Connection[*ethclient.Client]
-	PutWebSocketConnection(*Connection[*ethclient.Client])
 	GetRPCConnection() *Connection[*rpc.Client]
-	PutRPCConnection(*Connection[*rpc.Client])
 }
 
 type connectionProvider struct {
@@ -25,13 +23,6 @@ func (cp *connectionProvider) GetWebSocketConnection() *Connection[*ethclient.Cl
 	return cp.WSPool.Get()
 }
 
-func (cp *connectionProvider) PutWebSocketConnection(cl *Connection[*ethclient.Client]) {
-	cp.WSPool.Put(cl)
-}
-
 func (cp *connectionProvider) GetRPCConnection() *Connection[*rpc.Client] {
 	return cp.RPCPool.Get()
-}
-func (cp *connectionProvider) PutRPCConnection(cl *Connection[*rpc.Client]) {
-	cp.RPCPool.Put(cl)
 }

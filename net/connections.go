@@ -1,7 +1,6 @@
 package net
 
 import (
-	"fmt"
 	"log/slog"
 	"math/rand"
 	"sync"
@@ -20,7 +19,6 @@ type Connection[T clientType] struct {
 }
 
 type ConnectionPool[T clientType] struct {
-	pool               *sync.Pool
 	initialConnections int
 	urls               []string
 	connections        []*Connection[T]
@@ -54,44 +52,22 @@ func (cp *ConnectionPool[T]) newConnection() *Connection[T] {
 	return con
 }
 
-func NewConnectionPool[T clientType](urls []string, initialCapacity int) *ConnectionPool[T] {
+func NewConnectionPool[T clientType](urls []string, capacity int) *ConnectionPool[T] {
 	cp := &ConnectionPool[T]{
 		urls:               urls,
-		initialConnections: initialCapacity,
+		initialConnections: capacity,
 		connections:        make([]*Connection[T], 0),
 	}
-	cp.pool = &sync.Pool{
-		New: func() any {
-			return cp.newConnection()
-		},
-	}
-	for i := 0; i < initialCapacity; i++ {
-		con := cp.newConnection()
-		if con != nil {
-			cp.pool.Put(con)
-		}
+	for i := 0; i < capacity; i++ {
+		cp.newConnection()
 	}
 	return cp
 }
 
 func (cp *ConnectionPool[T]) Get() *Connection[T] {
-	con := cp.pool.Get().(*Connection[T])
-	if con == nil {
-		if len(cp.connections) > 0 {
-			cp.RLock()
-			defer cp.RUnlock()
-			sharedConn := cp.connections[rand.Intn(len(cp.connections))]
-			slog.Info("Sharing existing connection", "url", sharedConn.URL)
-			return sharedConn
-		}
-		err := fmt.Sprintf("len of connections %d", len(cp.connections))
-		panic(err)
-	}
-	return con
-}
-
-func (cp *ConnectionPool[T]) Put(c *Connection[T]) {
-	cp.pool.Put(c)
+	cp.RLock()
+	defer cp.RUnlock()
+	return cp.connections[rand.Intn(len(cp.connections))]
 }
 
 func (cp *ConnectionPool[T]) Close(c *Connection[T]) {

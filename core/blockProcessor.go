@@ -63,7 +63,6 @@ func (bp *blockProcessor) recordACNPeers(block *types.Block) {
 
 	var result []*p2p.PeerInfo
 	con := bp.core.cp.GetRPCConnection()
-	defer bp.core.cp.PutRPCConnection(con)
 	err := con.Client.CallContext(bp.ctx, &result, "admin_acnPeers")
 	if err != nil {
 		slog.Error("Error fetching ACN peers", "error", err)
@@ -178,7 +177,6 @@ func (bp *blockProcessor) recordBlock(block *types.Block) {
 
 func (bp *blockProcessor) trackInactivity(block *types.Block, committee []types.CommitteeMember) {
 	con := bp.core.cp.GetWebSocketConnection()
-	defer bp.core.cp.PutWebSocketConnection(con)
 	omissionBindings, err := autonity.NewOmissionAccountability(helper.OmissionAccountabilityContractAddress, con.Client)
 	if err != nil {
 		slog.Error("unable to create autonity bindings", "error", err)

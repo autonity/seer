@@ -21,7 +21,6 @@ type InactivityjJaillingEventHandler struct{}
 func (ev *InactivityjJaillingEventHandler) Handle(schema model.EventSchema, block *types.Block, tags map[string]string, cp net.ConnectionProvider) {
 	slog.Debug("Handling Inactivity Jailing event", "")
 	con := cp.GetWebSocketConnection()
-	defer cp.PutWebSocketConnection(con)
 	omissionBindings, err := autonity.NewOmissionAccountability(helper.OmissionAccountabilityContractAddress, con.Client)
 	if err != nil {
 		slog.Error("unable to create autonity bindings", "error", err)
