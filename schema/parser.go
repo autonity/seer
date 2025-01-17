@@ -137,7 +137,7 @@ func (ap *abiParser) Decode(log types.Log) (model.EventSchema, error) {
 		slog.Error("unable to decode event", "error", err)
 		return model.EventSchema{}, err
 	}
-	decodedEvent["eventID_seer"] = log.TxHash.String() + "_" + strconv.Itoa(int(log.TxIndex))
+	decodedEvent["eventID_seer"] = log.TxHash.String() + "_" + strconv.Itoa(int(log.Index))
 	evSchema := model.EventSchema{Measurement: eventDetails.abi.Name, Fields: decodedEvent}
 	return evSchema, nil
 }

@@ -17,8 +17,8 @@ import (
 )
 
 var (
-	numBuckets     = uint(997)
-	entryPerBucket = uint(5)
+	numBuckets     = uint(9997)
+	entryPerBucket = uint(10)
 )
 
 type blockCache struct {
@@ -53,21 +53,21 @@ func (bc *blockCache) Add(block *types.Block) {
 }
 
 type EpochCache struct {
-	cache        *fixsizecache.Cache[common.Hash, *autonity.AutonityEpochInfo]
-	blockToEpoch *fixsizecache.Cache[common.Hash, *big.Int]
-	cl           interfaces.EthClient
+	cache             *fixsizecache.Cache[common.Hash, *autonity.AutonityEpochInfo]
+	blockToEpochBlock *fixsizecache.Cache[common.Hash, *big.Int]
+	cl                interfaces.EthClient
 }
 
 func NewEpochInfoCache(cp net.ConnectionProvider) *EpochCache {
 	return &EpochCache{
-		cache:        fixsizecache.New[common.Hash, *autonity.AutonityEpochInfo](numBuckets, entryPerBucket, fixsizecache.HashKey[common.Hash]),
-		blockToEpoch: fixsizecache.New[common.Hash, *big.Int](numBuckets, entryPerBucket, fixsizecache.HashKey[common.Hash]),
-		cl:           cp.GetWebSocketConnection().Client,
+		cache:             fixsizecache.New[common.Hash, *autonity.AutonityEpochInfo](numBuckets, entryPerBucket, fixsizecache.HashKey[common.Hash]),
+		blockToEpochBlock: fixsizecache.New[common.Hash, *big.Int](numBuckets, entryPerBucket, fixsizecache.HashKey[common.Hash]),
+		cl:                cp.GetWebSocketConnection().Client,
 	}
 }
 
 func (ec *EpochCache) Get(number *big.Int) *autonity.AutonityEpochInfo {
-	epochBlockNum, ok := ec.blockToEpoch.Get(common.BigToHash(number))
+	epochBlockNum, ok := ec.blockToEpochBlock.Get(common.BigToHash(number))
 	if !ok {
 		return ec.retrieveEpochInfo(number)
 	}
@@ -99,12 +99,12 @@ func (ec *EpochCache) Add(block *types.Block) {
 	}
 	ec.cache.Add(common.BigToHash(block.Number()), epochInfo)
 
-	nextEpoch := block.Header().Epoch.NextEpochBlock
-	currentEpoch := block.Number()
+	nextEpochBlock := block.Header().Epoch.NextEpochBlock
+	currentEpochBlock := block.Number()
 	//TODO: hash based look up for range search
-	i := currentEpoch
-	for i.Cmp(nextEpoch) == -1 {
-		ec.blockToEpoch.Add(common.BigToHash(i), block.Number())
+	i := big.NewInt(currentEpochBlock.Int64())
+	for i.Cmp(nextEpochBlock) == -1 {
+		ec.blockToEpochBlock.Add(common.BigToHash(i), block.Number())
 		i.Add(i, big.NewInt(1))
 	}
 }
@@ -119,13 +119,14 @@ func (ec *EpochCache) retrieveEpochInfo(number *big.Int) *autonity.AutonityEpoch
 	if err != nil {
 		return nil
 	}
-	previousEpoch := epochInfo.PreviousEpochBlock
-	currentEpoch := epochInfo.EpochBlock
-	ec.cache.Add(common.BigToHash(currentEpoch), &epochInfo)
+
+	nextEpochBlock := epochInfo.NextEpochBlock
+	currentEpochBlock := epochInfo.EpochBlock
+	ec.cache.Add(common.BigToHash(currentEpochBlock), &epochInfo)
 	//TODO: hash based look up for range search
-	i := previousEpoch.Add(previousEpoch, big.NewInt(1))
-	for i.Cmp(currentEpoch) < 0 {
-		ec.blockToEpoch.Add(common.BigToHash(i), currentEpoch)
+	i := big.NewInt(currentEpochBlock.Int64())
+	for i.Cmp(nextEpochBlock) == -1 {
+		ec.blockToEpochBlock.Add(common.BigToHash(i), currentEpochBlock)
 		i.Add(i, big.NewInt(1))
 	}
 	return &epochInfo

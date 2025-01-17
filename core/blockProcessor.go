@@ -189,10 +189,10 @@ func (bp *blockProcessor) trackInactivity(block *types.Block, committee []types.
 		inactivityScore, err := omissionBindings.GetInactivityScore(&bind.CallOpts{
 			BlockNumber: block.Number(),
 		}, m.Address)
-		if err != nil {
+		if err != nil || inactivityScore == nil {
 			continue
 		}
-		fields["InactivityScore"] = inactivityScore
+		fields["score"] = inactivityScore.Uint64()
 		tags["validator"] = m.Address.String()
 		bp.core.dbHandler.WritePoint(InactivityScore, tags, fields, ts)
 	}

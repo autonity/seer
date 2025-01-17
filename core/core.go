@@ -118,7 +118,7 @@ func (l *core) ReadHistoricalData(ctx context.Context) {
 
 	con := l.cp.GetWebSocketConnection()
 	endBlock, _ := con.Client.BlockNumber(ctx)
-	slog.Debug("Reading Historical Data", "lastProcessed", startBlock, "current block", endBlock)
+	slog.Info("Reading Historical Data", "lastProcessed", startBlock, "current block", endBlock)
 
 	eventWorkQueue := make(chan [2]uint64, maxConcurrency)
 	blockWorkQueue := make(chan [2]uint64, maxConcurrency)

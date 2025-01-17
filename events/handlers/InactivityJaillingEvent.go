@@ -30,5 +30,8 @@ func (ev *InactivityjJaillingEventHandler) Handle(schema model.EventSchema, bloc
 	inactivityScore, err := omissionBindings.GetInactivityScore(&bind.CallOpts{
 		BlockNumber: block.Number(),
 	}, validator.(common.Address))
-	schema.Fields["InactivityScore"] = inactivityScore
+	if inactivityScore == nil {
+		return
+	}
+	schema.Fields["InactivityScore"] = inactivityScore.Uint64()
 }
