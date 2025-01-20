@@ -43,8 +43,7 @@ func (bp *blockProcessor) Process() {
 				if !ok {
 					return
 				}
-				//todo concurrency
-				slog.Info("new block received", "number", block.Number().Uint64())
+				slog.Debug("new block received", "number", block.Number().Uint64())
 				bp.core.markProcessed(block.NumberU64(), block.NumberU64())
 				bp.recordBlock(block)
 				bp.recordACNPeers(block)

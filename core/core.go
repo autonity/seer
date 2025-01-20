@@ -4,6 +4,8 @@ import (
 	"context"
 	"log/slog"
 	"math/big"
+	"reflect"
+	"runtime"
 	"sync"
 	"time"
 
@@ -28,6 +30,7 @@ type blockTracker struct {
 }
 
 type core struct {
+	cancel     context.CancelFunc
 	nodeConfig config.NodeConfig
 	abiParser  interfaces.ABIParser
 	dbHandler  interfaces.DatabaseHandler
@@ -60,28 +63,29 @@ func New(cfg config.NodeConfig, parser interfaces.ABIParser, dbHandler interface
 	}
 }
 
-func (l *core) Start(ctx context.Context) {
+func (c *core) Start(ctx context.Context) {
+	ctx, c.cancel = context.WithCancel(ctx)
 	helper.PrintContractAddresses()
 
-	l.runInGoroutine(ctx, l.eventReader)
-	l.runInGoroutine(ctx, l.blockReader)
+	c.runInGoroutine(ctx, c.eventReader)
+	c.runInGoroutine(ctx, c.blockReader)
 
-	NewEventProcessor(ctx, l).Process()
-	NewBlockProcessor(ctx, l).Process()
+	NewEventProcessor(ctx, c).Process()
+	NewBlockProcessor(ctx, c).Process()
 
-	if l.nodeConfig.Sync.History {
-		start, end := l.getHistoricalRange(ctx)
-		l.runInGoroutine(ctx, func(ctx context.Context) {
-			l.ReadHistoricalData(ctx, start, end, l.ReadEventHistory)
+	if c.nodeConfig.Sync.History {
+		start, end := c.getHistoricalRange(ctx)
+		c.runInGoroutine(ctx, func(ctx context.Context) {
+			c.ReadHistoricalData(ctx, start, end, c.ReadEventHistory)
 		})
-		l.runInGoroutine(ctx, func(ctx context.Context) {
-			l.ReadHistoricalData(ctx, start, end, l.ReadBlockHistory)
+		c.runInGoroutine(ctx, func(ctx context.Context) {
+			c.ReadHistoricalData(ctx, start, end, c.ReadBlockHistory)
 		})
 	}
 }
 
-func (l *core) Stop() {
-	l.Wait()
+func (c *core) Stop() {
+	c.cancel()
 }
 
 func (c *core) runInGoroutine(ctx context.Context, fn func(ctx context.Context)) {
@@ -92,62 +96,66 @@ func (c *core) runInGoroutine(ctx context.Context, fn func(ctx context.Context))
 	}()
 }
 
-func (l *core) ProcessRange(ctx context.Context, start, end uint64) {
+func (c *core) ProcessRange(ctx context.Context, start, end uint64) {
 	helper.PrintContractAddresses()
+	ctx, c.cancel = context.WithCancel(ctx)
 
-	NewEventProcessor(ctx, l).Process()
-	NewBlockProcessor(ctx, l).Process()
+	NewEventProcessor(ctx, c).Process()
+	NewBlockProcessor(ctx, c).Process()
 
-	l.runInGoroutine(ctx, func(ctx context.Context) {
-		l.ReadHistoricalData(ctx, start, end, l.ReadEventHistory)
+	c.runInGoroutine(ctx, func(ctx context.Context) {
+		c.ReadHistoricalData(ctx, start, end, c.ReadEventHistory)
 	})
-	l.runInGoroutine(ctx, func(ctx context.Context) {
-		l.ReadHistoricalData(ctx, start, end, l.ReadBlockHistory)
+	c.runInGoroutine(ctx, func(ctx context.Context) {
+		c.ReadHistoricalData(ctx, start, end, c.ReadBlockHistory)
 	})
+	slog.Info("Waiting to finish")
+	c.Wait()
+	slog.Info("Finished processing range")
 }
 
-func (l *core) markProcessed(start, end uint64) {
-	l.bt.Lock()
-	defer l.bt.Unlock()
+func (c *core) markProcessed(start, end uint64) {
+	c.bt.Lock()
+	defer c.bt.Unlock()
 
 	// mark all processed
 	for i := start; i <= end; i++ {
-		l.bt.processed[i] = true
+		c.bt.processed[i] = true
 	}
 
 	update := false
-	for l.bt.processed[l.bt.lastProcessed+1] {
-		delete(l.bt.processed, l.bt.lastProcessed+1)
-		l.bt.lastProcessed++
+	for c.bt.processed[c.bt.lastProcessed+1] {
+		delete(c.bt.processed, c.bt.lastProcessed+1)
+		c.bt.lastProcessed++
 		update = true
 	}
 
 	if update {
-		slog.Info("saving Last processed", "number", l.bt.lastProcessed)
-		l.dbHandler.SaveLastProcessed(l.bt.lastProcessed)
+		slog.Info("saving Last processed", "number", c.bt.lastProcessed)
+		c.dbHandler.SaveLastProcessed(c.bt.lastProcessed)
 	}
 }
 
-func (l *core) getHistoricalRange(ctx context.Context) (uint64, uint64) {
+func (c *core) getHistoricalRange(ctx context.Context) (uint64, uint64) {
 	var startBlock uint64
-	lastProcessed := l.dbHandler.LastProcessed()
+	lastProcessed := c.dbHandler.LastProcessed()
 	if lastProcessed < batchSize {
 		startBlock = 1
 	} else {
 		//ensure we don't miss any blocks, duplicate processing is acceptable
 		startBlock = lastProcessed - batchSize
 	}
-	l.bt.lastProcessed = startBlock
-	con := l.cp.GetWebSocketConnection()
+	c.bt.lastProcessed = startBlock
+	con := c.cp.GetWebSocketConnection()
 	endBlock, _ := con.Client.BlockNumber(ctx)
 	slog.Info("Reading Historical Data", "lastProcessed", startBlock, "current block", endBlock)
 	return startBlock, endBlock
 }
 
-func (l *core) ReadHistoricalData(ctx context.Context, start, end uint64, batchReader func(ctx context.Context, wq chan [2]uint64)) {
+func (c *core) ReadHistoricalData(ctx context.Context, start, end uint64, batchReader func(ctx context.Context, wq chan [2]uint64)) {
 	workQueue := make(chan [2]uint64, maxConcurrency)
 	for i := 0; i <= maxConcurrency; i++ {
-		l.runInGoroutine(ctx, func(ctx context.Context) {
+		c.runInGoroutine(ctx, func(ctx context.Context) {
 			batchReader(ctx, workQueue)
 		},
 		)
@@ -155,17 +163,15 @@ func (l *core) ReadHistoricalData(ctx context.Context, start, end uint64, batchR
 	for i := start; i <= end; i += batchSize {
 		workQueue <- [2]uint64{i, i + batchSize}
 	}
-
 }
 
-func (l *core) ReadEventHistory(ctx context.Context, workQueue chan [2]uint64) {
-	con := l.cp.GetWebSocketConnection()
+func (c *core) ReadEventHistory(ctx context.Context, workQueue chan [2]uint64) {
+	con := c.cp.GetWebSocketConnection()
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case batch := <-workQueue:
-		retry:
 			fq := ethereum.FilterQuery{
 				FromBlock: big.NewInt(int64(batch[0])),
 				ToBlock:   big.NewInt(int64(batch[1])),
@@ -175,22 +181,21 @@ func (l *core) ReadEventHistory(ctx context.Context, workQueue chan [2]uint64) {
 			logs, err := con.Client.FilterLogs(ctx, fq)
 			if err != nil {
 				slog.Error("Unable to filter autonity logs", "error", err, "batch start", batch[0], "batch end", batch[1])
-				time.Sleep(time.Second)
-				goto retry
 			}
 			for _, log := range logs {
 				select {
 				case <-ctx.Done():
 					return
-				case l.newEvents <- log:
+				case c.newEvents <- log:
 				}
 			}
+			slog.Info("Batch Complete", "startBlock", batch[0], "endBlock", batch[1])
 		}
 	}
 }
 
-func (l *core) ReadBlockHistory(ctx context.Context, workQueue chan [2]uint64) {
-	con := l.cp.GetWebSocketConnection()
+func (c *core) ReadBlockHistory(ctx context.Context, workQueue chan [2]uint64) {
+	con := c.cp.GetWebSocketConnection()
 	for {
 		select {
 		case <-ctx.Done():
@@ -213,21 +218,21 @@ func (l *core) ReadBlockHistory(ctx context.Context, workQueue chan [2]uint64) {
 					slog.Error("Unable to fetch block", "error", err, "batch start", batch[0], "batch end", batch[1])
 					continue
 				}
-				l.newBlocks <- block
+				c.newBlocks <- block
 			}
 
 			slog.Info("Batch Complete", "startBlock", batch[0], "endBlock", batch[1], "time taken", time.Since(now).Seconds())
-			l.markProcessed(batch[0], batch[1])
+			c.markProcessed(batch[0], batch[1])
 			slog.Info("Batch Complete and mark processed", "startBlock", batch[0], "endBlock", batch[1], "time taken", time.Since(now).Seconds())
 		}
 	}
 }
 
-func (l *core) blockReader(ctx context.Context) {
+func (c *core) blockReader(ctx context.Context) {
 	slog.Info("subscribing to block events")
 
 	headCh := make(chan *types.Header)
-	con := l.cp.GetWebSocketConnection()
+	con := c.cp.GetWebSocketConnection()
 	newHeadSub, err := con.Client.SubscribeNewHead(context.Background(), headCh)
 	if err != nil {
 		slog.Error("new head subscription failed", "error", err)
@@ -256,21 +261,20 @@ func (l *core) blockReader(ctx context.Context) {
 					"error", err)
 				continue
 			}
-			l.newBlocks <- block
+			c.newBlocks <- block
 		}
 	}
 }
 
-func (l *core) eventReader(ctx context.Context) {
-	defer l.Done()
-	con := l.cp.GetWebSocketConnection()
+func (c *core) eventReader(ctx context.Context) {
+	con := c.cp.GetWebSocketConnection()
 	number, err := con.Client.BlockNumber(ctx)
 	if err != nil {
 		slog.Error("Unable to get the latest block number", "error", err)
 		return
 	}
 	fq := ethereum.FilterQuery{FromBlock: big.NewInt(int64(number)), Addresses: helper.ContractAddresses}
-	sub, err := con.Client.SubscribeFilterLogs(ctx, fq, l.newEvents)
+	sub, err := con.Client.SubscribeFilterLogs(ctx, fq, c.newEvents)
 	if err != nil {
 		slog.Error("Unable to filter autonity logs", "error", err)
 		return
@@ -279,7 +283,7 @@ func (l *core) eventReader(ctx context.Context) {
 	slog.Debug("subscribing to log events")
 
 	// start event processor
-	NewEventProcessor(ctx, l).Process()
+	NewEventProcessor(ctx, c).Process()
 
 	for {
 		select {

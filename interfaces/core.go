@@ -12,6 +12,7 @@ import (
 type Core interface {
 	Start(ctx context.Context)
 	Stop()
+	ProcessRange(ctx context.Context, start, end uint64)
 }
 
 type Processor interface {
