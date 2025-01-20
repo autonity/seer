@@ -80,6 +80,7 @@ func (c *core) Start(ctx context.Context) {
 			c.ReadHistoricalData(ctx, start, end, c.ReadBlockHistory)
 		})
 	}
+	c.Wait()
 }
 
 func (c *core) Stop() {
