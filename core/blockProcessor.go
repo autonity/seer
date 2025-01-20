@@ -49,7 +49,7 @@ func (bp *blockProcessor) Process() {
 				bp.recordACNPeers(block)
 
 				bp.core.blockCache.Add(block)
-				//bp.core.epochInfoCache.Add(block)
+				bp.core.epochInfoCache.Add(block)
 			}
 		}
 	}()
@@ -98,21 +98,14 @@ func (bp *blockProcessor) recordBlock(block *types.Block) {
 	//TODO: review correct epoch is pulled
 	autCommittee := make([]autonity.AutonityCommitteeMember, 0)
 	committeeMembers := make([]types.CommitteeMember, 0)
-	if block.IsEpochHead() {
-		fields["epoch"] = block.NumberU64()
-		committeeMembers = header.Epoch.Committee.Members
-		autCommittee = helper.CommitteeToAutCommittee(committeeMembers)
-
-	} else {
-		epochInfo := bp.core.epochInfoCache.Get(block.Number())
-		if epochInfo == nil {
-			slog.Error("not pushing the block in DB due to processing errors", "number", block.NumberU64())
-			return
-		}
-		fields["epoch"] = epochInfo.EpochBlock.Uint64()
-		autCommittee = epochInfo.Committee
-		committeeMembers = helper.AutCommitteeToCommittee(autCommittee)
+	epochInfo := bp.core.epochInfoCache.Get(block.Number())
+	if epochInfo == nil {
+		slog.Error("not pushing the block in DB due to processing errors", "number", block.NumberU64())
+		return
 	}
+	fields["epoch"] = epochInfo.EpochBlock.Uint64()
+	autCommittee = epochInfo.Committee
+	committeeMembers = helper.AutCommitteeToCommittee(autCommittee)
 
 	com := &types.Committee{
 		Members: committeeMembers,

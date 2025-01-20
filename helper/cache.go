@@ -98,12 +98,13 @@ func (ec *EpochCache) Add(block *types.Block) {
 		EpochBlock:         block.Number(),
 		Committee:          committee,
 	}
-	ec.cache.Add(common.BigToHash(block.Number()), epochInfo)
-
 	nextEpochBlock := block.Header().Epoch.NextEpochBlock
 	currentEpochBlock := block.Number()
-	//TODO: hash based look up for range search
 	i := big.NewInt(currentEpochBlock.Int64())
+	i = i.Add(i, big.NewInt(1))
+
+	// committee in epochInfo is applicable from epochBlock + 1 onwards
+	ec.cache.Add(common.BigToHash(i), epochInfo)
 	for i.Cmp(nextEpochBlock) == -1 {
 		ec.blockToEpochBlock.Add(common.BigToHash(i), block.Number())
 		i.Add(i, big.NewInt(1))
@@ -123,9 +124,11 @@ func (ec *EpochCache) retrieveEpochInfo(number *big.Int) *autonity.AutonityEpoch
 
 	nextEpochBlock := epochInfo.NextEpochBlock
 	currentEpochBlock := epochInfo.EpochBlock
-	ec.cache.Add(common.BigToHash(currentEpochBlock), &epochInfo)
 	//TODO: hash based look up for range search
 	i := big.NewInt(currentEpochBlock.Int64())
+	i.Add(i, big.NewInt(1))
+	// committee in epochInfo is applicable from epochBlock + 1 onwards
+	ec.cache.Add(common.BigToHash(i), &epochInfo)
 	for i.Cmp(nextEpochBlock) == -1 {
 		ec.blockToEpochBlock.Add(common.BigToHash(i), currentEpochBlock)
 		i.Add(i, big.NewInt(1))
