@@ -112,8 +112,8 @@ func (h *handler) SaveLastProcessed(lp uint64) {
 	h.asyncWriter.Flush()
 }
 
-func (h *handler) WriteEventBlocking(schema model.EventSchema, tags map[string]string, timeStamp time.Time) error {
-	point := influxdb2.NewPoint(schema.Measurement, tags, schema.Fields, timeStamp)
+func (h *handler) WriteEventBlocking(schema model.EventSchema, timeStamp time.Time) error {
+	point := influxdb2.NewPoint(schema.Measurement, schema.Tags, schema.Fields, timeStamp)
 	err := h.writer.WritePoint(context.Background(), point)
 	if err != nil {
 		return err
@@ -121,8 +121,8 @@ func (h *handler) WriteEventBlocking(schema model.EventSchema, tags map[string]s
 	return nil
 }
 
-func (h *handler) WriteEvent(schema model.EventSchema, tags map[string]string, timeStamp time.Time) {
-	point := influxdb2.NewPoint(schema.Measurement, tags, schema.Fields, timeStamp)
+func (h *handler) WriteEvent(schema model.EventSchema, timeStamp time.Time) {
+	point := influxdb2.NewPoint(schema.Measurement, schema.Tags, schema.Fields, timeStamp)
 	h.asyncWriter.WritePoint(point)
 }
 

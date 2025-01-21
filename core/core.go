@@ -17,8 +17,8 @@ import (
 )
 
 var (
-	maxConcurrency = 100
-	batchSize      = uint64(50)
+	maxConcurrency = 1000
+	batchSize      = uint64(500)
 )
 
 type blockTracker struct {
@@ -47,8 +47,8 @@ type core struct {
 func New(cfg config.NodeConfig, parser interfaces.ABIParser, dbHandler interfaces.DatabaseHandler, cp net.ConnectionProvider) interfaces.Core {
 	return &core{
 		nodeConfig:     cfg,
-		newBlocks:      make(chan *types.Block, 10),
-		newEvents:      make(chan types.Log, 100),
+		newBlocks:      make(chan *types.Block, 10000),
+		newEvents:      make(chan types.Log, 1000),
 		abiParser:      parser,
 		dbHandler:      dbHandler,
 		cp:             cp,
@@ -188,7 +188,7 @@ func (c *core) ReadEventHistory(ctx context.Context, workQueue chan [2]uint64) {
 				case c.newEvents <- log:
 				}
 			}
-			slog.Info("Batch Complete", "startBlock", batch[0], "endBlock", batch[1])
+			slog.Info("event batch complete", "startBlock", batch[0], "endBlock", batch[1])
 		}
 	}
 }
@@ -220,9 +220,8 @@ func (c *core) ReadBlockHistory(ctx context.Context, workQueue chan [2]uint64) {
 				c.newBlocks <- block
 			}
 
-			slog.Info("Batch Complete", "startBlock", batch[0], "endBlock", batch[1], "time taken", time.Since(now).Seconds())
+			slog.Info("block batch complete", "startBlock", batch[0], "endBlock", batch[1], "time taken", time.Since(now).Seconds())
 			c.markProcessed(batch[0], batch[1])
-			slog.Info("Batch Complete and mark processed", "startBlock", batch[0], "endBlock", batch[1], "time taken", time.Since(now).Seconds())
 		}
 	}
 }

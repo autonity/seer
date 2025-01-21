@@ -15,7 +15,7 @@ import (
 type NewEpochHandler struct {
 }
 
-func (ev *NewEpochHandler) Handle(schema model.EventSchema, block *types.Block, tags map[string]string, cp net.ConnectionProvider) {
+func (ev *NewEpochHandler) Handle(schema model.EventSchema, block *types.Block,  cp net.ConnectionProvider) {
 	if block.Header().Epoch == nil {
 		slog.Error("NewEpoch Handler, committee information is nor present")
 		return

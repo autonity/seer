@@ -18,7 +18,7 @@ import (
 
 type InactivityjJaillingEventHandler struct{}
 
-func (ev *InactivityjJaillingEventHandler) Handle(schema model.EventSchema, block *types.Block, tags map[string]string, cp net.ConnectionProvider) {
+func (ev *InactivityjJaillingEventHandler) Handle(schema model.EventSchema, block *types.Block, cp net.ConnectionProvider) {
 	slog.Debug("Handling Inactivity Jailing event", "")
 	con := cp.GetWebSocketConnection()
 	omissionBindings, err := autonity.NewOmissionAccountability(helper.OmissionAccountabilityContractAddress, con.Client)

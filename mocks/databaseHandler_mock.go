@@ -86,39 +86,39 @@ func (mr *MockDatabaseHandlerMockRecorder) SaveLastProcessed(arg0 interface{}) *
 }
 
 // WriteEvent mocks base method.
-func (m *MockDatabaseHandler) WriteEvent(schema model.EventSchema, tags map[string]string, timeStamp time.Time) {
+func (m *MockDatabaseHandler) WriteEvent(schema model.EventSchema, timeStamp time.Time) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "WriteEvent", schema, tags, timeStamp)
+	m.ctrl.Call(m, "WriteEvent", schema, timeStamp)
 }
 
 // WriteEvent indicates an expected call of WriteEvent.
-func (mr *MockDatabaseHandlerMockRecorder) WriteEvent(schema, tags, timeStamp interface{}) *gomock.Call {
+func (mr *MockDatabaseHandlerMockRecorder) WriteEvent(schema, timeStamp interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WriteEvent", reflect.TypeOf((*MockDatabaseHandler)(nil).WriteEvent), schema, tags, timeStamp)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WriteEvent", reflect.TypeOf((*MockDatabaseHandler)(nil).WriteEvent), schema, timeStamp)
 }
 
 // WriteEventBlocking mocks base method.
-func (m *MockDatabaseHandler) WriteEventBlocking(schema model.EventSchema, tags map[string]string, timeStamp time.Time) error {
+func (m *MockDatabaseHandler) WriteEventBlocking(schema model.EventSchema, timeStamp time.Time) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "WriteEventBlocking", schema, tags, timeStamp)
+	ret := m.ctrl.Call(m, "WriteEventBlocking", schema, timeStamp)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // WriteEventBlocking indicates an expected call of WriteEventBlocking.
-func (mr *MockDatabaseHandlerMockRecorder) WriteEventBlocking(schema, tags, timeStamp interface{}) *gomock.Call {
+func (mr *MockDatabaseHandlerMockRecorder) WriteEventBlocking(schema, timeStamp interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WriteEventBlocking", reflect.TypeOf((*MockDatabaseHandler)(nil).WriteEventBlocking), schema, tags, timeStamp)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WriteEventBlocking", reflect.TypeOf((*MockDatabaseHandler)(nil).WriteEventBlocking), schema, timeStamp)
 }
 
 // WritePoint mocks base method.
-func (m *MockDatabaseHandler) WritePoint(measurement string, tags map[string]string, fields map[string]interface{}, ts time.Time) {
+func (m *MockDatabaseHandler) WritePoint(measurement string, tags map[string]string, fields map[string]interface{}, timeStamp time.Time) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "WritePoint", measurement, tags, fields, ts)
+	m.ctrl.Call(m, "WritePoint", measurement, tags, fields, timeStamp)
 }
 
 // WritePoint indicates an expected call of WritePoint.
-func (mr *MockDatabaseHandlerMockRecorder) WritePoint(measurement, tags, fields, ts interface{}) *gomock.Call {
+func (mr *MockDatabaseHandlerMockRecorder) WritePoint(measurement, tags, fields, timeStamp interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WritePoint", reflect.TypeOf((*MockDatabaseHandler)(nil).WritePoint), measurement, tags, fields, ts)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WritePoint", reflect.TypeOf((*MockDatabaseHandler)(nil).WritePoint), measurement, tags, fields, timeStamp)
 }

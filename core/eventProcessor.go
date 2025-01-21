@@ -46,28 +46,30 @@ func (ep *eventProcessor) Process() {
 					continue
 				}
 
+				if event.BlockNumber == 1800 {
+					slog.Info("Received event", "event", evSchema.Measurement)
+				}
 				block, _ := ep.core.blockCache.Get(big.NewInt(int64(event.BlockNumber)))
 				if block == nil {
 					slog.Error("couldn't fetch block", "hash", event.BlockHash)
 					continue
 				}
-				ep.recordEvent(block, evSchema)
+				ep.recordEvent(block, evSchema, event)
 			}
 		}
 
 	}()
 }
 
-func (ep *eventProcessor) recordEvent(block *types.Block, schema model.EventSchema) {
-	ts := time.Unix(int64(block.NumberU64()), 0)
-	tags := map[string]string{}
-	tags["event_type"] = "protocol"
+func (ep *eventProcessor) recordEvent(block *types.Block, schema model.EventSchema, log types.Log) {
+
 	handler := registry.GetHandler(schema.Measurement)
 	//custom event handling only if registered
 	if handler != nil {
-		handler.Handle(schema, block, tags, ep.core.cp)
+		handler.Handle(schema, block, ep.core.cp)
 	}
-
 	slog.Debug("new log event received", "name", schema.Measurement, "block", block.NumberU64())
-	go ep.core.dbHandler.WriteEvent(schema, tags, ts)
+	schema.Fields["block"] = block.NumberU64()
+	ts := time.Unix(int64(block.Time()), 0)
+	go ep.core.dbHandler.WriteEvent(schema, ts)
 }

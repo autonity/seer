@@ -37,13 +37,13 @@ func (m *MockEventHandler) EXPECT() *MockEventHandlerMockRecorder {
 }
 
 // Handle mocks base method.
-func (m *MockEventHandler) Handle(schema model.EventSchema, block *types.Block, tags map[string]string, provider net.ConnectionProvider) {
+func (m *MockEventHandler) Handle(schema model.EventSchema, block *types.Block, provider net.ConnectionProvider) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Handle", schema, block, tags, provider)
+	m.ctrl.Call(m, "Handle", schema, block, provider)
 }
 
 // Handle indicates an expected call of Handle.
-func (mr *MockEventHandlerMockRecorder) Handle(schema, block, tags, provider interface{}) *gomock.Call {
+func (mr *MockEventHandlerMockRecorder) Handle(schema, block, provider interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Handle", reflect.TypeOf((*MockEventHandler)(nil).Handle), schema, block, tags, provider)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Handle", reflect.TypeOf((*MockEventHandler)(nil).Handle), schema, block, provider)
 }

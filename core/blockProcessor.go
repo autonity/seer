@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/autonity/autonity/accounts/abi/bind"
 	"github.com/autonity/autonity/autonity"
 	"github.com/autonity/autonity/core/types"
 	"github.com/autonity/autonity/p2p"
@@ -16,9 +15,11 @@ import (
 )
 
 var (
-	acnPeers        = "ACNPeers"
-	BlockHeader     = "BlockHeader"
-	InactivityScore = "InactivityScore"
+	acnPeers       = "ACNPeers"
+	BlockHeader    = "BlockHeader"
+	BlockTimestamp = "BlockTimestamp"
+	QCAbsentees    = "QuorumCertificateAbsentees"
+	APAbsentees    = "ActivityProofAbsentees"
 )
 
 type blockProcessor struct {
@@ -45,6 +46,7 @@ func (bp *blockProcessor) Process() {
 				}
 				slog.Debug("new block received", "number", block.Number().Uint64())
 				bp.core.markProcessed(block.NumberU64(), block.NumberU64())
+				bp.recordBlockTimestamp(block)
 				bp.recordBlock(block)
 				bp.recordACNPeers(block)
 
@@ -53,6 +55,13 @@ func (bp *blockProcessor) Process() {
 			}
 		}
 	}()
+}
+
+func (bp *blockProcessor) recordBlockTimestamp(block *types.Block) {
+	fields := map[string]interface{}{}
+	fields["block_timestamp"] = int64(block.Time())
+	ts := time.Unix(int64(block.NumberU64()), 0)
+	bp.core.dbHandler.WritePoint(BlockTimestamp, nil, fields, ts)
 }
 
 func (bp *blockProcessor) recordACNPeers(block *types.Block) {
@@ -71,10 +80,12 @@ func (bp *blockProcessor) recordACNPeers(block *types.Block) {
 	}
 
 	tags := map[string]string{}
-	ts := time.Unix(int64(block.NumberU64()), 0)
+	//ts := time.Unix(int64(block.NumberU64()), 0)
+	ts := time.Unix(int64(block.Time()), 0)
 	for _, peer := range result {
 		fields := map[string]interface{}{}
 		fields["enode"] = peer.Enode
+		fields["block"] = block.NumberU64()
 		fields["localAddress"] = peer.Network.LocalAddress
 		fields["RemoteAddress"] = peer.Network.RemoteAddress
 		tags["id"] = peer.ID
@@ -85,17 +96,10 @@ func (bp *blockProcessor) recordACNPeers(block *types.Block) {
 }
 
 func (bp *blockProcessor) recordBlock(block *types.Block) {
-	tags := map[string]string{}
 
 	header := block.Header()
-	fields := map[string]interface{}{}
-	fields["round"] = header.Round
-	fields["activityProofRound"] = header.ActivityProofRound
-	fields["proposer"] = header.Coinbase
 
 	slog.Debug("Recording block", "num", block.NumberU64())
-
-	//TODO: review correct epoch is pulled
 	autCommittee := make([]autonity.AutonityCommitteeMember, 0)
 	committeeMembers := make([]types.CommitteeMember, 0)
 	epochInfo := bp.core.epochInfoCache.Get(block.Number())
@@ -103,7 +107,6 @@ func (bp *blockProcessor) recordBlock(block *types.Block) {
 		slog.Error("not pushing the block in DB due to processing errors", "number", block.NumberU64())
 		return
 	}
-	fields["epoch"] = epochInfo.EpochBlock.Uint64()
 	autCommittee = epochInfo.Committee
 	committeeMembers = helper.AutCommitteeToCommittee(autCommittee)
 
@@ -115,7 +118,6 @@ func (bp *blockProcessor) recordBlock(block *types.Block) {
 		sk := com.Proposer(header.Number.Uint64(), int64(header.Round))
 		skippedProposers = append(skippedProposers, sk.String())
 	}
-	fields["skipped-proposer"] = strings.Join(skippedProposers, ",")
 
 	getMembers := func(ag *types.AggregateSignature) []string {
 		var members []string
@@ -152,42 +154,44 @@ func (bp *blockProcessor) recordBlock(block *types.Block) {
 	}
 	qcAbsentees := absentees(getMembers(header.QuorumCertificate))
 	apAbsentees := absentees(getMembers(header.ActivityProof))
-	fields["qc-absentees"] = strings.Join(qcAbsentees, ",")
-	fields["ap-absentees"] = strings.Join(apAbsentees, ",")
-
-	fields["num-qc-absentees"] = len(qcAbsentees)
-	fields["num-ap-absentees"] = len(apAbsentees)
 
 	cm := make([]string, 0, len(autCommittee))
 	for _, mem := range autCommittee {
 		cm = append(cm, mem.Addr.String())
 	}
+	fields := map[string]interface{}{}
+	fields["qc-absentees"] = strings.Join(qcAbsentees, ",")
+	fields["ap-absentees"] = strings.Join(apAbsentees, ",")
+	fields["epoch"] = epochInfo.EpochBlock.Uint64()
+	fields["skipped-proposer"] = strings.Join(skippedProposers, ",")
+	fields["num-qc-absentees"] = len(qcAbsentees)
+	fields["num-ap-absentees"] = len(apAbsentees)
+	fields["round"] = header.Round
+	fields["activityProofRound"] = header.ActivityProofRound
+	fields["proposer"] = header.Coinbase
 	fields["committee"] = strings.Join(cm, ",")
+	fields["block"] = block.NumberU64()
 
-	ts := time.Unix(int64(block.NumberU64()), 0)
-	bp.core.dbHandler.WritePoint(BlockHeader, tags, fields, ts)
-	go bp.trackInactivity(block, com.Members)
+	ts := time.Unix(int64(block.Time()), 0)
+
+	bp.core.dbHandler.WritePoint(BlockHeader, nil, fields, ts)
+	go bp.trackInactivity(block, com.Members, qcAbsentees, apAbsentees)
 }
 
-func (bp *blockProcessor) trackInactivity(block *types.Block, committee []types.CommitteeMember) {
-	con := bp.core.cp.GetWebSocketConnection()
-	omissionBindings, err := autonity.NewOmissionAccountability(helper.OmissionAccountabilityContractAddress, con.Client)
-	if err != nil {
-		slog.Error("unable to create autonity bindings", "error", err)
-	}
+func (bp *blockProcessor) trackInactivity(block *types.Block, committee []types.CommitteeMember, qcAbsentees, apAbsentees []string) {
 
 	fields := make(map[string]interface{}, 0)
 	tags := make(map[string]string, 0)
-	ts := time.Unix(int64(block.NumberU64()), 0)
-	for _, m := range committee {
-		inactivityScore, err := omissionBindings.GetInactivityScore(&bind.CallOpts{
-			BlockNumber: block.Number(),
-		}, m.Address)
-		if err != nil || inactivityScore == nil {
-			continue
-		}
-		fields["score"] = inactivityScore.Uint64()
-		tags["validator"] = m.Address.String()
-		bp.core.dbHandler.WritePoint(InactivityScore, tags, fields, ts)
+	ts := time.Unix(int64(block.Time()), 0)
+	fields["block"] = block.NumberU64()
+	for _, m := range qcAbsentees {
+		tags["validator"] = m
+		fields["absent"] = 1
+		bp.core.dbHandler.WritePoint(QCAbsentees, tags, fields, ts)
+	}
+	for _, m := range apAbsentees {
+		tags["validator"] = m
+		fields["absent"] = 1
+		bp.core.dbHandler.WritePoint(APAbsentees, tags, fields, ts)
 	}
 }
