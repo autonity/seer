@@ -1709,7 +1709,7 @@
       "pluginVersion": "11.4.0",
       "targets": [
         {
-          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"MintedStake\" and r[\"event_type\"] == \"protocol\" )\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>sort(columns: [\"block\"], desc: true)\n|>drop(columns:[\"event_type\", \"_time\"])\n|>limit(n:10000)\n",
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"MintedStake\" and r[\"event_type\"] == \"protocol\" )\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n |>group(columns:[\"event_id_seer\"])\n  |>group()\n  |> drop (columns: [\"_time\", \"_measurement\", \"event_id_seer\", \"event_type\"])\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:10000)\n",
           "refId": "A"
         }
       ],
@@ -1804,7 +1804,7 @@
             "type": "influxdb",
             "uid": "de85digryc1dsb"
           },
-          "query": "from(bucket: \"seer_test\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"Rewarded\")\n  |> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> map(fn: (r) => ({ r with block: uint(v: uint(v: r._time) / uint(v :1000000000)) }))\n|> drop (columns: [\"_time\"])\n  |> limit(n:1000)\n\n",
+          "query": "from(bucket: \"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"Rewarded\")\n  |> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |>group(columns:[\"event_id_seer\"])\n  |>group()\n  |> drop (columns: [\"_time\", \"_measurement\", \"event_id_seer\", \"event_type\"])\n  |> limit(n:1000)\n\n",
           "refId": "Rewarded"
         }
       ],
@@ -3286,8 +3286,8 @@
     "list": [
       {
         "current": {
-          "text": "seer_temp_1",
-          "value": "seer_temp_1"
+          "text": "seer_v1",
+          "value": "seer_v1"
         },
         "definition": "buckets()",
         "description": "",
@@ -3346,6 +3346,6 @@
   "timezone": "browser",
   "title": "Autonity Events - Block Filter",
   "uid": "fe86msn60epdsf",
-  "version": 147,
+  "version": 150,
   "weekStart": ""
 }

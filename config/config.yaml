@@ -1,6 +1,6 @@
 ---
 seer:
-  logLevel: "info"
+  logLevel: "error"
 node:
   rpc:
     maxConnections: 25
