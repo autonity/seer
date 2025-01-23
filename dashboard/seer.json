@@ -347,7 +347,13 @@
           ],
           "show": false
         },
-        "showHeader": true
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "count"
+          }
+        ]
       },
       "pluginVersion": "11.4.0",
       "targets": [
@@ -648,22 +654,7 @@
             }
           }
         },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "committee"
-            },
-            "properties": []
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "block"
-            },
-            "properties": []
-          }
-        ]
+        "overrides": []
       },
       "gridPos": {
         "h": 8,
@@ -714,7 +705,7 @@
           "refId": "A"
         }
       ],
-      "title": "Quorum Certificate Absentees",
+      "title": "Number of Quorum Certificate Absentees",
       "type": "heatmap"
     },
     {
@@ -800,7 +791,7 @@
           "refId": "A"
         }
       ],
-      "title": "Activity Proof Absentees",
+      "title": "Number of Activity Proof Absentees",
       "type": "heatmap"
     },
     {
@@ -1107,7 +1098,88 @@
           "refId": "A"
         }
       ],
-      "title": "Quorum Certificate Absentees",
+      "title": "Quorum Certificate Absentees - aggregated 10s",
+      "type": "heatmap"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "de85digryc1dsb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "scaleDistribution": {
+              "type": "linear"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 16,
+        "w": 24,
+        "x": 0,
+        "y": 58
+      },
+      "id": 44,
+      "options": {
+        "calculate": false,
+        "calculation": {
+          "xBuckets": {
+            "value": ""
+          },
+          "yBuckets": {
+            "scale": {
+              "type": "linear"
+            }
+          }
+        },
+        "cellGap": 1,
+        "color": {
+          "exponent": 0.5,
+          "fill": "dark-orange",
+          "mode": "scheme",
+          "reverse": false,
+          "scale": "exponential",
+          "scheme": "RdYlGn",
+          "steps": 64
+        },
+        "exemplars": {
+          "color": "#ff00ffb3"
+        },
+        "filterValues": {
+          "le": 1e-9
+        },
+        "legend": {
+          "show": true
+        },
+        "rowsFrame": {
+          "layout": "auto"
+        },
+        "tooltip": {
+          "mode": "single",
+          "showColorScale": false,
+          "yHistogram": false
+        },
+        "yAxis": {
+          "axisPlacement": "left",
+          "reverse": false
+        }
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "query": "from(bucket: \"${bucket}\")\n  |> range(start: ${__from}/1000, stop: ${__to}/1000)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"ActivityProofAbsentees\")\n  |> filter(fn: (r) => r._field == \"absent\")\n  |> group(columns: [\"validator\"])\n  |> aggregateWindow(every: 10s, fn: sum, createEmpty: false)\n\n",
+          "refId": "A"
+        }
+      ],
+      "title": "Activity Proof Absentees - aggregated 10s",
       "type": "heatmap"
     },
     {
@@ -1149,7 +1221,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 58
+        "y": 74
       },
       "id": 30,
       "options": {
@@ -1214,7 +1286,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 66
+        "y": 82
       },
       "id": 21,
       "panels": [],
@@ -1260,7 +1332,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 67
+        "y": 83
       },
       "id": 18,
       "options": {
@@ -1356,7 +1428,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 67
+        "y": 83
       },
       "id": 3,
       "options": {
@@ -1446,7 +1518,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 75
+        "y": 91
       },
       "id": 8,
       "options": {
@@ -1511,7 +1583,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 75
+        "y": 91
       },
       "id": 17,
       "options": {
@@ -1618,7 +1690,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 83
+        "y": 99
       },
       "id": 12,
       "options": {
@@ -1709,7 +1781,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 83
+        "y": 99
       },
       "id": 1,
       "options": {
@@ -1808,7 +1880,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 91
+        "y": 107
       },
       "id": 13,
       "options": {
@@ -1828,7 +1900,7 @@
       "pluginVersion": "11.4.0",
       "targets": [
         {
-          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"NewBondingRequest\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|> drop (columns: [\"_time\"])\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:1000)\n",
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"NewBondingRequest\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>group(columns:[\"event_id_seer\"])\n|>group()\n|> drop (columns: [\"_time\", \"_measurement\", \"event_id_seer\", \"event_type\"])\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:1000)\n",
           "refId": "A"
         }
       ],
@@ -1914,7 +1986,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 91
+        "y": 107
       },
       "id": 16,
       "options": {
@@ -1934,7 +2006,7 @@
       "pluginVersion": "11.4.0",
       "targets": [
         {
-          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"NewUnbondingRequest\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|> drop (columns: [\"_time\", \"event_type\"])\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:1000)\n",
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"NewUnbondingRequest\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>group(columns:[\"event_id_seer\"])\n|>group()\n|> drop (columns: [\"_time\", \"_measurement\", \"event_id_seer\", \"event_type\"])\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:1000)\n",
           "refId": "A"
         }
       ],
@@ -2035,7 +2107,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 99
+        "y": 115
       },
       "id": 14,
       "options": {
@@ -2054,7 +2126,7 @@
       "pluginVersion": "11.4.0",
       "targets": [
         {
-          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"NewEpoch\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>group(columns:[\"event_id_seer\"])\n|> drop (columns: [\"_time\", \"event_id_seer\"])\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:10000)\n",
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"NewEpoch\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>group(columns:[\"event_id_seer\"])\n|>group()\n|> drop (columns: [\"_time\", \"_measurement\", \"event_id_seer\", \"event_type\"])\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:10000)\n",
           "refId": "A"
         }
       ],
@@ -2091,7 +2163,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 107
+        "y": 123
       },
       "id": 25,
       "panels": [],
@@ -2150,7 +2222,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 108
+        "y": 124
       },
       "id": 10,
       "options": {
@@ -2212,7 +2284,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 116
+        "y": 132
       },
       "id": 24,
       "panels": [],
@@ -2271,7 +2343,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 117
+        "y": 133
       },
       "id": 15,
       "options": {
@@ -2400,7 +2472,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 117
+        "y": 133
       },
       "id": 2,
       "options": {
@@ -2419,7 +2491,7 @@
       "pluginVersion": "11.4.0",
       "targets": [
         {
-          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"Penalized\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|> drop (columns: [\"_time\"])\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:10000)",
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"Penalized\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|> drop (columns: [\"_time\"])\n|>group(columns:[\"event_id_seer\"])\n|>group()\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:10000)",
           "refId": "A"
         }
       ],
@@ -2459,7 +2531,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 125
+        "y": 141
       },
       "id": 26,
       "panels": [],
@@ -2518,7 +2590,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 126
+        "y": 142
       },
       "id": 11,
       "options": {
@@ -2537,7 +2609,7 @@
       "pluginVersion": "11.4.0",
       "targets": [
         {
-          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"Mint\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|> drop (columns: [\"_time\", \"event_type\"])\n|>limit(n:1000)\n",
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"Mint\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>group(columns:[\"event_id_seer\"])\n|>group()\n|> drop (columns: [\"_time\", \"_measurement\", \"event_id_seer\", \"event_type\"])\n|>limit(n:1000)\n",
           "refId": "A"
         }
       ],
@@ -2575,7 +2647,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 134
+        "y": 150
       },
       "id": 23,
       "panels": [],
@@ -2634,7 +2706,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 135
+        "y": 151
       },
       "id": 7,
       "options": {
@@ -2653,7 +2725,7 @@
       "pluginVersion": "11.4.0",
       "targets": [
         {
-          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"Borrow\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|> drop (columns: [\"_time\", \"event_type\"])\n|>limit(n:1000)\n",
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"Borrow\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>group(columns:[\"event_id_seer\"])\n|>group()\n|> drop (columns: [\"_time\", \"_measurement\", \"event_id_seer\", \"event_type\"])\n|>limit(n:1000)\n",
           "refId": "A"
         }
       ],
@@ -2737,7 +2809,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 135
+        "y": 151
       },
       "id": 9,
       "options": {
@@ -2756,7 +2828,7 @@
       "pluginVersion": "11.4.0",
       "targets": [
         {
-          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"Deposit\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|> drop (columns: [\"_time\", \"event_type\"])\n|>limit(n:1000)\n",
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"Deposit\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>group(columns:[\"event_id_seer\"])\n|>group()\n|> drop (columns: [\"_time\", \"_measurement\", \"event_id_seer\", \"event_type\"])\n|>limit(n:1000)\n",
           "refId": "A"
         }
       ],
@@ -2794,7 +2866,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 143
+        "y": 159
       },
       "id": 28,
       "panels": [],
@@ -2853,7 +2925,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 144
+        "y": 160
       },
       "id": 20,
       "options": {
@@ -2918,7 +2990,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 152
+        "y": 168
       },
       "id": 27,
       "panels": [],
@@ -2977,7 +3049,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 153
+        "y": 169
       },
       "id": 6,
       "options": {
@@ -2996,7 +3068,7 @@
       "pluginVersion": "11.4.0",
       "targets": [
         {
-          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"Approval\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|> drop (columns: [\"_time\", \"event_type\"])\n|>limit(n:1000)\n",
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"Approval\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>group(columns:[\"event_id_seer\"])\n|>group()\n|> drop (columns: [\"_time\", \"_measurement\", \"event_id_seer\", \"event_type\"])\n|>limit(n:1000)\n",
           "refId": "A"
         }
       ],
@@ -3073,7 +3145,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 153
+        "y": 169
       },
       "id": 19,
       "options": {
@@ -3092,7 +3164,7 @@
       "pluginVersion": "11.4.0",
       "targets": [
         {
-          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"Transfer\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|> drop (columns: [\"_time\", \"event_type\"])\n|>limit(n:1000)\n",
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"Transfer\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>group(columns:[\"event_id_seer\"])\n|>group()\n|> drop (columns: [\"_time\", \"_measurement\", \"event_id_seer\", \"event_type\"])\n|>limit(n:1000)\n",
           "refId": "A"
         }
       ],
@@ -3165,7 +3237,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 161
+        "y": 177
       },
       "id": 5,
       "options": {
@@ -3231,8 +3303,8 @@
       },
       {
         "current": {
-          "text": "1",
-          "value": "1"
+          "text": "1800",
+          "value": "1800"
         },
         "description": "",
         "label": "block_start_num",
@@ -3240,40 +3312,40 @@
         "options": [
           {
             "selected": true,
-            "text": "1",
-            "value": "1"
+            "text": "1800",
+            "value": "1800"
           }
         ],
-        "query": "1",
+        "query": "1800",
         "type": "textbox"
       },
       {
         "current": {
-          "text": "10000",
-          "value": "10000"
+          "text": "3600",
+          "value": "3600"
         },
         "label": "block_end_num",
         "name": "block_end_num",
         "options": [
           {
             "selected": true,
-            "text": "10000",
-            "value": "10000"
+            "text": "3600",
+            "value": "3600"
           }
         ],
-        "query": "10000",
+        "query": "3600",
         "type": "textbox"
       }
     ]
   },
   "time": {
-    "from": "2024-12-11T14:12:14.528Z",
-    "to": "2024-12-11T14:14:56.920Z"
+    "from": "2024-12-11T13:30:20.000Z",
+    "to": "2024-12-11T14:00:20.000Z"
   },
   "timepicker": {},
   "timezone": "browser",
   "title": "Autonity Events - Block Filter",
   "uid": "fe86msn60epdsf",
-  "version": 143,
+  "version": 147,
   "weekStart": ""
 }

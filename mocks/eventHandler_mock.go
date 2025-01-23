@@ -37,7 +37,7 @@ func (m *MockEventHandler) EXPECT() *MockEventHandlerMockRecorder {
 }
 
 // Handle mocks base method.
-func (m *MockEventHandler) Handle(schema model.EventSchema, block *types.Block, provider net.ConnectionProvider) {
+func (m *MockEventHandler) Handle(schema model.EventSchema, block *types.Header, provider net.ConnectionProvider) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "Handle", schema, block, provider)
 }

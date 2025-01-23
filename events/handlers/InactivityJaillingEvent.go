@@ -18,7 +18,7 @@ import (
 
 type InactivityjJaillingEventHandler struct{}
 
-func (ev *InactivityjJaillingEventHandler) Handle(schema model.EventSchema, block *types.Block, cp net.ConnectionProvider) {
+func (ev *InactivityjJaillingEventHandler) Handle(schema model.EventSchema, header *types.Header, cp net.ConnectionProvider) {
 	slog.Debug("Handling Inactivity Jailing event", "")
 	con := cp.GetWebSocketConnection()
 	omissionBindings, err := autonity.NewOmissionAccountability(helper.OmissionAccountabilityContractAddress, con.Client)
@@ -28,7 +28,7 @@ func (ev *InactivityjJaillingEventHandler) Handle(schema model.EventSchema, bloc
 
 	validator := schema.Fields["validator"]
 	inactivityScore, err := omissionBindings.GetInactivityScore(&bind.CallOpts{
-		BlockNumber: block.Number(),
+		BlockNumber: header.Number,
 	}, validator.(common.Address))
 	if inactivityScore == nil {
 		return

@@ -2,13 +2,17 @@ package core
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"math/big"
+	"net/http"
+	_ "net/http/pprof"
 	"sync"
 	"time"
 
 	ethereum "github.com/autonity/autonity"
 	"github.com/autonity/autonity/core/types"
+	"github.com/autonity/autonity/rpc"
 
 	"seer/config"
 	"seer/helper"
@@ -17,8 +21,11 @@ import (
 )
 
 var (
-	maxConcurrency = 1000
-	batchSize      = uint64(500)
+	maxConcurrency = 100
+	batchSize      = uint64(100)
+
+	newBlockProcessors = 10
+	newEventProcessors = 10
 )
 
 type blockTracker struct {
@@ -34,7 +41,7 @@ type core struct {
 	dbHandler  interfaces.DatabaseHandler
 	cp         net.ConnectionProvider
 
-	newBlocks chan *types.Block
+	newBlocks chan *types.Header
 	newEvents chan types.Log
 
 	blockCache     interfaces.BlockCache
@@ -47,8 +54,8 @@ type core struct {
 func New(cfg config.NodeConfig, parser interfaces.ABIParser, dbHandler interfaces.DatabaseHandler, cp net.ConnectionProvider) interfaces.Core {
 	return &core{
 		nodeConfig:     cfg,
-		newBlocks:      make(chan *types.Block, 10000),
-		newEvents:      make(chan types.Log, 1000),
+		newBlocks:      make(chan *types.Header, newBlockProcessors),
+		newEvents:      make(chan types.Log, newEventProcessors),
 		abiParser:      parser,
 		dbHandler:      dbHandler,
 		cp:             cp,
@@ -61,25 +68,48 @@ func New(cfg config.NodeConfig, parser interfaces.ABIParser, dbHandler interface
 	}
 }
 
+func (c *core) handleHistory(ctx context.Context, start, end uint64) {
+	go func() {
+		// Expose the pprof endpoints on a specific port
+		port := 6060
+		slog.Info("Starting pprof server on", "port", port)
+		err := http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
+		if err != nil {
+			slog.Error("Error starting pprof server: %v", err)
+		}
+	}()
+	c.runInGoroutine(ctx, func(ctx context.Context) {
+		c.ReadHistoricalData(ctx, start, end, c.ReadEventHistory)
+	})
+	c.runInGoroutine(ctx, func(ctx context.Context) {
+		c.ReadHistoricalData(ctx, start, end, c.ReadBlockHistory)
+	})
+}
+
 func (c *core) Start(ctx context.Context) {
 	ctx, c.cancel = context.WithCancel(ctx)
 	helper.PrintContractAddresses()
 
+	for i := 0; i < newEventProcessors; i++ {
+		NewEventProcessor(ctx, c, c.newEvents).Process()
+	}
+	for i := 0; i < newBlockProcessors; i++ {
+		NewBlockProcessor(ctx, c, c.newBlocks).Process()
+	}
+	// read current/future events and blocks
 	c.runInGoroutine(ctx, c.eventReader)
 	c.runInGoroutine(ctx, c.blockReader)
-
-	NewEventProcessor(ctx, c).Process()
-	NewBlockProcessor(ctx, c).Process()
-
 	if c.nodeConfig.Sync.History {
 		start, end := c.getHistoricalRange(ctx)
-		c.runInGoroutine(ctx, func(ctx context.Context) {
-			c.ReadHistoricalData(ctx, start, end, c.ReadEventHistory)
-		})
-		c.runInGoroutine(ctx, func(ctx context.Context) {
-			c.ReadHistoricalData(ctx, start, end, c.ReadBlockHistory)
-		})
+		c.handleHistory(ctx, start, end)
 	}
+	c.Wait()
+}
+
+func (c *core) ProcessRange(ctx context.Context, start, end uint64) {
+	helper.PrintContractAddresses()
+	ctx, c.cancel = context.WithCancel(ctx)
+	c.handleHistory(ctx, start, end)
 	c.Wait()
 }
 
@@ -93,24 +123,6 @@ func (c *core) runInGoroutine(ctx context.Context, fn func(ctx context.Context))
 		defer c.Done()
 		fn(ctx)
 	}()
-}
-
-func (c *core) ProcessRange(ctx context.Context, start, end uint64) {
-	helper.PrintContractAddresses()
-	ctx, c.cancel = context.WithCancel(ctx)
-
-	NewEventProcessor(ctx, c).Process()
-	NewBlockProcessor(ctx, c).Process()
-
-	c.runInGoroutine(ctx, func(ctx context.Context) {
-		c.ReadHistoricalData(ctx, start, end, c.ReadEventHistory)
-	})
-	c.runInGoroutine(ctx, func(ctx context.Context) {
-		c.ReadHistoricalData(ctx, start, end, c.ReadBlockHistory)
-	})
-	slog.Info("Waiting to finish")
-	c.Wait()
-	slog.Info("Finished processing range")
 }
 
 func (c *core) markProcessed(start, end uint64) {
@@ -156,8 +168,7 @@ func (c *core) ReadHistoricalData(ctx context.Context, start, end uint64, batchR
 	for i := 0; i <= maxConcurrency; i++ {
 		c.runInGoroutine(ctx, func(ctx context.Context) {
 			batchReader(ctx, workQueue)
-		},
-		)
+		})
 	}
 	for i := start; i <= end; i += batchSize {
 		workQueue <- [2]uint64{i, i + batchSize}
@@ -165,6 +176,12 @@ func (c *core) ReadHistoricalData(ctx context.Context, start, end uint64, batchR
 }
 
 func (c *core) ReadEventHistory(ctx context.Context, workQueue chan [2]uint64) {
+	processorConcurrency := 2
+	eventChs := make([]chan types.Log, processorConcurrency)
+	for i := 0; i < processorConcurrency; i++ {
+		eventChs[i] = make(chan types.Log, 10)
+		NewEventProcessor(ctx, c, eventChs[i]).Process()
+	}
 	con := c.cp.GetWebSocketConnection()
 	for {
 		select {
@@ -176,52 +193,68 @@ func (c *core) ReadEventHistory(ctx context.Context, workQueue chan [2]uint64) {
 				ToBlock:   big.NewInt(int64(batch[1])),
 				Addresses: helper.ContractAddresses,
 			}
-			slog.Info("Starting Batch from", "startBlock", batch[0], "endBlock", batch[1])
+			slog.Debug("Starting event batch from", "startBlock", batch[0], "endBlock", batch[1])
 			logs, err := con.Client.FilterLogs(ctx, fq)
 			if err != nil {
 				slog.Error("Unable to filter autonity logs", "error", err, "batch start", batch[0], "batch end", batch[1])
 			}
-			for _, log := range logs {
+			for i, log := range logs {
 				select {
 				case <-ctx.Done():
 					return
-				case c.newEvents <- log:
+				case eventChs[i%processorConcurrency] <- log:
 				}
 			}
-			slog.Info("event batch complete", "startBlock", batch[0], "endBlock", batch[1])
+			slog.Debug("event batch complete", "startBlock", batch[0], "endBlock", batch[1])
 		}
 	}
 }
 
 func (c *core) ReadBlockHistory(ctx context.Context, workQueue chan [2]uint64) {
-	con := c.cp.GetWebSocketConnection()
+	processorConcurrency := int(batchSize) * 10
+	blockChs := make([]chan *types.Header, processorConcurrency)
+	for i := 0; i < processorConcurrency; i++ {
+		blockChs[i] = make(chan *types.Header, 10)
+		NewBlockProcessor(ctx, c, blockChs[i]).Process()
+	}
+	counter := 0
+	con := c.cp.GetRPCConnection()
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case batch := <-workQueue:
+			counter++
 			now := time.Now()
+			slog.Debug("Starting block batch from", "startBlock", batch[0], "endBlock", batch[1])
+			var requests []rpc.BatchElem
+			for i := batch[0]; i <= batch[1]; i++ {
+				header := types.Header{}
+				requests = append(requests, rpc.BatchElem{
+					Method: "eth_getBlockByNumber",
+					Args:   []interface{}{fmt.Sprintf("0x%x", i), false}, // false to exclude full transaction details
+					Result: &header,
+				})
+			}
+			err := con.Client.BatchCallContext(ctx, requests)
+			if err != nil {
+				slog.Error("failed to run batch call", "error", err)
+				c.markProcessed(batch[0], batch[1])
+				continue
+			}
+			fetchTime := time.Now()
 
-			////TODO: batch requests for blocks
-			//for i := batch[0]; i <= batch[1]; i++ {
-			//	requests = append(requests, JSONRPCRequest{
-			//		Jsonrpc: "2.0",
-			//		Method:  "eth_getBlockByNumber",
-			//		Params:  []interface{}{fmt.Sprintf("0x%x", i), false}, // true to include full transaction details
-			//		ID:      i,
-			//	})
-			//}
-			for num := batch[0]; num < batch[1]; num++ {
-				block, err := con.Client.BlockByNumber(ctx, big.NewInt(int64(num)))
-				if err != nil {
-					slog.Error("Unable to fetch block", "error", err, "batch start", batch[0], "batch end", batch[1])
+			for _, call := range requests {
+				if call.Error != nil {
+					slog.Error("Error in batch call", "error", err)
 					continue
 				}
-				c.newBlocks <- block
+				blockChs[counter%processorConcurrency] <- call.Result.(*types.Header)
 			}
-
-			slog.Info("block batch complete", "startBlock", batch[0], "endBlock", batch[1], "time taken", time.Since(now).Seconds())
 			c.markProcessed(batch[0], batch[1])
+			slog.Info("block batch complete", "startBlock", batch[0], "endBlock", batch[1],
+				"fetch time", time.Since(fetchTime).Seconds(),
+				"time taken", time.Since(now).Seconds())
 		}
 	}
 }
@@ -259,7 +292,7 @@ func (c *core) blockReader(ctx context.Context) {
 					"error", err)
 				continue
 			}
-			c.newBlocks <- block
+			c.newBlocks <- block.Header()
 		}
 	}
 }
@@ -279,9 +312,6 @@ func (c *core) eventReader(ctx context.Context) {
 	}
 	defer sub.Unsubscribe()
 	slog.Debug("subscribing to log events")
-
-	// start event processor
-	NewEventProcessor(ctx, c).Process()
 
 	for {
 		select {

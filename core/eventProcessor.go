@@ -15,14 +15,16 @@ import (
 )
 
 type eventProcessor struct {
-	ctx  context.Context
-	core *core
+	ctx     context.Context
+	core    *core
+	eventCh chan types.Log
 }
 
-func NewEventProcessor(ctx context.Context, core *core) interfaces.Processor {
+func NewEventProcessor(ctx context.Context, core *core, evCh chan types.Log) interfaces.Processor {
 	return &eventProcessor{
-		ctx:  ctx,
-		core: core,
+		ctx:     ctx,
+		core:    core,
+		eventCh: evCh,
 	}
 }
 
@@ -32,7 +34,7 @@ func (ep *eventProcessor) Process() {
 			select {
 			case <-ep.ctx.Done():
 				return
-			case event, ok := <-ep.core.newEvents:
+			case event, ok := <-ep.eventCh:
 				if !ok {
 					return
 				}
@@ -46,9 +48,8 @@ func (ep *eventProcessor) Process() {
 					continue
 				}
 
-				if event.BlockNumber == 1800 {
-					slog.Info("Received event", "event", evSchema.Measurement)
-				}
+				/* todo: block cache fetch can be avoided if we push these events
+				to be processed later when block is synced */
 				block, _ := ep.core.blockCache.Get(big.NewInt(int64(event.BlockNumber)))
 				if block == nil {
 					slog.Error("couldn't fetch block", "hash", event.BlockHash)
@@ -61,15 +62,15 @@ func (ep *eventProcessor) Process() {
 	}()
 }
 
-func (ep *eventProcessor) recordEvent(block *types.Block, schema model.EventSchema, log types.Log) {
+func (ep *eventProcessor) recordEvent(header *types.Header, schema model.EventSchema, log types.Log) {
 
 	handler := registry.GetHandler(schema.Measurement)
 	//custom event handling only if registered
 	if handler != nil {
-		handler.Handle(schema, block, ep.core.cp)
+		handler.Handle(schema, header, ep.core.cp)
 	}
-	slog.Debug("new log event received", "name", schema.Measurement, "block", block.NumberU64())
-	schema.Fields["block"] = block.NumberU64()
-	ts := time.Unix(int64(block.Time()), 0)
-	go ep.core.dbHandler.WriteEvent(schema, ts)
+	slog.Debug("new log event received", "name", schema.Measurement, "block", header.Number.Uint64())
+	schema.Fields["block"] = header.Number.Uint64()
+	ts := time.Unix(int64(header.Time), 0)
+	ep.core.dbHandler.WriteEvent(schema, ts)
 }

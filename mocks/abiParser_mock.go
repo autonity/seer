@@ -117,7 +117,7 @@ func (m *MockBlockCache) EXPECT() *MockBlockCacheMockRecorder {
 }
 
 // Add mocks base method.
-func (m *MockBlockCache) Add(block *types.Block) {
+func (m *MockBlockCache) Add(block *types.Header) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "Add", block)
 }
@@ -129,10 +129,10 @@ func (mr *MockBlockCacheMockRecorder) Add(block interface{}) *gomock.Call {
 }
 
 // Get mocks base method.
-func (m *MockBlockCache) Get(number *big.Int) (*types.Block, bool) {
+func (m *MockBlockCache) Get(number *big.Int) (*types.Header, bool) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Get", number)
-	ret0, _ := ret[0].(*types.Block)
+	ret0, _ := ret[0].(*types.Header)
 	ret1, _ := ret[1].(bool)
 	return ret0, ret1
 }

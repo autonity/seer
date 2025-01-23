@@ -15,11 +15,11 @@ import (
 type NewEpochHandler struct {
 }
 
-func (ev *NewEpochHandler) Handle(schema model.EventSchema, block *types.Block,  cp net.ConnectionProvider) {
-	if block.Header().Epoch == nil {
+func (ev *NewEpochHandler) Handle(schema model.EventSchema, header *types.Header,  cp net.ConnectionProvider) {
+	if header.Epoch == nil {
 		slog.Error("NewEpoch Handler, committee information is nor present")
 		return
 	}
 	//TODO
-	schema.Fields["committee"] = block.Header().Epoch.Committee.String()
+	schema.Fields["committee"] = header.Epoch.Committee.String()
 }

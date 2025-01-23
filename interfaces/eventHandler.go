@@ -8,5 +8,5 @@ import (
 )
 
 type EventHandler interface {
-	Handle(schema model.EventSchema, block *types.Block,  provider net.ConnectionProvider)
+	Handle(schema model.EventSchema, block *types.Header,  provider net.ConnectionProvider)
 }
