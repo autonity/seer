@@ -1352,7 +1352,7 @@
       "pluginVersion": "11.4.0",
       "targets": [
         {
-          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"RegisteredValidator\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|> drop (columns: [\"_time\"])\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:10000)\n",
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"RegisteredValidator\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>group(columns:[\"event_id_seer\"])\n|>group()\n|> drop (columns: [\"_time\", \"_measurement\", \"event_id_seer\", \"event_type\"])\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:10000)\n",
           "refId": "A"
         }
       ],
@@ -1446,7 +1446,7 @@
       "pluginVersion": "11.4.0",
       "targets": [
         {
-          "query": "from(bucket:\"seer_test\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"ActivatedValidator\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|> drop (columns: [\"_time\"])\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:10000)\n\n\n\n\n",
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"ActivatedValidator\")\n|>pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>group(columns:[\"event_id_seer\"])\n|>group()\n|>drop (columns: [\"_time\", \"_measurement\", \"event_id_seer\", \"event_type\"])\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:10000)\n\n\n\n\n",
           "refId": "A"
         }
       ],
@@ -1537,7 +1537,7 @@
       "pluginVersion": "11.4.0",
       "targets": [
         {
-          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"CommissionRateChange\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|> drop (columns: [\"_time\"])\n|>keep(columns:[\"block\", \"rate\", \"validator\", \"_time\"])\n|>limit(n:10000)\n",
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"CommissionRateChange\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>group(columns:[\"event_id_seer\"])\n|>group()\n|>drop (columns: [\"_time\", \"_measurement\", \"event_id_seer\", \"event_type\"])\n|>limit(n:10000)\n",
           "refId": "A"
         }
       ],
@@ -1602,7 +1602,7 @@
       "pluginVersion": "11.4.0",
       "targets": [
         {
-          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"PausedValidator\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|> drop (columns: [\"_time\"])\n|>limit(n:1000)\n",
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"PausedValidator\")\n|>pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>group(columns:[\"event_id_seer\"])\n|>group()\n|>drop (columns: [\"_time\", \"_measurement\", \"event_id_seer\", \"event_type\"])\n|>limit(n:1000)\n",
           "refId": "A"
         }
       ],
@@ -1709,7 +1709,7 @@
       "pluginVersion": "11.4.0",
       "targets": [
         {
-          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"MintedStake\" and r[\"event_type\"] == \"protocol\" )\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n |>group(columns:[\"event_id_seer\"])\n  |>group()\n  |> drop (columns: [\"_time\", \"_measurement\", \"event_id_seer\", \"event_type\"])\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:10000)\n",
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"MintedStake\" and r[\"event_type\"] == \"protocol\" )\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>group(columns:[\"event_id_seer\"])\n|>group()\n|> drop (columns: [\"_time\", \"_measurement\", \"event_id_seer\", \"event_type\"])\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:10000)\n",
           "refId": "A"
         }
       ],
@@ -3303,8 +3303,8 @@
       },
       {
         "current": {
-          "text": "1800",
-          "value": "1800"
+          "text": "1000000",
+          "value": "1000000"
         },
         "description": "",
         "label": "block_start_num",
@@ -3312,40 +3312,40 @@
         "options": [
           {
             "selected": true,
-            "text": "1800",
-            "value": "1800"
+            "text": "1000000",
+            "value": "1000000"
           }
         ],
-        "query": "1800",
+        "query": "1000000",
         "type": "textbox"
       },
       {
         "current": {
-          "text": "3600",
-          "value": "3600"
+          "text": "1010000",
+          "value": "1010000"
         },
         "label": "block_end_num",
         "name": "block_end_num",
         "options": [
           {
             "selected": true,
-            "text": "3600",
-            "value": "3600"
+            "text": "1010000",
+            "value": "1010000"
           }
         ],
-        "query": "3600",
+        "query": "1010000",
         "type": "textbox"
       }
     ]
   },
   "time": {
-    "from": "2024-12-11T13:30:20.000Z",
-    "to": "2024-12-11T14:00:20.000Z"
+    "from": "now-30m",
+    "to": "now"
   },
   "timepicker": {},
   "timezone": "browser",
   "title": "Autonity Events - Block Filter",
   "uid": "fe86msn60epdsf",
-  "version": 150,
+  "version": 153,
   "weekStart": ""
 }

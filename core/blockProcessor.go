@@ -180,7 +180,7 @@ func (bp *blockProcessor) recordBlock(header *types.Header) {
 	bp.blockRecorderFields["round"] = header.Round
 	bp.blockRecorderFields["activityProofRound"] = header.ActivityProofRound
 	bp.blockRecorderFields["proposer"] = header.Coinbase
-	bp.blockRecorderFields["committee"] = autCommittee
+	bp.blockRecorderFields["committee"] = cm
 	bp.blockRecorderFields["block"] = number.Uint64()
 
 	ts := time.Unix(int64(header.Time), 0)
