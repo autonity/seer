@@ -869,7 +869,8 @@
       "pluginVersion": "11.4.0",
       "targets": [
         {
-          "query": "from(bucket:\"${bucket}\")\n |>range(start: ${__from}/1000, stop: ${__to}/1000)\n |> filter(fn: (r) => r[\"_measurement\"]== \"Penalized\")\n |> pivot(\n     rowKey:[\"_time\"],         \n     columnKey: [\"_field\"],    \n     valueColumn: \"_value\"   \n )\n |> group(columns: [\"_time\"])\n |> count(column: \"event_type\")\n |> group()\n |> rename(columns: {event_type: \"count\"})\n |> map(fn: (r)=> ({block:uint(v:r._time)/uint(v:1000000000), penalized:r.count}))\n\n\n",
+          "hide": false,
+          "query": "from(bucket:\"${bucket}\")\n |>range(start: ${__from}/1000, stop: ${__to}/1000)\n |> filter(fn: (r) => r[\"_measurement\"]== \"Penalized\")\n |> pivot(\n     rowKey:[\"_time\"],         \n     columnKey: [\"_field\"],    \n     valueColumn: \"_value\"   \n )\n |> group(columns: [\"block\"])\n |> count(column: \"event_type\")\n |> group()\n |> rename(columns: {event_type: \"count\"})\n |> map(fn: (r)=> ({block:r.block, penalized:r.count}))\n\n\n",
           "refId": "A"
         },
         {
@@ -878,28 +879,11 @@
             "uid": "de85digryc1dsb"
           },
           "hide": false,
-          "query": "from(bucket:\"${bucket}\")\n |>range(start: ${__from}/1000, stop: ${__to}/1000)\n |> filter(fn: (r) => r[\"_measurement\"]== \"InactivityJailingEvent\")\n |> pivot(\n     rowKey:[\"_time\"],         \n     columnKey: [\"_field\"],    \n     valueColumn: \"_value\"   \n )\n |> group(columns: [\"_time\"])\n |> count(column: \"event_type\")\n |> group()\n |> rename(columns: {event_type: \"count\"})\n |> map(fn: (r)=> ({block:uint(v:r._time)/uint(v:1000000000), inactivityJaillingEvent:r.count}))\n\n\n",
+          "query": "from(bucket:\"${bucket}\")\n |>range(start: ${__from}/1000, stop: ${__to}/1000)\n |> filter(fn: (r) => r[\"_measurement\"]== \"InactivityJailingEvent\")\n |> pivot(\n     rowKey:[\"_time\"],         \n     columnKey: [\"_field\"],    \n     valueColumn: \"_value\"   \n )\n |> group(columns: [\"block\"])\n |> count(column: \"event_type\")\n |> group()\n |> rename(columns: {event_type: \"count\"})\n |> map(fn: (r)=> ({block:r.block, inactivityJaillingEvent:r.count}))\n\n\n",
           "refId": "B"
         }
       ],
       "title": "Accountability Events Over blocks",
-      "transformations": [
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": {},
-            "includeByName": {},
-            "indexByName": {
-              "_measurement": 0,
-              "total_values": 1
-            },
-            "renameByName": {
-              "_measurement": "event",
-              "total_values": ""
-            }
-          }
-        }
-      ],
       "type": "xychart"
     },
     {
@@ -3469,12 +3453,12 @@
   },
   "time": {
     "from": "2024-12-11T13:00:00.000Z",
-    "to": "2024-12-11T13:00:18.539Z"
+    "to": "2024-12-11T16:37:49.784Z"
   },
   "timepicker": {},
   "timezone": "browser",
   "title": "Autonity Events - Block Filter",
   "uid": "fe86msn60epdsf",
-  "version": 158,
+  "version": 159,
   "weekStart": ""
 }
