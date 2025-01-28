@@ -67,6 +67,10 @@ func NewConnectionPool[T clientType](urls []string, capacity int) *ConnectionPoo
 func (cp *ConnectionPool[T]) Get() *Connection[T] {
 	cp.RLock()
 	defer cp.RUnlock()
+
+	if len(cp.connections) == 0 {
+		return nil
+	}
 	return cp.connections[rand.Intn(len(cp.connections))]
 }
 

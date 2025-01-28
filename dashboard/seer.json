@@ -3239,6 +3239,110 @@
         "x": 0,
         "y": 177
       },
+      "id": 45,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "query": "\n\tfrom(bucket:\"${bucket}\")\n\t\t\t|>range(start: -1y)\n\t\t\t|> filter(fn: (r) => r[\"_measurement\"]==\"LastProcessed\")\n\t\t\t|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n\t\t\t|> sort(columns: [\"_time\"], desc: true)\n\t\t\t|> group()\n\t\t\t|> limit(n: 1000)",
+          "refId": "A"
+        }
+      ],
+      "title": "LastProcessedBlock",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "_measurement": true,
+              "_start": true,
+              "_stop": true,
+              "block": false,
+              "event": true
+            },
+            "includeByName": {},
+            "indexByName": {
+              "_measurement": 5,
+              "_start": 3,
+              "_stop": 4,
+              "_time": 0,
+              "block": 1,
+              "event": 2
+            },
+            "renameByName": {}
+          }
+        },
+        {
+          "id": "filterByValue",
+          "options": {
+            "filters": [
+              {
+                "config": {
+                  "id": "isNull",
+                  "options": {}
+                },
+                "fieldName": "block"
+              }
+            ],
+            "match": "any",
+            "type": "exclude"
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "de85digryc1dsb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 177
+      },
       "id": 5,
       "options": {
         "cellHeight": "sm",
@@ -3255,24 +3359,49 @@
       "pluginVersion": "11.4.0",
       "targets": [
         {
-          "query": "\n\tfrom(bucket:\"${bucket}\")\n\t\t\t|>range(start: -1y)\n\t\t\t|> filter(fn: (r) => r[\"_measurement\"]==\"LastProcessed\")\n\t\t\t|> sort(columns: [\"_time\"], desc: true)\n\t\t\t|> limit(n: 1000)",
+          "query": "\n\tfrom(bucket:\"${bucket}\")\n\t\t\t|>range(start: -1y)\n\t\t\t|> filter(fn: (r) => r[\"_measurement\"]==\"LastProcessed\")\n\t\t\t|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n\t\t\t|> sort(columns: [\"_time\"], desc: true)\n\t\t\t|> group()\n\t\t\t|> limit(n: 1000)",
           "refId": "A"
         }
       ],
-      "title": "LastProcessed",
+      "title": "LastProcessedEvent",
       "transformations": [
         {
           "id": "organize",
           "options": {
             "excludeByName": {
-              "Time": true
+              "Time": true,
+              "_measurement": true,
+              "_start": true,
+              "_stop": true,
+              "block": true,
+              "event": false
             },
             "includeByName": {},
             "indexByName": {
-              "Time": 1,
-              "block": 0
+              "_measurement": 5,
+              "_start": 3,
+              "_stop": 4,
+              "_time": 0,
+              "block": 2,
+              "event": 1
             },
             "renameByName": {}
+          }
+        },
+        {
+          "id": "filterByValue",
+          "options": {
+            "filters": [
+              {
+                "config": {
+                  "id": "isNull",
+                  "options": {}
+                },
+                "fieldName": "event"
+              }
+            ],
+            "match": "all",
+            "type": "exclude"
           }
         }
       ],
@@ -3286,8 +3415,8 @@
     "list": [
       {
         "current": {
-          "text": "seer_v1",
-          "value": "seer_v1"
+          "text": "seer_temp",
+          "value": "seer_temp"
         },
         "definition": "buckets()",
         "description": "",
@@ -3303,8 +3432,8 @@
       },
       {
         "current": {
-          "text": "1000000",
-          "value": "1000000"
+          "text": "0",
+          "value": "0"
         },
         "description": "",
         "label": "block_start_num",
@@ -3312,40 +3441,40 @@
         "options": [
           {
             "selected": true,
-            "text": "1000000",
-            "value": "1000000"
+            "text": "0",
+            "value": "0"
           }
         ],
-        "query": "1000000",
+        "query": "0",
         "type": "textbox"
       },
       {
         "current": {
-          "text": "1010000",
-          "value": "1010000"
+          "text": "10000",
+          "value": "10000"
         },
         "label": "block_end_num",
         "name": "block_end_num",
         "options": [
           {
             "selected": true,
-            "text": "1010000",
-            "value": "1010000"
+            "text": "10000",
+            "value": "10000"
           }
         ],
-        "query": "1010000",
+        "query": "10000",
         "type": "textbox"
       }
     ]
   },
   "time": {
-    "from": "now-30m",
-    "to": "now"
+    "from": "2024-12-11T13:00:00.000Z",
+    "to": "2024-12-11T13:00:18.539Z"
   },
   "timepicker": {},
   "timezone": "browser",
   "title": "Autonity Events - Block Filter",
   "uid": "fe86msn60epdsf",
-  "version": 153,
+  "version": 158,
   "weekStart": ""
 }

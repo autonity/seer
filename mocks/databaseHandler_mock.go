@@ -60,29 +60,29 @@ func (mr *MockDatabaseHandlerMockRecorder) Flush() *gomock.Call {
 }
 
 // LastProcessed mocks base method.
-func (m *MockDatabaseHandler) LastProcessed() uint64 {
+func (m *MockDatabaseHandler) LastProcessed(arg0 string) uint64 {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "LastProcessed")
+	ret := m.ctrl.Call(m, "LastProcessed", arg0)
 	ret0, _ := ret[0].(uint64)
 	return ret0
 }
 
 // LastProcessed indicates an expected call of LastProcessed.
-func (mr *MockDatabaseHandlerMockRecorder) LastProcessed() *gomock.Call {
+func (mr *MockDatabaseHandlerMockRecorder) LastProcessed(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LastProcessed", reflect.TypeOf((*MockDatabaseHandler)(nil).LastProcessed))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LastProcessed", reflect.TypeOf((*MockDatabaseHandler)(nil).LastProcessed), arg0)
 }
 
 // SaveLastProcessed mocks base method.
-func (m *MockDatabaseHandler) SaveLastProcessed(arg0 uint64) {
+func (m *MockDatabaseHandler) SaveLastProcessed(arg0 string, arg1 uint64) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "SaveLastProcessed", arg0)
+	m.ctrl.Call(m, "SaveLastProcessed", arg0, arg1)
 }
 
 // SaveLastProcessed indicates an expected call of SaveLastProcessed.
-func (mr *MockDatabaseHandlerMockRecorder) SaveLastProcessed(arg0 interface{}) *gomock.Call {
+func (mr *MockDatabaseHandlerMockRecorder) SaveLastProcessed(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveLastProcessed", reflect.TypeOf((*MockDatabaseHandler)(nil).SaveLastProcessed), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveLastProcessed", reflect.TypeOf((*MockDatabaseHandler)(nil).SaveLastProcessed), arg0, arg1)
 }
 
 // WriteEvent mocks base method.

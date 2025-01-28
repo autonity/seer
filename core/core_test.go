@@ -21,7 +21,7 @@ func defaultListener() *core {
 		newEvents:  make(chan types.Log, 100),
 		abiParser:  nil,
 		dbHandler:  nil,
-		bt: &blockTracker{
+		blockTracker: &syncTracker{
 			processed:     make(map[uint64]bool),
 			lastProcessed: 0,
 		},
@@ -46,11 +46,11 @@ func TestListener_markProcessed(t *testing.T) {
 	l.markProcessed(0, 10)
 
 	// Verify lastProcessed was updated
-	assert.Equal(t, uint64(10), l.bt.lastProcessed)
+	assert.Equal(t, uint64(10), l.blockTracker.lastProcessed)
 	l.markProcessed(10, 20)
-	assert.Equal(t, uint64(20), l.bt.lastProcessed)
+	assert.Equal(t, uint64(20), l.blockTracker.lastProcessed)
 	l.markProcessed(21, 21)
-	assert.Equal(t, uint64(21), l.bt.lastProcessed)
+	assert.Equal(t, uint64(21), l.blockTracker.lastProcessed)
 	slog.Info("markProcessed test passed.")
 }
 
@@ -83,7 +83,7 @@ func TestListener_ReadBatch(t *testing.T) {
 	workQueue <- [2]uint64{10, 20}
 	close(workQueue)
 	listener.Wait()
-	assert.Equal(t, uint64(20), listener.bt.lastProcessed)
+	assert.Equal(t, uint64(20), listener.blockTracker.lastProcessed)
 }
 
 func TestListener_ReadHistoricalData(t *testing.T) {

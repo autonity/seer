@@ -33,13 +33,15 @@ type blockProcessor struct {
 	apAbsenteesFields    map[string]interface{}
 	qcTags               map[string]string
 	apTags               map[string]string
+	isLive               bool // differenciates whether we are processing blocks history or live
 }
 
-func NewBlockProcessor(ctx context.Context, core *core, newBlocks chan *types.Header) interfaces.Processor {
+func NewBlockProcessor(ctx context.Context, core *core, newBlocks chan *types.Header, isLive bool) interfaces.Processor {
 	return &blockProcessor{
 		ctx:                  ctx,
 		core:                 core,
 		headerCh:             newBlocks,
+		isLive:               isLive,
 		blockRecorderFields:  make(map[string]interface{}, 11),
 		acnPeerFields:        make(map[string]interface{}, 4),
 		blockTimestampFields: make(map[string]interface{}, 1),
@@ -62,9 +64,10 @@ func (bp *blockProcessor) Process() {
 				}
 				slog.Debug("new block received", "number", header.Number.Uint64())
 				bp.core.blockCache.Add(header)
-				bp.recordACNPeers(header)
 				bp.core.epochInfoCache.Add(header)
-				bp.core.markProcessed(header.Number.Uint64(), header.Number.Uint64())
+
+				bp.recordACNPeers(header)
+				bp.core.markProcessedBlock(header.Number.Uint64(), header.Number.Uint64())
 				bp.recordBlockTimestamp(header)
 				bp.recordBlock(header)
 			}

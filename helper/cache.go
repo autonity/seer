@@ -46,7 +46,7 @@ func (bc *blockCache) Get(number *big.Int) (*types.Header, bool) {
 	}
 	header := block.Header()
 	bc.cache.Add(common.BigToHash(number), header)
-	return header, false
+	return header, true
 }
 
 func (bc *blockCache) Add(header *types.Header) {

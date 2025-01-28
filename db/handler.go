@@ -17,7 +17,8 @@ import (
 
 var (
 	LastProcessed = "LastProcessed"
-	blockNumKey   = "block"
+	BlockNumKey = "block"
+	EventNumKey = "event"
 )
 
 type handler struct {
@@ -77,34 +78,35 @@ func NewHandler(dbConfig config.InfluxDBConfig) interfaces.DatabaseHandler {
 	return h
 }
 
-func (h *handler) LastProcessed() uint64 {
+func (h *handler) LastProcessed(fieldKey string) uint64 {
 	query := fmt.Sprintf(`
 			from(bucket:"%s")
 			|> range(start: 0)
 			|> filter(fn: (r) => r["_measurement"]=="%s")
+			|> filter(fn: (r) => r["_field"]=="%s")
 			|> sort(columns: ["_time"], desc: true)
 			|> limit(n: 1)
-		`, h.cfg.Bucket, LastProcessed)
+		`, h.cfg.Bucket, LastProcessed, fieldKey)
 	result, err := h.reader.Query(context.Background(), query)
 	if err != nil {
-		slog.Error("Unable to fetch last processed", "error", err)
+		slog.Error("Unable to fetch last processed", "key", fieldKey, "error", err)
 		return 0
 	}
 	for result.Next() {
 		if value, ok := result.Record().Value().(uint64); ok {
-			slog.Debug("Last processed block", "number", value)
+			slog.Debug("Last processed", "key", fieldKey, "number", value)
 			return value
 		}
 	}
-	slog.Debug("can't find last processed", "result", result)
+	slog.Debug("can't find last processed", "key", fieldKey, "result", result)
 	return 0
 }
 
-func (h *handler) SaveLastProcessed(lp uint64) {
+func (h *handler) SaveLastProcessed(key string, lp uint64) {
 	point := influxdb2.NewPoint(LastProcessed,
 		nil,
 		map[string]interface{}{
-			blockNumKey: lp,
+			key: lp,
 		},
 		time.Now(),
 	)

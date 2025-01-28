@@ -18,13 +18,15 @@ type eventProcessor struct {
 	ctx     context.Context
 	core    *core
 	eventCh chan types.Log
+	isLive  bool
 }
 
-func NewEventProcessor(ctx context.Context, core *core, evCh chan types.Log) interfaces.Processor {
+func NewEventProcessor(ctx context.Context, core *core, evCh chan types.Log, isLive bool) interfaces.Processor {
 	return &eventProcessor{
 		ctx:     ctx,
 		core:    core,
 		eventCh: evCh,
+		isLive:  isLive,
 	}
 }
 
@@ -55,14 +57,16 @@ func (ep *eventProcessor) Process() {
 					slog.Error("couldn't fetch block", "hash", event.BlockHash)
 					continue
 				}
-				ep.recordEvent(block, evSchema, event)
+				ep.recordEvent(block, evSchema)
+				if ep.isLive && ep.core.historySynced.Load() {
+					ep.core.markProcessedEventUpto(event.BlockNumber - 1)
+				}
 			}
 		}
-
 	}()
 }
 
-func (ep *eventProcessor) recordEvent(header *types.Header, schema model.EventSchema, log types.Log) {
+func (ep *eventProcessor) recordEvent(header *types.Header, schema model.EventSchema) {
 
 	handler := registry.GetHandler(schema.Measurement)
 	//custom event handling only if registered
