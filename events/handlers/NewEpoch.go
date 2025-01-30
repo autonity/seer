@@ -5,6 +5,7 @@ import (
 
 	"github.com/autonity/autonity/core/types"
 
+	"seer/interfaces"
 	"seer/model"
 	"seer/net"
 )
@@ -13,9 +14,10 @@ import (
 // EventName + Handler
 
 type NewEpochHandler struct {
+	DBHandler interfaces.DatabaseHandler
 }
 
-func (ev *NewEpochHandler) Handle(schema model.EventSchema, header *types.Header,  cp net.ConnectionProvider) {
+func (ev *NewEpochHandler) Handle(schema model.EventSchema, header *types.Header, cp net.ConnectionProvider) {
 	if header.Epoch == nil {
 		slog.Error("NewEpoch Handler, committee information is nor present")
 		return

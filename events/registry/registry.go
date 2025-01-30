@@ -12,15 +12,24 @@ var (
 	mu              sync.RWMutex
 )
 
-func RegisterHandler() {
+const (
+	NewEpoch               = "NewEpoch"
+	InactivityJailingEvent = "InactivityJailingEvent"
+	SlashingEvent          = "SlashingEvent"
+	Penalized              = "Penalized"
+)
+
+func RegisterEventHandlers(dbHandler interfaces.DatabaseHandler) {
 	mu.Lock()
 	defer mu.Unlock()
 
-	handlerRegistry["NewEpoch"] = &handlers.NewEpochHandler{}
-	handlerRegistry["InactivityJailingEvent"] = &handlers.InactivityjJaillingEventHandler{}
+	handlerRegistry[NewEpoch] = &handlers.NewEpochHandler{DBHandler: dbHandler}
+	handlerRegistry[InactivityJailingEvent] = &handlers.InactivityjJaillingEventHandler{DBHandler: dbHandler}
+	handlerRegistry[Penalized] = &handlers.PenalizedHandler{DBHandler: dbHandler}
+	handlerRegistry[SlashingEvent] = &handlers.SlashingEventHandler{DBHandler: dbHandler}
 }
 
-func GetHandler(eventName string) interfaces.EventHandler {
+func GetEventHandler(eventName string) interfaces.EventHandler {
 	mu.RLock()
 	defer mu.RUnlock()
 	return handlerRegistry[eventName]

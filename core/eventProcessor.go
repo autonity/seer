@@ -68,7 +68,7 @@ func (ep *eventProcessor) Process() {
 
 func (ep *eventProcessor) recordEvent(header *types.Header, schema model.EventSchema) {
 
-	handler := registry.GetHandler(schema.Measurement)
+	handler := registry.GetEventHandler(schema.Measurement)
 	//custom event handling only if registered
 	if handler != nil {
 		handler.Handle(schema, header, ep.core.cp)

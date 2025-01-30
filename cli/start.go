@@ -13,6 +13,7 @@ import (
 	"seer/config"
 	"seer/core"
 	"seer/db"
+	"seer/events/registry"
 	"seer/net"
 	"seer/schema"
 )
@@ -33,8 +34,8 @@ func start(cmd *cobra.Command, args []string) {
 		log.Fatalf("Failed to unmarshal config: %v", err)
 	}
 
-
 	handler := db.NewHandler(cfg.InfluxDB)
+	registry.RegisterEventHandlers(handler)
 	parser := schema.NewABIParser(cfg.ABIs, handler)
 	err := parser.Start()
 	if err != nil {

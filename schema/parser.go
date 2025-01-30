@@ -14,7 +14,6 @@ import (
 	"github.com/autonity/autonity/core/types"
 
 	"seer/config"
-	"seer/events/registry"
 	"seer/interfaces"
 	"seer/model"
 )
@@ -189,7 +188,6 @@ func (ap *abiParser) Parse(filename string) error {
 			fieldType := input.Type.String()
 			schema.Fields[input.Name] = fieldType
 		}
-		registry.RegisterHandler()
 		ap.eventDetail.data[event.ID] = struct {
 			abi    abi.Event
 			schema model.EventSchema

@@ -9,6 +9,7 @@ import (
 	"github.com/autonity/autonity/core/types"
 
 	"seer/helper"
+	"seer/interfaces"
 	"seer/model"
 	"seer/net"
 )
@@ -16,7 +17,9 @@ import (
 //Note: stick to this naming convention for handlers
 // EventName + Handler
 
-type InactivityjJaillingEventHandler struct{}
+type InactivityjJaillingEventHandler struct {
+	DBHandler interfaces.DatabaseHandler
+}
 
 func (ev *InactivityjJaillingEventHandler) Handle(schema model.EventSchema, header *types.Header, cp net.ConnectionProvider) {
 	slog.Debug("Handling Inactivity Jailing event", "")
