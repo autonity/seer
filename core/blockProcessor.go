@@ -3,12 +3,16 @@ package core
 import (
 	"context"
 	"log/slog"
+	"math/big"
 	"time"
 
+	"github.com/autonity/autonity/accounts/abi"
+	"github.com/autonity/autonity/accounts/abi/bind"
 	"github.com/autonity/autonity/autonity"
 	"github.com/autonity/autonity/common"
 	"github.com/autonity/autonity/core/types"
 	"github.com/autonity/autonity/p2p"
+	"github.com/autonity/autonity/params/generated"
 
 	"seer/helper"
 	"seer/interfaces"
@@ -25,7 +29,7 @@ var (
 type blockProcessor struct {
 	core                 *core
 	ctx                  context.Context
-	headerCh             chan *types.Header
+	blockCh              chan *types.Block
 	blockRecorderFields  map[string]interface{}
 	acnPeerFields        map[string]interface{}
 	blockTimestampFields map[string]interface{}
@@ -34,13 +38,14 @@ type blockProcessor struct {
 	qcTags               map[string]string
 	apTags               map[string]string
 	isLive               bool // differenciates whether we are processing blocks history or live
+	signer               types.Signer
 }
 
-func NewBlockProcessor(ctx context.Context, core *core, newBlocks chan *types.Header, isLive bool) interfaces.Processor {
-	return &blockProcessor{
+func NewBlockProcessor(ctx context.Context, core *core, newBlocks chan *types.Block, isLive bool, chainID *big.Int) interfaces.Processor {
+	bp := &blockProcessor{
 		ctx:                  ctx,
 		core:                 core,
-		headerCh:             newBlocks,
+		blockCh:              newBlocks,
 		isLive:               isLive,
 		blockRecorderFields:  make(map[string]interface{}, 11),
 		acnPeerFields:        make(map[string]interface{}, 4),
@@ -50,6 +55,8 @@ func NewBlockProcessor(ctx context.Context, core *core, newBlocks chan *types.He
 		qcTags:               make(map[string]string, 1),
 		apTags:               make(map[string]string, 1),
 	}
+	bp.signer = types.NewLondonSigner(chainID)
+	return bp
 }
 
 func (bp *blockProcessor) Process() {
@@ -58,18 +65,20 @@ func (bp *blockProcessor) Process() {
 			select {
 			case <-bp.ctx.Done():
 				return
-			case header, ok := <-bp.headerCh:
+			case block, ok := <-bp.blockCh:
 				if !ok {
 					return
 				}
-				slog.Debug("new block received", "number", header.Number.Uint64())
-				bp.core.blockCache.Add(header)
+				slog.Debug("new block received", "number", block.NumberU64())
+				header := block.Header()
+				bp.core.blockCache.Add(block)
 				bp.core.epochInfoCache.Add(header)
 
 				bp.recordACNPeers(header)
 				bp.core.markProcessedBlock(header.Number.Uint64(), header.Number.Uint64())
 				bp.recordBlockTimestamp(header)
 				bp.recordBlock(header)
+				bp.checkOracleVote(block)
 			}
 		}
 	}()
@@ -206,5 +215,81 @@ func (bp *blockProcessor) trackInactivity(header *types.Header, qcAbsentees, apA
 	for _, m := range apAbsentees {
 		bp.apTags["validator"] = m.String()
 		bp.core.dbHandler.WritePoint(APAbsentees, bp.apTags, bp.apAbsenteesFields, ts)
+	}
+}
+
+func (bp *blockProcessor) checkOracleVote(block *types.Block) {
+	for _, t := range block.Transactions() {
+		tx := t
+		if tx.To() != nil && *tx.To() == helper.OracleContractAddress {
+			data := tx.Data()
+			if len(data) < 4 {
+				continue
+			}
+			voteMethod, err := generated.OracleAbi.MethodById(tx.Data()[:4])
+			if err != nil {
+				slog.Error("Error fetching method by ID", "error", err)
+				return
+			}
+			if voteMethod.Name == "vote" {
+				bp.processVoteTransaction(tx, voteMethod, block.Number(), block.Time())
+			}
+		}
+	}
+}
+
+func (bp *blockProcessor) processVoteTransaction(tx *types.Transaction, voteMethod *abi.Method, blockNumber *big.Int, blockTime uint64) {
+	fields := make(map[string]interface{}, 5)
+	tags := make(map[string]string, 2)
+	con := bp.core.cp.GetWebSocketConnection()
+	ts := time.Unix(int64(blockTime), 0)
+	receipt, err := con.Client.TransactionReceipt(bp.ctx, tx.Hash())
+	if err != nil {
+		slog.Error("Error fetching vote transaction receipt", "error", err)
+		return
+	}
+	sender, err := bp.signer.Sender(tx)
+	if err != nil {
+		slog.Error("unable to get tx sender info", "error", err)
+		return
+	}
+	tags["sender"] = sender.String()
+	fields["voted"] = true
+	fields["block"] = blockNumber.Uint64()
+	if receipt.Status == 0 {
+		fields["status"] = "failed"
+	} else {
+		fields["status"] = "success"
+	}
+
+	oracleBindings, err := autonity.NewOracle(helper.OracleContractAddress, con.Client)
+	if err != nil {
+		slog.Error("unable to create oracle bindings", "error", err)
+		return
+	}
+
+	symbols, err := oracleBindings.GetSymbols(&bind.CallOpts{
+		BlockNumber: blockNumber,
+	})
+	if err != nil {
+		slog.Error("unable to get oracle symbols ", "error", err)
+		return
+	}
+
+	voteData, err := voteMethod.Inputs.Unpack(tx.Data()[4:])
+	if err != nil {
+		slog.Error("unable to unpack vote method ", "error", err)
+		return
+	}
+	reports := voteData[1].([]struct {
+		Price      *big.Int `json:"price"`
+		Confidence uint8    `json:"confidence"`
+	})
+
+	for i, report := range reports {
+		tags["symbol"] = symbols[i]
+		fields["reported-price"] = report.Price
+		fields["confidence"] = report.Confidence
+		bp.core.dbHandler.WritePoint("OracleVote", tags, fields, ts)
 	}
 }

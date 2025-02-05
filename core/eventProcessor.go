@@ -57,7 +57,7 @@ func (ep *eventProcessor) Process() {
 					slog.Error("couldn't fetch block", "hash", event.BlockHash)
 					continue
 				}
-				ep.recordEvent(block, evSchema)
+				ep.recordEvent(block.Header(), evSchema)
 				if ep.isLive && ep.core.historySynced.Load() {
 					ep.core.markProcessedEventUpto(event.BlockNumber - 1)
 				}

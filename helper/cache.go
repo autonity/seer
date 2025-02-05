@@ -22,21 +22,21 @@ var (
 )
 
 type blockCache struct {
-	cache *fixsizecache.Cache[common.Hash, *types.Header]
+	cache *fixsizecache.Cache[common.Hash, *types.Block]
 	cl    interfaces.EthClient
 }
 
 func NewBlockCache(cp net.ConnectionProvider) interfaces.BlockCache {
 	return &blockCache{
-		cache: fixsizecache.New[common.Hash, *types.Header](numBuckets, entryPerBucket, fixsizecache.HashKey[common.Hash]),
+		cache: fixsizecache.New[common.Hash, *types.Block](numBuckets, entryPerBucket, fixsizecache.HashKey[common.Hash]),
 		cl:    cp.GetWebSocketConnection().Client,
 	}
 }
 
-func (bc *blockCache) Get(number *big.Int) (*types.Header, bool) {
+func (bc *blockCache) Get(number *big.Int) (*types.Block, bool) {
 	blk, ok := bc.cache.Get(common.BigToHash(number))
 	if ok {
-		return blk.(*types.Header), true
+		return blk.(*types.Block), true
 	}
 	block, err := bc.cl.BlockByNumber(context.Background(), number)
 	if err != nil {
@@ -44,13 +44,12 @@ func (bc *blockCache) Get(number *big.Int) (*types.Header, bool) {
 		//todo: error handling module
 		return nil, false
 	}
-	header := block.Header()
-	bc.cache.Add(common.BigToHash(number), header)
-	return header, true
+	bc.cache.Add(common.BigToHash(number), block)
+	return block, true
 }
 
-func (bc *blockCache) Add(header *types.Header) {
-	bc.cache.Add(common.BigToHash(header.Number), header)
+func (bc *blockCache) Add(block *types.Block) {
+	bc.cache.Add(common.BigToHash(block.Number()), block)
 }
 
 type EpochCache struct {
@@ -125,6 +124,7 @@ func (ec *EpochCache) Add(header *types.Header) {
 func (ec *EpochCache) retrieveEpochInfo(number *big.Int) *autonity.AutonityEpochInfo {
 	epochInfo, err := ec.autonityBindings.GetEpochByHeight(&bind.CallOpts{}, number)
 	if err != nil {
+		slog.Error("unable to fetch epoch by height", "error", err)
 		return nil
 	}
 

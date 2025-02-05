@@ -12,9 +12,10 @@ import (
 	"time"
 
 	ethereum "github.com/autonity/autonity"
+	"github.com/autonity/autonity/common"
+	"github.com/autonity/autonity/common/hexutil"
 	"github.com/autonity/autonity/common/math"
 	"github.com/autonity/autonity/core/types"
-	"github.com/autonity/autonity/rpc"
 
 	"seer/config"
 	"seer/db"
@@ -25,12 +26,56 @@ import (
 )
 
 var (
-	maxConcurrency = 100
-	batchSize      = uint64(100)
-
-	liveBlockProcessors = 10
+	eventMaxConcurrency = 10
+	eventBatchSize      = uint64(100)
 	liveEventProcessors = 10
+
+	blockMaxConcurrency = 50
+	blockBatchSize      = uint64(100)
+	liveBlockProcessors = 10
 )
+
+type RPCTransaction struct {
+	BlockHash        *common.Hash      `json:"blockHash"`
+	BlockNumber      *hexutil.Big      `json:"blockNumber"`
+	From             common.Address    `json:"from"`
+	Gas              hexutil.Uint64    `json:"gas"`
+	GasPrice         *hexutil.Big      `json:"gasPrice"`
+	GasFeeCap        *hexutil.Big      `json:"maxFeePerGas,omitempty"`
+	GasTipCap        *hexutil.Big      `json:"maxPriorityFeePerGas,omitempty"`
+	Hash             common.Hash       `json:"hash"`
+	Input            hexutil.Bytes     `json:"input"`
+	Nonce            hexutil.Uint64    `json:"nonce"`
+	To               *common.Address   `json:"to"`
+	TransactionIndex *hexutil.Uint64   `json:"transactionIndex"`
+	Value            *hexutil.Big      `json:"value"`
+	Type             hexutil.Uint64    `json:"type"`
+	Accesses         *types.AccessList `json:"accessList,omitempty"`
+	ChainID          *hexutil.Big      `json:"chainId,omitempty"`
+	V                *hexutil.Big      `json:"v"`
+	R                *hexutil.Big      `json:"r"`
+	S                *hexutil.Big      `json:"s"`
+}
+type BlockResponse struct {
+	Number string `json:"number"`
+	Hash   string `json:"hash"`
+	// ... include additional header fields as needed ...
+	Transactions []TransactionResponse `json:"transactions"`
+}
+
+type TransactionResponse struct {
+	Hash             string `json:"hash"`
+	To               string `json:"to"`
+	TransactionIndex string `json:"transactionIndex"`
+	// ... add other fields as needed ...
+	Input   hexutil.Bytes `json:"input"`
+	ChainID *hexutil.Big  `json:"chainId,omitempty"`
+}
+
+type HeaderWithTransaction struct {
+	types.Header
+	Transactions []*RPCTransaction `json:"transactions"`
+}
 
 type syncTracker struct {
 	sync.Mutex
@@ -87,7 +132,7 @@ type core struct {
 	cp            net.ConnectionProvider
 	historySynced atomic.Bool
 
-	newBlocks chan *types.Header
+	newBlocks chan *types.Block
 	newEvents chan types.Log
 
 	blockCache     interfaces.BlockCache
@@ -98,12 +143,13 @@ type core struct {
 	sync.WaitGroup
 	pendingMu     sync.Mutex
 	pendingEvents map[uint64][]model.EventSchema
+	chainID       *big.Int
 }
 
 func New(cfg config.NodeConfig, parser interfaces.ABIParser, dbHandler interfaces.DatabaseHandler, cp net.ConnectionProvider) interfaces.Core {
 	c := &core{
 		nodeConfig:     cfg,
-		newBlocks:      make(chan *types.Header, liveBlockProcessors),
+		newBlocks:      make(chan *types.Block, liveBlockProcessors),
 		newEvents:      make(chan types.Log, liveEventProcessors),
 		abiParser:      parser,
 		dbHandler:      dbHandler,
@@ -119,6 +165,7 @@ func New(cfg config.NodeConfig, parser interfaces.ABIParser, dbHandler interface
 			lastProcessed: 0,
 		},
 	}
+	c.chainID, _ = cp.GetWebSocketConnection().Client.NetworkID(context.Background())
 	return c
 }
 
@@ -142,14 +189,14 @@ func (c *core) getPendingEvent(number uint64) []model.EventSchema {
 func (c *core) handleBlockHistory(ctx context.Context, start, end uint64) {
 	slog.Info("Reading block history ", "from", start, "to", end)
 	c.runInGoroutine(ctx, func(ctx context.Context) {
-		c.ReadHistoricalData(ctx, start, end, c.ReadBlockHistory)
+		c.ReadHistoricalData(ctx, start, end, c.ReadBlockHistory, blockMaxConcurrency, blockBatchSize)
 	})
 }
 
 func (c *core) handleEventHistory(ctx context.Context, start, end uint64) {
 	slog.Info("Reading event history ", "from", start, "to", end)
 	c.runInGoroutine(ctx, func(ctx context.Context) {
-		c.ReadHistoricalData(ctx, start, end, c.ReadEventHistory)
+		c.ReadHistoricalData(ctx, start, end, c.ReadEventHistory, eventMaxConcurrency, eventBatchSize)
 	})
 }
 
@@ -167,7 +214,7 @@ func (c *core) Start(ctx context.Context) {
 	helper.PrintContractAddresses()
 
 	for i := 0; i < liveBlockProcessors; i++ {
-		NewBlockProcessor(ctx, c, c.newBlocks, true).Process()
+		NewBlockProcessor(ctx, c, c.newBlocks, true, c.chainID).Process()
 	}
 	for i := 0; i < liveEventProcessors; i++ {
 		NewEventProcessor(ctx, c, c.newEvents, true).Process()
@@ -241,21 +288,30 @@ func (c *core) markProcessedEventUpto(end uint64) {
 func (c *core) getHistoricalRange(ctx context.Context, fieldKey string) (uint64, uint64) {
 	var startBlock uint64
 	lastProcessed := c.dbHandler.LastProcessed(fieldKey)
-	if lastProcessed < batchSize {
-		if fieldKey == db.EventNumKey { // for blocks start with 0, for events 1 because genesis event fetch fails
+	switch fieldKey {
+	case db.EventNumKey:
+		if lastProcessed < eventBatchSize {
 			startBlock = 1
+		} else {
+
+			startBlock = lastProcessed - eventBatchSize
 		}
-	} else {
-		//ensure we don't miss any blocks, duplicate processing is acceptable
-		startBlock = lastProcessed - batchSize
+		c.eventTracker.lastProcessed = startBlock
+	case db.BlockNumKey:
+		if lastProcessed < blockBatchSize {
+			startBlock = 0
+		} else {
+			//ensure we don't miss any blocks, duplicate processing is acceptable
+			startBlock = lastProcessed - blockBatchSize
+		}
+		c.blockTracker.lastProcessed = startBlock
 	}
-	c.blockTracker.lastProcessed = startBlock
 	con := c.cp.GetWebSocketConnection()
 	endBlock, _ := con.Client.BlockNumber(ctx)
 	return startBlock, endBlock
 }
 
-func (c *core) ReadHistoricalData(ctx context.Context, start, end uint64, batchReader func(ctx context.Context, wq chan [2]uint64)) {
+func (c *core) ReadHistoricalData(ctx context.Context, start, end uint64, batchReader func(ctx context.Context, wq chan [2]uint64), maxConcurrency int, batchSize uint64) {
 	workQueues := make([]chan [2]uint64, maxConcurrency)
 	for i := 0; i < maxConcurrency; i++ {
 		workQueues[i] = make(chan [2]uint64)
@@ -280,7 +336,7 @@ func (c *core) ReadHistoricalData(ctx context.Context, start, end uint64, batchR
 }
 
 func (c *core) ReadEventHistory(ctx context.Context, workQueue chan [2]uint64) {
-	processorConcurrency := 2
+	processorConcurrency := eventMaxConcurrency
 	eventChs := make([]chan types.Log, processorConcurrency)
 	for i := 0; i < processorConcurrency; i++ {
 		eventChs[i] = make(chan types.Log)
@@ -322,14 +378,14 @@ func (c *core) ReadEventHistory(ctx context.Context, workQueue chan [2]uint64) {
 }
 
 func (c *core) ReadBlockHistory(ctx context.Context, workQueue chan [2]uint64) {
-	processorConcurrency := int(batchSize) * 10
-	blockChs := make([]chan *types.Header, processorConcurrency)
+	processorConcurrency := int(blockBatchSize)
+	blockChs := make([]chan *types.Block, processorConcurrency)
 	for i := 0; i < processorConcurrency; i++ {
-		blockChs[i] = make(chan *types.Header)
-		NewBlockProcessor(ctx, c, blockChs[i], false).Process()
+		blockChs[i] = make(chan *types.Block)
+		NewBlockProcessor(ctx, c, blockChs[i], false, c.chainID).Process()
 	}
 	counter := 0
-	con := c.cp.GetRPCConnection()
+	con := c.cp.GetWebSocketConnection()
 	for {
 		select {
 		case <-ctx.Done():
@@ -341,33 +397,53 @@ func (c *core) ReadBlockHistory(ctx context.Context, workQueue chan [2]uint64) {
 				}
 				return
 			}
-			counter++
 			now := time.Now()
-			slog.Debug("Starting block batch from", "startBlock", batch[0], "endBlock", batch[1])
-			var requests []rpc.BatchElem
-			for i := batch[0]; i <= batch[1]; i++ {
-				header := types.Header{}
-				requests = append(requests, rpc.BatchElem{
-					Method: "eth_getBlockByNumber",
-					Args:   []interface{}{fmt.Sprintf("0x%x", i), false}, // false to exclude full transaction details
-					Result: &header,
-				})
-			}
-			err := con.Client.BatchCallContext(ctx, requests)
-			if err != nil {
-				slog.Error("failed to run batch call", "error", err)
-				c.markProcessedBlock(batch[0], batch[1])
-				continue
-			}
+			slog.Info("Starting block batch from", "startBlock", batch[0], "endBlock", batch[1])
+			//var requests []rpc.BatchElem
 			fetchTime := time.Now()
-
-			for _, call := range requests {
-				if call.Error != nil {
-					slog.Error("Error in batch call", "error", err)
-					continue
-				}
-				blockChs[counter%processorConcurrency] <- call.Result.(*types.Header)
+			wg := sync.WaitGroup{}
+			for i := batch[0]; i <= batch[1]; i++ {
+				//Block := HeaderWithTransaction{Transactions: make([]*RPCTransaction, 0)}
+				//Block := &types.Block{}
+				//requests = append(requests, rpc.BatchElem{
+				//	Method: "eth_getBlockByNumber",
+				//	Args:   []interface{}{fmt.Sprintf("0x%x", i), true}, // false to exclude full transaction details
+				//	Result: &Block,
+				//})
+				counter++
+				wg.Add(1)
+				go func(bn *big.Int, cnt int) {
+					defer wg.Done()
+					blk, err := con.Client.BlockByNumber(ctx, bn)
+					if err != nil {
+						slog.Error("Error in batch call", "error", err)
+						return
+					}
+					//results <- blk
+					id := cnt % processorConcurrency
+					//slog.Info("pusing to block processor", "id", id)
+					blockChs[id] <- blk
+				}(big.NewInt(int64(i)), counter)
 			}
+			wg.Wait()
+			//err := con.Client.BatchCallContext(ctx, requests)
+			//if err != nil {
+			//	slog.Error("failed to run batch call", "error", err)
+			//	c.markProcessedBlock(batch[0], batch[1])
+			//	continue
+			//}
+
+			//for _, call := range requests {
+			//	if call.Error != nil {
+			//		slog.Error("Error in batch call", "error", err)
+			//		continue
+			//	}
+			//	slog.Info("raw", "result", call.Result)
+			//	ht := call.Result.(*HeaderWithTransaction)
+			//	slog.Info("header with transaction", "ht", ht)
+			//	block := types.NewBlock(&ht.Header, ht.Transactions, nil, nil, nil)
+			//	blockChs[counter%processorConcurrency] <- block
+			//}
 			c.markProcessedBlock(batch[0], batch[1])
 			slog.Info("block batch complete", "startBlock", batch[0], "endBlock", batch[1],
 				"fetch time", time.Since(fetchTime).Seconds(),
@@ -409,7 +485,7 @@ func (c *core) blockReader(ctx context.Context) {
 					"error", err)
 				continue
 			}
-			c.newBlocks <- block.Header()
+			c.newBlocks <- block
 		}
 	}
 }

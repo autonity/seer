@@ -61,7 +61,7 @@ func addressToABI(address common.Address) abi.ABI {
 	switch address {
 	case AccountabilityContractAddress:
 		return abi.ABI{}
-
+		
 	}
 	return abi.ABI{}
 }
