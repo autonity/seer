@@ -28,12 +28,12 @@ import (
 )
 
 var (
-	eventMaxConcurrency = 10
+	eventMaxConcurrency = 20
 	eventBatchSize      = uint64(100)
 	liveEventProcessors = 10
 
-	blockMaxConcurrency = 100
-	blockBatchSize      = uint64(100)
+	blockMaxConcurrency = 50
+	blockBatchSize      = uint64(50)
 	liveBlockProcessors = 10
 )
 
@@ -119,7 +119,6 @@ type rpcTransaction struct {
 type txExtraInfo struct {
 	BlockNumber *string         `json:"blockNumber,omitempty"`
 	BlockHash   *common.Hash    `json:"blockHash,omitempty"`
-	From        *common.Address `json:"from,omitempty"`
 	To          *common.Address `json:"to,omitempty"`
 }
 
@@ -321,7 +320,7 @@ func (c *core) ReadHistoricalData(ctx context.Context, start, end uint64, batchR
 }
 
 func (c *core) ReadEventHistory(ctx context.Context, workQueue chan [2]uint64) {
-	processorConcurrency := eventMaxConcurrency
+	processorConcurrency := eventMaxConcurrency * 4
 	eventChs := make([]chan types.Log, processorConcurrency)
 	for i := 0; i < processorConcurrency; i++ {
 		eventChs[i] = make(chan types.Log)
@@ -363,7 +362,7 @@ func (c *core) ReadEventHistory(ctx context.Context, workQueue chan [2]uint64) {
 }
 
 func (c *core) ReadBlockHistory(ctx context.Context, workQueue chan [2]uint64) {
-	processorConcurrency := int(blockBatchSize) * 20
+	processorConcurrency := int(blockBatchSize) * 10
 	blockChs := make([]chan *types.Block, processorConcurrency)
 	for i := 0; i < processorConcurrency; i++ {
 		blockChs[i] = make(chan *types.Block)
@@ -371,6 +370,8 @@ func (c *core) ReadBlockHistory(ctx context.Context, workQueue chan [2]uint64) {
 	}
 	counter := 0
 	con := c.cp.GetRPCConnection()
+	requests := make([]rpc.BatchElem, blockBatchSize)
+	raws := make([]json.RawMessage, blockBatchSize)
 	for {
 		select {
 		case <-ctx.Done():
@@ -384,16 +385,17 @@ func (c *core) ReadBlockHistory(ctx context.Context, workQueue chan [2]uint64) {
 			}
 			now := time.Now()
 			slog.Info("Starting block batch from", "startBlock", batch[0], "endBlock", batch[1])
-			var requests []rpc.BatchElem
 			fetchTime := time.Now()
-			for i := batch[0]; i <= batch[1]; i++ {
-				raw := json.RawMessage{}
-				requests = append(requests, rpc.BatchElem{
+			index := 0
+			for i := batch[0]; i < batch[1]; i++ {
+				requests[index] = rpc.BatchElem{
 					Method: "eth_getBlockByNumber",
 					Args:   []interface{}{fmt.Sprintf("0x%x", i), true}, // false to exclude full transaction details
-					Result: &raw,
-				})
+					Result: &raws[index],
+				}
+				index++
 			}
+
 			err := con.Client.BatchCallContext(ctx, requests)
 			if err != nil {
 				slog.Error("failed to run batch call", "error", err)
@@ -420,9 +422,6 @@ func (c *core) ReadBlockHistory(ctx context.Context, workQueue chan [2]uint64) {
 					if rpcTx.To != nil && *rpcTx.To == helper.OracleContractAddress {
 						txs = append(txs, rpcTx.tx)
 					}
-				}
-				if len(txs) > 0 {
-					//todo: eligible to pull transaction recipts
 				}
 				blockChs[counter%processorConcurrency] <- types.NewBlock(head, txs, nil, nil, new(trie.Trie))
 				counter++
