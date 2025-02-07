@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"math/big"
@@ -13,9 +14,10 @@ import (
 
 	ethereum "github.com/autonity/autonity"
 	"github.com/autonity/autonity/common"
-	"github.com/autonity/autonity/common/hexutil"
 	"github.com/autonity/autonity/common/math"
 	"github.com/autonity/autonity/core/types"
+	"github.com/autonity/autonity/rpc"
+	"github.com/autonity/autonity/trie"
 
 	"seer/config"
 	"seer/db"
@@ -30,52 +32,10 @@ var (
 	eventBatchSize      = uint64(100)
 	liveEventProcessors = 10
 
-	blockMaxConcurrency = 50
+	blockMaxConcurrency = 100
 	blockBatchSize      = uint64(100)
 	liveBlockProcessors = 10
 )
-
-type RPCTransaction struct {
-	BlockHash        *common.Hash      `json:"blockHash"`
-	BlockNumber      *hexutil.Big      `json:"blockNumber"`
-	From             common.Address    `json:"from"`
-	Gas              hexutil.Uint64    `json:"gas"`
-	GasPrice         *hexutil.Big      `json:"gasPrice"`
-	GasFeeCap        *hexutil.Big      `json:"maxFeePerGas,omitempty"`
-	GasTipCap        *hexutil.Big      `json:"maxPriorityFeePerGas,omitempty"`
-	Hash             common.Hash       `json:"hash"`
-	Input            hexutil.Bytes     `json:"input"`
-	Nonce            hexutil.Uint64    `json:"nonce"`
-	To               *common.Address   `json:"to"`
-	TransactionIndex *hexutil.Uint64   `json:"transactionIndex"`
-	Value            *hexutil.Big      `json:"value"`
-	Type             hexutil.Uint64    `json:"type"`
-	Accesses         *types.AccessList `json:"accessList,omitempty"`
-	ChainID          *hexutil.Big      `json:"chainId,omitempty"`
-	V                *hexutil.Big      `json:"v"`
-	R                *hexutil.Big      `json:"r"`
-	S                *hexutil.Big      `json:"s"`
-}
-type BlockResponse struct {
-	Number string `json:"number"`
-	Hash   string `json:"hash"`
-	// ... include additional header fields as needed ...
-	Transactions []TransactionResponse `json:"transactions"`
-}
-
-type TransactionResponse struct {
-	Hash             string `json:"hash"`
-	To               string `json:"to"`
-	TransactionIndex string `json:"transactionIndex"`
-	// ... add other fields as needed ...
-	Input   hexutil.Bytes `json:"input"`
-	ChainID *hexutil.Big  `json:"chainId,omitempty"`
-}
-
-type HeaderWithTransaction struct {
-	types.Header
-	Transactions []*RPCTransaction `json:"transactions"`
-}
 
 type syncTracker struct {
 	sync.Mutex
@@ -144,6 +104,31 @@ type core struct {
 	pendingMu     sync.Mutex
 	pendingEvents map[uint64][]model.EventSchema
 	chainID       *big.Int
+}
+
+type rpcBlock struct {
+	Hash         common.Hash      `json:"hash"`
+	Transactions []rpcTransaction `json:"transactions"`
+}
+
+type rpcTransaction struct {
+	tx *types.Transaction
+	txExtraInfo
+}
+
+type txExtraInfo struct {
+	BlockNumber *string         `json:"blockNumber,omitempty"`
+	BlockHash   *common.Hash    `json:"blockHash,omitempty"`
+	From        *common.Address `json:"from,omitempty"`
+	To          *common.Address `json:"to,omitempty"`
+}
+
+func (tx *rpcTransaction) UnmarshalJSON(msg []byte) error {
+	if err := json.Unmarshal(msg, &tx.tx); err != nil {
+		slog.Error("error unmarshalling rpc transaction", "error", err)
+		return err
+	}
+	return json.Unmarshal(msg, &tx.txExtraInfo)
 }
 
 func New(cfg config.NodeConfig, parser interfaces.ABIParser, dbHandler interfaces.DatabaseHandler, cp net.ConnectionProvider) interfaces.Core {
@@ -264,7 +249,7 @@ func (c *core) runInGoroutine(ctx context.Context, fn func(ctx context.Context))
 func (c *core) markProcessedBlock(start, end uint64) {
 	update, lastProcessed := c.blockTracker.updateProcessed(start, end)
 	if update {
-		slog.Info("saving Last processed Block", "number", lastProcessed)
+		slog.Debug("saving Last processed Block", "number", lastProcessed)
 		c.dbHandler.SaveLastProcessed(db.BlockNumKey, lastProcessed)
 	}
 }
@@ -272,7 +257,7 @@ func (c *core) markProcessedBlock(start, end uint64) {
 func (c *core) markProcessedEvent(start, end uint64) {
 	update, lastProcessed := c.eventTracker.updateProcessed(start, end)
 	if update {
-		slog.Info("saving Last processed Event", "number", lastProcessed)
+		slog.Debug("saving Last processed Event", "number", lastProcessed)
 		c.dbHandler.SaveLastProcessed(db.EventNumKey, lastProcessed)
 	}
 }
@@ -378,14 +363,14 @@ func (c *core) ReadEventHistory(ctx context.Context, workQueue chan [2]uint64) {
 }
 
 func (c *core) ReadBlockHistory(ctx context.Context, workQueue chan [2]uint64) {
-	processorConcurrency := int(blockBatchSize)
+	processorConcurrency := int(blockBatchSize) * 20
 	blockChs := make([]chan *types.Block, processorConcurrency)
 	for i := 0; i < processorConcurrency; i++ {
 		blockChs[i] = make(chan *types.Block)
 		NewBlockProcessor(ctx, c, blockChs[i], false, c.chainID).Process()
 	}
 	counter := 0
-	con := c.cp.GetWebSocketConnection()
+	con := c.cp.GetRPCConnection()
 	for {
 		select {
 		case <-ctx.Done():
@@ -399,51 +384,50 @@ func (c *core) ReadBlockHistory(ctx context.Context, workQueue chan [2]uint64) {
 			}
 			now := time.Now()
 			slog.Info("Starting block batch from", "startBlock", batch[0], "endBlock", batch[1])
-			//var requests []rpc.BatchElem
+			var requests []rpc.BatchElem
 			fetchTime := time.Now()
-			wg := sync.WaitGroup{}
 			for i := batch[0]; i <= batch[1]; i++ {
-				//Block := HeaderWithTransaction{Transactions: make([]*RPCTransaction, 0)}
-				//Block := &types.Block{}
-				//requests = append(requests, rpc.BatchElem{
-				//	Method: "eth_getBlockByNumber",
-				//	Args:   []interface{}{fmt.Sprintf("0x%x", i), true}, // false to exclude full transaction details
-				//	Result: &Block,
-				//})
-				counter++
-				wg.Add(1)
-				go func(bn *big.Int, cnt int) {
-					defer wg.Done()
-					blk, err := con.Client.BlockByNumber(ctx, bn)
-					if err != nil {
-						slog.Error("Error in batch call", "error", err)
-						return
-					}
-					//results <- blk
-					id := cnt % processorConcurrency
-					//slog.Info("pusing to block processor", "id", id)
-					blockChs[id] <- blk
-				}(big.NewInt(int64(i)), counter)
+				raw := json.RawMessage{}
+				requests = append(requests, rpc.BatchElem{
+					Method: "eth_getBlockByNumber",
+					Args:   []interface{}{fmt.Sprintf("0x%x", i), true}, // false to exclude full transaction details
+					Result: &raw,
+				})
 			}
-			wg.Wait()
-			//err := con.Client.BatchCallContext(ctx, requests)
-			//if err != nil {
-			//	slog.Error("failed to run batch call", "error", err)
-			//	c.markProcessedBlock(batch[0], batch[1])
-			//	continue
-			//}
-
-			//for _, call := range requests {
-			//	if call.Error != nil {
-			//		slog.Error("Error in batch call", "error", err)
-			//		continue
-			//	}
-			//	slog.Info("raw", "result", call.Result)
-			//	ht := call.Result.(*HeaderWithTransaction)
-			//	slog.Info("header with transaction", "ht", ht)
-			//	block := types.NewBlock(&ht.Header, ht.Transactions, nil, nil, nil)
-			//	blockChs[counter%processorConcurrency] <- block
-			//}
+			err := con.Client.BatchCallContext(ctx, requests)
+			if err != nil {
+				slog.Error("failed to run batch call", "error", err)
+				c.markProcessedBlock(batch[0], batch[1])
+				continue
+			}
+			for _, call := range requests {
+				if call.Error != nil {
+					slog.Error("Error in batch call", "error", err)
+					continue
+				}
+				var head *types.Header
+				var body rpcBlock
+				if err := json.Unmarshal(*call.Result.(*json.RawMessage), &head); err != nil {
+					slog.Error("Error json unmarshalling head", "error", err)
+					continue
+				}
+				if err := json.Unmarshal(*call.Result.(*json.RawMessage), &body); err != nil {
+					slog.Error("Error json unmarshalling, body", "error", err)
+					continue
+				}
+				txs := make([]*types.Transaction, 0)
+				for _, rpcTx := range body.Transactions {
+					if rpcTx.To != nil && *rpcTx.To == helper.OracleContractAddress {
+						txs = append(txs, rpcTx.tx)
+					}
+				}
+				if len(txs) > 0 {
+					//todo: eligible to pull transaction recipts
+				}
+				blockChs[counter%processorConcurrency] <- types.NewBlock(head, txs, nil, nil, new(trie.Trie))
+				counter++
+			}
+			// get Block receipts
 			c.markProcessedBlock(batch[0], batch[1])
 			slog.Info("block batch complete", "startBlock", batch[0], "endBlock", batch[1],
 				"fetch time", time.Since(fetchTime).Seconds(),
