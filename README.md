@@ -32,7 +32,7 @@ UI tool.
    make build
    ```
 
-4. Run the application:
+4. Run application in default mode:
    ```bash
    cd bin
    ./seer start --config ../config/config.yaml
@@ -53,17 +53,22 @@ seer:
    logLevel: "info"
 node:
    rpc:
-      - "http://35.242.168.170:8545"
+      maxConnections: 25  # maximum rpc connections across all urls
+      urls:
+         - "http://35.242.168.170:8545"
    ws:
-      - "wss://rpc2.piccadilly.autonity.org/ws"
+      maxConnections: 5 # maximum websocket connections across all urls
+      urls:
+         - "wss://rpc2.piccadilly.autonity.org/ws"
+         # - "wss://rpc-internal-1.piccadilly.autonity.org/ws"
    sync:
       history: true 
 db:
    url: "http://127.0.0.1:8086"
    # yamllint disable-line rule:line-length
-   token: "" # provide influxdb access token
-   bucket: "seer_temp_1" #will be created automatically, if not exist already
-   org: "autonity" #organisation needs to be created manually
+   token: ""
+   bucket: "seer_temp"
+   org: "autonity"
 abi:
    dir: "../abis"
 ```
@@ -73,12 +78,17 @@ abi:
 
 ### CLI Commands
 
-1. **Start the Service**:
+1. **Start service in default which and sync live and historical blocks**:
    ```bash
-   ./seer start
+   ./seer start --config ../config/config.yaml
    ```
 
-2. **Check Version**:
+2. **Start service in pull mode where only given range of blocks are synced**:
+   ```bash
+   ./seer pull --start-block=1000 --end-block=20000 --config ../config/config.yaml
+   ```
+
+3. **Check Version**:
    ```bash
    ./seer version
    ```

@@ -22,7 +22,6 @@ type InactivityjJaillingEventHandler struct {
 }
 
 func (ev *InactivityjJaillingEventHandler) Handle(schema model.EventSchema, header *types.Header, cp net.ConnectionProvider) {
-	slog.Debug("Handling Inactivity Jailing event", "")
 	con := cp.GetWebSocketConnection()
 	omissionBindings, err := autonity.NewOmissionAccountability(helper.OmissionAccountabilityContractAddress, con.Client)
 	if err != nil {
