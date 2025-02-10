@@ -1,4 +1,4 @@
-package listener
+package core
 
 import (
 	"context"
@@ -9,19 +9,19 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 
-	"Seer/config"
-	"Seer/mocks"
+	"seer/config"
+	"seer/mocks"
 )
 
-func defaultListener() *Listener {
+func defaultListener() *core {
 	cfg := config.NodeConfig{}
-	return &Listener{
+	return &core{
 		nodeConfig: cfg,
 		newBlocks:  make(chan *types.Block, 10),
 		newEvents:  make(chan types.Log, 100),
 		abiParser:  nil,
 		dbHandler:  nil,
-		bt: &blockTracker{
+		blockTracker: &syncTracker{
 			processed:     make(map[uint64]bool),
 			lastProcessed: 0,
 		},
@@ -35,7 +35,7 @@ func TestListener_markProcessed(t *testing.T) {
 	// Mock dependencies
 	mockDBHandler := mocks.NewMockDatabaseHandler(ctrl)
 
-	// Setup Listener
+	// Setup core
 	l := defaultListener()
 	l.dbHandler = mockDBHandler
 
@@ -46,11 +46,11 @@ func TestListener_markProcessed(t *testing.T) {
 	l.markProcessed(0, 10)
 
 	// Verify lastProcessed was updated
-	assert.Equal(t, uint64(10), l.bt.lastProcessed)
+	assert.Equal(t, uint64(10), l.blockTracker.lastProcessed)
 	l.markProcessed(10, 20)
-	assert.Equal(t, uint64(20), l.bt.lastProcessed)
+	assert.Equal(t, uint64(20), l.blockTracker.lastProcessed)
 	l.markProcessed(21, 21)
-	assert.Equal(t, uint64(21), l.bt.lastProcessed)
+	assert.Equal(t, uint64(21), l.blockTracker.lastProcessed)
 	slog.Info("markProcessed test passed.")
 }
 
@@ -62,7 +62,7 @@ func TestListener_ReadBatch(t *testing.T) {
 	mockDBHandler := mocks.NewMockDatabaseHandler(ctrl)
 	mockABIParser := mocks.NewMockABIParser(ctrl)
 
-	// Setup Listener
+	// Setup core
 	listener := defaultListener()
 	listener.dbHandler = mockDBHandler
 	listener.abiParser = mockABIParser
@@ -77,13 +77,13 @@ func TestListener_ReadBatch(t *testing.T) {
 	// Test ReadBatch
 	workQueue := make(chan [2]uint64, 1)
 	listener.Add(1)
-	go listener.ReadBatch(context.Background(), mockClient, workQueue)
+	go listener.ReadEventHistory(context.Background(), mockClient, workQueue)
 
 	workQueue <- [2]uint64{1, 10}
 	workQueue <- [2]uint64{10, 20}
 	close(workQueue)
 	listener.Wait()
-	assert.Equal(t, uint64(20), listener.bt.lastProcessed)
+	assert.Equal(t, uint64(20), listener.blockTracker.lastProcessed)
 }
 
 func TestListener_ReadHistoricalData(t *testing.T) {
@@ -94,7 +94,7 @@ func TestListener_ReadHistoricalData(t *testing.T) {
 	mockDBHandler := mocks.NewMockDatabaseHandler(ctrl)
 	mockABIParser := mocks.NewMockABIParser(ctrl)
 
-	// Setup Listener
+	// Setup core
 	listener := defaultListener()
 	listener.dbHandler = mockDBHandler
 	listener.abiParser = mockABIParser

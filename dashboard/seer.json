@@ -29,10 +29,277 @@
         "x": 0,
         "y": 0
       },
+      "id": 41,
+      "panels": [],
+      "title": "Time Selector",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "de85digryc1dsb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 1
+      },
+      "id": 42,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": []
+      },
+      "pluginVersion": "11.5.0",
+      "targets": [
+        {
+          "hide": false,
+          "query": "lastValue = from(bucket: \"${bucket}\")\n|> range(start: int(v: \"${block_start_num}\"), stop: int(v: \"${block_end_num}\"))\n|> filter(fn: (r) => r[\"_measurement\"] == \"BlockTimestamp\")\n|> map(fn: (r) => ({ r with block: uint(v: r._time) / uint(v :1000000000) }))\n|> keep(columns: [\"block\", \"_value\"])\n|> last()\n\nfirstValue = from(bucket: \"${bucket}\")\n|> range(start: int(v: \"${block_start_num}\"), stop: int(v: \"${block_end_num}\"))\n|> filter(fn: (r) => r[\"_measurement\"] == \"BlockTimestamp\")\n|> map(fn: (r) => ({ r with block: uint(v: r._time) / uint(v :1000000000) }))\n|> keep(columns: [\"block\", \"_value\"])\n|> first()\n\nunion(tables: [firstValue, lastValue])\n",
+          "refId": "start-time"
+        }
+      ],
+      "title": "block to time-range",
+      "transformations": [
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "block_timestamp",
+            "binary": {
+              "left": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "_value"
+                }
+              },
+              "operator": "*",
+              "right": {
+                "fixed": "1000"
+              }
+            },
+            "mode": "binary",
+            "reduce": {
+              "include": [],
+              "reducer": "sum"
+            },
+            "replaceFields": false
+          }
+        },
+        {
+          "id": "convertFieldType",
+          "options": {
+            "conversions": [
+              {
+                "destinationType": "time",
+                "targetField": "block_timestamp"
+              }
+            ],
+            "fields": {}
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "_value": true
+            },
+            "includeByName": {},
+            "indexByName": {},
+            "renameByName": {}
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 9
+      },
       "id": 22,
       "panels": [],
       "title": "Summary",
       "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "de85digryc1dsb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 10
+      },
+      "id": 43,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.5.0",
+      "targets": [
+        {
+          "hide": false,
+          "query": "from(bucket: \"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"BlockHeader\")\n|>pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|> keep(columns: [\"_time\", \"block\"])",
+          "refId": "start-time"
+        }
+      ],
+      "title": "Block timestamps",
+      "transformations": [
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "block_timestamp",
+            "binary": {
+              "left": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "_value"
+                }
+              },
+              "operator": "*",
+              "right": {
+                "fixed": "1000"
+              }
+            },
+            "mode": "binary",
+            "reduce": {
+              "include": [],
+              "reducer": "sum"
+            },
+            "replaceFields": false
+          }
+        },
+        {
+          "id": "convertFieldType",
+          "options": {
+            "conversions": [
+              {
+                "destinationType": "time",
+                "targetField": "block_timestamp"
+              }
+            ],
+            "fields": {}
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "_value": true
+            },
+            "includeByName": {},
+            "indexByName": {},
+            "renameByName": {}
+          }
+        }
+      ],
+      "type": "timeseries"
     },
     {
       "datasource": {
@@ -67,8 +334,8 @@
       "gridPos": {
         "h": 8,
         "w": 12,
-        "x": 0,
-        "y": 1
+        "x": 12,
+        "y": 10
       },
       "id": 4,
       "options": {
@@ -81,12 +348,18 @@
           ],
           "show": false
         },
-        "showHeader": true
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "count"
+          }
+        ]
       },
-      "pluginVersion": "11.4.0",
+      "pluginVersion": "11.5.0",
       "targets": [
         {
-          "query": "from(bucket:\"${bucket}\")\n  |>range(start: $__from/1000, stop: $__to/1000)\n  |> group(columns: [\"_measurement\"]) // Group by measurement\n  |> count(column: \"_value\")            // Sum the values for each measurement\n  |> group()                          // Ungroup to return a flat table\n  |> keep(columns: [\"_measurement\", \"_value\"]) // Keep only the measurement and total values\n  |> rename(columns: {_value: \"count\"}) // Rename the total column",
+          "query": "from(bucket:\"${bucket}\")\n  |>range(start: ${__from}/1000, stop: ${__to}/1000)\n  |> filter(fn: (r) => r[\"event_type\"]== \"protocol\")\n  |> pivot(\n      rowKey:[\"_time\"],          \n      columnKey: [\"_field\"],     \n      valueColumn: \"_value\"    \n  )\n  |> group(columns: [\"_measurement\"]) \n  |> count(column: \"event_type\") \n  |> group() \n  |> rename(columns: {event_type: \"count\"}) ",
           "refId": "A"
         }
       ],
@@ -111,19 +384,6 @@
       "type": "table"
     },
     {
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 9
-      },
-      "id": 21,
-      "panels": [],
-      "title": "Autonity",
-      "type": "row"
-    },
-    {
       "datasource": {
         "type": "influxdb",
         "uid": "de85digryc1dsb"
@@ -156,163 +416,32 @@
             ]
           }
         },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 10
-      },
-      "id": 18,
-      "options": {
-        "cellHeight": "sm",
-        "footer": {
-          "countRows": false,
-          "fields": "",
-          "reducer": [
-            "sum"
-          ],
-          "show": false
-        },
-        "showHeader": true,
-        "sortBy": []
-      },
-      "pluginVersion": "11.4.0",
-      "targets": [
-        {
-          "query": "from(bucket:\"${bucket}\")\n|>range(start: $__from/1000, stop: $__to/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"RegisteredValidator\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:10000)\n",
-          "refId": "A"
-        }
-      ],
-      "title": "RegisteredValidator",
-      "transformations": [
-        {
-          "id": "labelsToFields",
-          "options": {}
-        },
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": {
-              "_start": true,
-              "_stop": true,
-              "amount {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": false
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "committee"
             },
-            "includeByName": {},
-            "indexByName": {
-              "_time": 0,
-              "amount {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": 1,
-              "block {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": 2,
-              "delegator {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": 3,
-              "selfBonded {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": 4,
-              "validator {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": 5
-            },
-            "renameByName": {
-              "amount {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": ""
-            }
-          }
-        }
-      ],
-      "type": "table"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "de85digryc1dsb"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "custom": {
-            "align": "auto",
-            "cellOptions": {
-              "type": "auto"
-            },
-            "inspect": false
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
+            "properties": [
               {
-                "color": "green",
-                "value": null
-              },
+                "id": "custom.width",
+                "value": 1029
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "block"
+            },
+            "properties": [
               {
-                "color": "red",
-                "value": 80
+                "id": "custom.width",
+                "value": 81
               }
             ]
           }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 10
-      },
-      "id": 3,
-      "options": {
-        "cellHeight": "sm",
-        "footer": {
-          "countRows": false,
-          "fields": "",
-          "reducer": [
-            "sum"
-          ],
-          "show": false
-        },
-        "showHeader": true
-      },
-      "pluginVersion": "11.4.0",
-      "targets": [
-        {
-          "query": "from(bucket:\"seer_test\")\n|>range(start: $__from/1000, stop: $__to/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"ActivatedValidator\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>sort(columns: [\"block\"], desc: true)\n|>keep(columns:[\"block\", \"addr\", \"_time\",  \"effectiveBlock\", \"treasury\"])\n\n\n\n",
-          "refId": "A"
-        }
-      ],
-      "title": "ActivatedValidator",
-      "type": "table"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "de85digryc1dsb"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "custom": {
-            "align": "auto",
-            "cellOptions": {
-              "type": "auto"
-            },
-            "filterable": true,
-            "inspect": false
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
+        ]
       },
       "gridPos": {
         "h": 8,
@@ -320,256 +449,7 @@
         "x": 0,
         "y": 18
       },
-      "id": 8,
-      "options": {
-        "cellHeight": "sm",
-        "footer": {
-          "countRows": false,
-          "fields": "",
-          "reducer": [
-            "sum"
-          ],
-          "show": false
-        },
-        "showHeader": true,
-        "sortBy": []
-      },
-      "pluginVersion": "11.4.0",
-      "targets": [
-        {
-          "query": "from(bucket:\"${bucket}\")\n|>range(start: $__from/1000, stop: $__to/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"CommissionRateChange\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>keep(columns:[\"block\", \"rate\", \"validator\", \"_time\"])\n|>limit(n:10000)\n",
-          "refId": "A"
-        }
-      ],
-      "title": "CommissionRateChange",
-      "type": "table"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "de85digryc1dsb"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "custom": {
-            "align": "auto",
-            "cellOptions": {
-              "type": "auto"
-            },
-            "filterable": true,
-            "inspect": false
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 18
-      },
-      "id": 17,
-      "options": {
-        "cellHeight": "sm",
-        "footer": {
-          "countRows": false,
-          "fields": "",
-          "reducer": [
-            "sum"
-          ],
-          "show": false
-        },
-        "showHeader": true,
-        "sortBy": []
-      },
-      "pluginVersion": "11.4.0",
-      "targets": [
-        {
-          "query": "from(bucket:\"${bucket}\")\n|>range(start: $__from/1000, stop: $__to/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"PausedValidator\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>limit(n:10000)\n",
-          "refId": "A"
-        }
-      ],
-      "title": "PausedValidator",
-      "transformations": [
-        {
-          "id": "labelsToFields",
-          "options": {}
-        },
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": {
-              "_start": true,
-              "_stop": true,
-              "amount {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": false
-            },
-            "includeByName": {},
-            "indexByName": {
-              "_time": 0,
-              "amount {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": 1,
-              "block {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": 2,
-              "delegator {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": 3,
-              "selfBonded {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": 4,
-              "validator {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": 5
-            },
-            "renameByName": {
-              "amount {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": ""
-            }
-          }
-        }
-      ],
-      "type": "table"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "de85digryc1dsb"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "custom": {
-            "align": "auto",
-            "cellOptions": {
-              "type": "auto"
-            },
-            "filterable": true,
-            "inspect": false
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 26
-      },
-      "id": 12,
-      "options": {
-        "cellHeight": "sm",
-        "footer": {
-          "countRows": false,
-          "fields": "",
-          "reducer": [
-            "sum"
-          ],
-          "show": false
-        },
-        "showHeader": true,
-        "sortBy": []
-      },
-      "pluginVersion": "11.4.0",
-      "targets": [
-        {
-          "query": "from(bucket:\"${bucket}\")\n|>range(start: $__from/1000, stop: $__to/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"MintedStake\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:10000)\n",
-          "refId": "A"
-        }
-      ],
-      "title": "MintedStake",
-      "transformations": [
-        {
-          "id": "labelsToFields",
-          "options": {}
-        },
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": {
-              "_start": true,
-              "_stop": true
-            },
-            "includeByName": {},
-            "indexByName": {
-              "_start": 4,
-              "_stop": 5,
-              "_time": 0,
-              "addr": 2,
-              "amount": 3,
-              "block": 1
-            },
-            "renameByName": {}
-          }
-        }
-      ],
-      "type": "table"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "de85digryc1dsb"
-      },
-      "description": "Rewarded is emitted for every validator account which collects rewards",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "custom": {
-            "align": "auto",
-            "cellOptions": {
-              "type": "auto"
-            },
-            "filterable": true,
-            "inspect": false
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 26
-      },
-      "id": 1,
+      "id": 33,
       "options": {
         "cellHeight": "sm",
         "footer": {
@@ -581,137 +461,39 @@
           "show": false
         },
         "frameIndex": 0,
-        "showHeader": true
-      },
-      "pluginVersion": "11.4.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "de85digryc1dsb"
-          },
-          "query": "from(bucket: \"seer_test\")\n|>range(start: $__from/1000, stop: $__to/1000)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"Rewarded\")\n  |> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n\n",
-          "refId": "Rewarded"
-        }
-      ],
-      "title": "Rewarded",
-      "transformations": [
-        {
-          "id": "labelsToFields",
-          "options": {}
-        },
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": {
-              "_start": true,
-              "_stop": true
-            },
-            "includeByName": {},
-            "indexByName": {
-              "_start": 5,
-              "_stop": 6,
-              "_time": 0,
-              "addr": 2,
-              "atnAmount": 3,
-              "block": 1,
-              "ntnAmount": 4
-            },
-            "renameByName": {
-              "addr": "address",
-              "atnAmount": "",
-              "block": ""
-            }
-          }
-        }
-      ],
-      "type": "table"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "de85digryc1dsb"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "fixed"
-          },
-          "custom": {
-            "align": "auto",
-            "cellOptions": {
-              "type": "auto"
-            },
-            "filterable": true,
-            "inspect": false
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 34
-      },
-      "id": 13,
-      "options": {
-        "cellHeight": "sm",
-        "footer": {
-          "countRows": false,
-          "fields": "",
-          "reducer": [
-            "sum"
-          ],
-          "show": false
-        },
         "showHeader": true,
         "sortBy": []
       },
-      "pluginVersion": "11.4.0",
+      "pluginVersion": "11.5.0",
       "targets": [
         {
-          "query": "from(bucket:\"${bucket}\")\n|>range(start: $__from/1000, stop: $__to/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"NewBondingRequest\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:10000)\n",
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"BlockHeader\")\n|>pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>keep(columns: [\"block\", \"committee\", \"proposer\", \"skipped-proposer\"])\n|>group()\n|>sort(columns:[\"block\"], desc:true)\n|> limit(n:1000)\n\n\n\n",
           "refId": "A"
         }
       ],
-      "title": "NewBondingRequest",
+      "title": "Block Committee",
       "transformations": [
-        {
-          "id": "labelsToFields",
-          "options": {}
-        },
         {
           "id": "organize",
           "options": {
             "excludeByName": {
+              "_measurement": true,
               "_start": true,
               "_stop": true
             },
             "includeByName": {},
             "indexByName": {
-              "_start": 6,
-              "_stop": 7,
-              "_time": 0,
-              "amount": 2,
-              "block": 1,
-              "delegator": 3,
-              "selfBonded": 4,
-              "validator": 5
+              "_measurement": 3,
+              "_start": 0,
+              "_stop": 1,
+              "_time": 2,
+              "activityProofRound": 9,
+              "ap-absentees": 5,
+              "block": 4,
+              "committee": 7,
+              "epoch": 8,
+              "qc-absentees": 6,
+              "round": 10
             },
             "renameByName": {}
           }
@@ -752,7 +534,419 @@
             ]
           }
         },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "committee"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 492
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "block"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 132
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "num-ap-absentees"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 198
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "num-qc-absentees"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 187
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 18
+      },
+      "id": 32,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "frameIndex": 0,
+        "showHeader": true,
+        "sortBy": []
+      },
+      "pluginVersion": "11.5.0",
+      "targets": [
+        {
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"BlockHeader\")\n|>pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>keep(columns: [\"block\", \"ap-absentees\", \"qc-absentees\", \"num-qc-absentees\", \"num-ap-absentees\"])\n|>group()\n|>sort(columns:[\"block\"], desc:true)\n|> limit(n:1000)\n\n",
+          "refId": "A"
+        }
+      ],
+      "title": "Block Absentees",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "_measurement": true,
+              "_start": true,
+              "_stop": true
+            },
+            "includeByName": {},
+            "indexByName": {
+              "ap-absentees": 2,
+              "block": 0,
+              "num-ap-absentees": 1,
+              "num-qc-absentees": 3,
+              "qc-absentees": 4
+            },
+            "renameByName": {}
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "de85digryc1dsb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "scaleDistribution": {
+              "type": "linear"
+            }
+          }
+        },
         "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 26
+      },
+      "id": 39,
+      "options": {
+        "calculate": false,
+        "cellGap": 1,
+        "color": {
+          "exponent": 0.5,
+          "fill": "dark-orange",
+          "min": 6,
+          "mode": "scheme",
+          "reverse": false,
+          "scale": "exponential",
+          "scheme": "RdYlGn",
+          "steps": 64
+        },
+        "exemplars": {
+          "color": "rgba(255,0,255,0.7)"
+        },
+        "filterValues": {
+          "le": 1e-9
+        },
+        "legend": {
+          "show": true
+        },
+        "rowsFrame": {
+          "layout": "auto"
+        },
+        "tooltip": {
+          "mode": "single",
+          "showColorScale": false,
+          "yHistogram": false
+        },
+        "yAxis": {
+          "axisPlacement": "left",
+          "reverse": false
+        }
+      },
+      "pluginVersion": "11.5.0",
+      "targets": [
+        {
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"BlockHeader\")\n|>pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>keep(columns: [\"_time\",  \"num-qc-absentees\"])\n\n\n\n",
+          "refId": "A"
+        }
+      ],
+      "title": "Number of Quorum Certificate Absentees",
+      "type": "heatmap"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "de85digryc1dsb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "scaleDistribution": {
+              "type": "linear"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "committee"
+            },
+            "properties": []
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "block"
+            },
+            "properties": []
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 26
+      },
+      "id": 38,
+      "options": {
+        "calculate": false,
+        "cellGap": 1,
+        "color": {
+          "exponent": 0.5,
+          "fill": "dark-orange",
+          "mode": "scheme",
+          "reverse": false,
+          "scale": "exponential",
+          "scheme": "RdYlGn",
+          "steps": 64
+        },
+        "exemplars": {
+          "color": "rgba(255,0,255,0.7)"
+        },
+        "filterValues": {
+          "le": 1e-9
+        },
+        "legend": {
+          "show": true
+        },
+        "rowsFrame": {
+          "layout": "auto"
+        },
+        "tooltip": {
+          "mode": "single",
+          "showColorScale": false,
+          "yHistogram": false
+        },
+        "yAxis": {
+          "axisPlacement": "left",
+          "reverse": false
+        }
+      },
+      "pluginVersion": "11.5.0",
+      "targets": [
+        {
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"BlockHeader\")\n|>pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>keep(columns: [\"_time\", \"num-ap-absentees\"])\n\n",
+          "refId": "A"
+        }
+      ],
+      "title": "Number of Activity Proof Absentees",
+      "type": "heatmap"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "de85digryc1dsb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "fillOpacity": 50,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "pointShape": "circle",
+            "pointSize": {
+              "fixed": 5
+            },
+            "pointStrokeWidth": 1,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "show": "points"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 34
+      },
+      "id": 37,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "mapping": "auto",
+        "series": [
+          {}
+        ],
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.5.0",
+      "targets": [
+        {
+          "hide": false,
+          "query": "from(bucket:\"${bucket}\")\n |>range(start: ${__from}/1000, stop: ${__to}/1000)\n |> filter(fn: (r) => r[\"_measurement\"]== \"Penalized\")\n |> pivot(\n     rowKey:[\"_time\"],         \n     columnKey: [\"_field\"],    \n     valueColumn: \"_value\"   \n )\n |> group(columns: [\"block\"])\n |> count(column: \"event_type\")\n |> group()\n |> rename(columns: {event_type: \"count\"})\n |> map(fn: (r)=> ({block:r.block, penalized:r.count}))\n\n\n",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "de85digryc1dsb"
+          },
+          "hide": false,
+          "query": "from(bucket:\"${bucket}\")\n |>range(start: ${__from}/1000, stop: ${__to}/1000)\n |> filter(fn: (r) => r[\"_measurement\"]== \"InactivityJailingEvent\")\n |> pivot(\n     rowKey:[\"_time\"],         \n     columnKey: [\"_field\"],    \n     valueColumn: \"_value\"   \n )\n |> group(columns: [\"block\"])\n |> count(column: \"event_type\")\n |> group()\n |> rename(columns: {event_type: \"count\"})\n |> map(fn: (r)=> ({block:r.block, inactivityJaillingEvent:r.count}))\n\n\n",
+          "refId": "B"
+        }
+      ],
+      "title": "Accountability Events Over blocks",
+      "type": "xychart"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "de85digryc1dsb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true,
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "committee"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 492
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "block"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 132
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 8,
@@ -760,7 +954,7 @@
         "x": 12,
         "y": 34
       },
-      "id": 16,
+      "id": 36,
       "options": {
         "cellHeight": "sm",
         "footer": {
@@ -771,204 +965,41 @@
           ],
           "show": false
         },
+        "frameIndex": 0,
         "showHeader": true,
         "sortBy": []
       },
-      "pluginVersion": "11.4.0",
+      "pluginVersion": "11.5.0",
       "targets": [
         {
-          "query": "from(bucket:\"${bucket}\")\n|>range(start: $__from/1000, stop: $__to/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"NewUnbondingRequest\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:10000)\n",
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: $__from/1000, stop: $__to/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"BlockHeader\")\n|>pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>drop(columns: [\"_time\", \"committee\", \"proposer\", \"ap-absentees\", \"qc-absentees\"])\n|>group()\n|>sort(columns:[\"block\"], desc:true)\n|> limit(n:1000)\n\n\n\n",
           "refId": "A"
         }
       ],
-      "title": "NewUnbondingRequest",
+      "title": "Block Header",
       "transformations": [
-        {
-          "id": "labelsToFields",
-          "options": {}
-        },
         {
           "id": "organize",
           "options": {
             "excludeByName": {
-              "_start": true,
-              "_stop": true,
-              "amount {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": false
-            },
-            "includeByName": {},
-            "indexByName": {
-              "_start": 6,
-              "_stop": 7,
-              "_time": 0,
-              "amount": 2,
-              "block": 1,
-              "delegator": 3,
-              "selfBonded": 4,
-              "validator": 5
-            },
-            "renameByName": {
-              "amount {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": ""
-            }
-          }
-        }
-      ],
-      "type": "table"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "de85digryc1dsb"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "custom": {
-            "align": "auto",
-            "cellOptions": {
-              "type": "auto"
-            },
-            "filterable": true,
-            "inspect": false
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 42
-      },
-      "id": 14,
-      "options": {
-        "cellHeight": "sm",
-        "footer": {
-          "countRows": false,
-          "fields": "",
-          "reducer": [
-            "sum"
-          ],
-          "show": false
-        },
-        "showHeader": true,
-        "sortBy": []
-      },
-      "pluginVersion": "11.4.0",
-      "targets": [
-        {
-          "query": "from(bucket:\"${bucket}\")\n|>range(start: $__from/1000, stop: $__to/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"NewEpoch\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>keep(columns:[ \"_time\", \"block\", \"epoch\"])\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:10000)\n",
-          "refId": "A"
-        }
-      ],
-      "title": "NewEpoch",
-      "type": "table"
-    },
-    {
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 50
-      },
-      "id": 25,
-      "panels": [],
-      "title": "OmissionAccountability",
-      "type": "row"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "de85digryc1dsb"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "custom": {
-            "align": "auto",
-            "cellOptions": {
-              "type": "auto"
-            },
-            "filterable": true,
-            "inspect": false
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 51
-      },
-      "id": 10,
-      "options": {
-        "cellHeight": "sm",
-        "footer": {
-          "countRows": false,
-          "fields": "",
-          "reducer": [
-            "sum"
-          ],
-          "show": false
-        },
-        "showHeader": true,
-        "sortBy": []
-      },
-      "pluginVersion": "11.4.0",
-      "targets": [
-        {
-          "query": "from(bucket:\"${bucket}\")\n|>range(start: $__from/1000, stop: $__to/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"InactivityJailingEvent\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:10000)\n",
-          "refId": "A"
-        }
-      ],
-      "title": "InactivityJailingEvent",
-      "transformations": [
-        {
-          "id": "labelsToFields",
-          "options": {}
-        },
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": {
+              "_measurement": true,
               "_start": true,
               "_stop": true
             },
             "includeByName": {},
-            "indexByName": {},
+            "indexByName": {
+              "_measurement": 3,
+              "_start": 0,
+              "_stop": 1,
+              "_time": 2,
+              "activityProofRound": 9,
+              "ap-absentees": 5,
+              "block": 4,
+              "committee": 7,
+              "epoch": 8,
+              "qc-absentees": 6,
+              "round": 10
+            },
             "renameByName": {}
           }
         }
@@ -976,12 +1007,2829 @@
       "type": "table"
     },
     {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "de85digryc1dsb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "scaleDistribution": {
+              "type": "linear"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 16,
+        "w": 24,
+        "x": 0,
+        "y": 42
+      },
+      "id": 40,
+      "options": {
+        "calculate": false,
+        "calculation": {
+          "xBuckets": {
+            "value": ""
+          },
+          "yBuckets": {
+            "scale": {
+              "type": "linear"
+            }
+          }
+        },
+        "cellGap": 1,
+        "color": {
+          "exponent": 0.5,
+          "fill": "dark-orange",
+          "mode": "scheme",
+          "reverse": false,
+          "scale": "exponential",
+          "scheme": "RdYlGn",
+          "steps": 64
+        },
+        "exemplars": {
+          "color": "#ff00ffb3"
+        },
+        "filterValues": {
+          "le": 1e-9
+        },
+        "legend": {
+          "show": true
+        },
+        "rowsFrame": {
+          "layout": "auto"
+        },
+        "tooltip": {
+          "mode": "single",
+          "showColorScale": false,
+          "yHistogram": false
+        },
+        "yAxis": {
+          "axisPlacement": "left",
+          "reverse": false
+        }
+      },
+      "pluginVersion": "11.5.0",
+      "targets": [
+        {
+          "query": "from(bucket: \"${bucket}\")\n  |> range(start: ${__from}/1000, stop: ${__to}/1000)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"QuorumCertificateAbsentees\")\n  |> filter(fn: (r) => r._field == \"absent\")\n  |> group(columns: [\"validator\"])\n  |> aggregateWindow(every: 10s, fn: sum, createEmpty: false)\n\n",
+          "refId": "A"
+        }
+      ],
+      "title": "Quorum Certificate Absentees - aggregated 10s",
+      "type": "heatmap"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "de85digryc1dsb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "scaleDistribution": {
+              "type": "linear"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 16,
+        "w": 24,
+        "x": 0,
+        "y": 58
+      },
+      "id": 44,
+      "options": {
+        "calculate": false,
+        "calculation": {
+          "xBuckets": {
+            "value": ""
+          },
+          "yBuckets": {
+            "scale": {
+              "type": "linear"
+            }
+          }
+        },
+        "cellGap": 1,
+        "color": {
+          "exponent": 0.5,
+          "fill": "dark-orange",
+          "mode": "scheme",
+          "reverse": false,
+          "scale": "exponential",
+          "scheme": "RdYlGn",
+          "steps": 64
+        },
+        "exemplars": {
+          "color": "#ff00ffb3"
+        },
+        "filterValues": {
+          "le": 1e-9
+        },
+        "legend": {
+          "show": true
+        },
+        "rowsFrame": {
+          "layout": "auto"
+        },
+        "tooltip": {
+          "mode": "single",
+          "showColorScale": false,
+          "yHistogram": false
+        },
+        "yAxis": {
+          "axisPlacement": "left",
+          "reverse": false
+        }
+      },
+      "pluginVersion": "11.5.0",
+      "targets": [
+        {
+          "query": "from(bucket: \"${bucket}\")\n  |> range(start: ${__from}/1000, stop: ${__to}/1000)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"ActivityProofAbsentees\")\n  |> filter(fn: (r) => r._field == \"absent\")\n  |> group(columns: [\"validator\"])\n  |> aggregateWindow(every: 10s, fn: sum, createEmpty: false)\n\n",
+          "refId": "A"
+        }
+      ],
+      "title": "Activity Proof Absentees - aggregated 10s",
+      "type": "heatmap"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "de85digryc1dsb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true,
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 74
+      },
+      "id": 30,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "block"
+          }
+        ]
+      },
+      "pluginVersion": "11.5.0",
+      "targets": [
+        {
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"ACNPeers\")\n|>pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|> drop (columns: [\"_time\"])\n|> group()\n|> limit(n:1000)\n\n",
+          "refId": "A"
+        }
+      ],
+      "title": "ACN Peers",
+      "transformations": [
+        {
+          "id": "labelsToFields",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "_measurement": true,
+              "_start": true,
+              "_stop": true
+            },
+            "includeByName": {},
+            "indexByName": {
+              "RemoteAddress": 5,
+              "_start": 6,
+              "_stop": 7,
+              "_time": 0,
+              "block": 1,
+              "enode": 2,
+              "id": 3,
+              "localAddress": 4
+            },
+            "renameByName": {}
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 82
+      },
+      "id": 21,
+      "panels": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "de85digryc1dsb"
+          },
+          "description": "Emitted after updating config parameter of type uint",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "custom": {
+                "align": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "filterable": true,
+                "inspect": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 123
+          },
+          "id": 18,
+          "options": {
+            "cellHeight": "sm",
+            "footer": {
+              "countRows": false,
+              "fields": "",
+              "reducer": [
+                "sum"
+              ],
+              "show": false
+            },
+            "frameIndex": 0,
+            "showHeader": true,
+            "sortBy": []
+          },
+          "pluginVersion": "11.4.0",
+          "targets": [
+            {
+              "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"ConfigUpdateUint\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>group(columns:[\"event_id_seer\"])\n|>group()\n|> drop (columns: [\"_time\", \"_measurement\", \"event_id_seer\", \"event_type\"])\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:10000)\n",
+              "refId": "A"
+            }
+          ],
+          "title": "ConfigUpdateUint",
+          "transformations": [
+            {
+              "id": "labelsToFields",
+              "options": {}
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "_start": true,
+                  "_stop": true,
+                  "amount {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": false
+                },
+                "includeByName": {},
+                "indexByName": {
+                  "_start": 7,
+                  "_stop": 8,
+                  "_time": 0,
+                  "addr": 2,
+                  "block": 1,
+                  "enode": 3,
+                  "liquidStateContract": 4,
+                  "oracleAddress": 5,
+                  "treasury": 6
+                },
+                "renameByName": {
+                  "amount {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": ""
+                }
+              }
+            }
+          ],
+          "type": "table"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "de85digryc1dsb"
+          },
+          "description": "Emitted after updating config parameter of type int",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "custom": {
+                "align": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "filterable": true,
+                "inspect": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 123
+          },
+          "id": 60,
+          "options": {
+            "cellHeight": "sm",
+            "footer": {
+              "countRows": false,
+              "fields": "",
+              "reducer": [
+                "sum"
+              ],
+              "show": false
+            },
+            "frameIndex": 0,
+            "showHeader": true,
+            "sortBy": []
+          },
+          "pluginVersion": "11.4.0",
+          "targets": [
+            {
+              "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"ConfigUpdateInt\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>group(columns:[\"event_id_seer\"])\n|>group()\n|> drop (columns: [\"_time\", \"_measurement\", \"event_id_seer\", \"event_type\"])\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:10000)\n",
+              "refId": "A"
+            }
+          ],
+          "title": "ConfigUpdateInt",
+          "transformations": [
+            {
+              "id": "labelsToFields",
+              "options": {}
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "_start": true,
+                  "_stop": true,
+                  "amount {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": false
+                },
+                "includeByName": {},
+                "indexByName": {
+                  "_start": 7,
+                  "_stop": 8,
+                  "_time": 0,
+                  "addr": 2,
+                  "block": 1,
+                  "enode": 3,
+                  "liquidStateContract": 4,
+                  "oracleAddress": 5,
+                  "treasury": 6
+                },
+                "renameByName": {
+                  "amount {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": ""
+                }
+              }
+            }
+          ],
+          "type": "table"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "de85digryc1dsb"
+          },
+          "description": "Emitted after updating config parameter of type address",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "custom": {
+                "align": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "filterable": true,
+                "inspect": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 203
+          },
+          "id": 61,
+          "options": {
+            "cellHeight": "sm",
+            "footer": {
+              "countRows": false,
+              "fields": "",
+              "reducer": [
+                "sum"
+              ],
+              "show": false
+            },
+            "frameIndex": 0,
+            "showHeader": true,
+            "sortBy": []
+          },
+          "pluginVersion": "11.4.0",
+          "targets": [
+            {
+              "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"ConfigUpdateAddress\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>group(columns:[\"event_id_seer\"])\n|>group()\n|> drop (columns: [\"_time\", \"_measurement\", \"event_id_seer\", \"event_type\"])\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:10000)\n",
+              "refId": "A"
+            }
+          ],
+          "title": "ConfigUpdateAddress",
+          "transformations": [
+            {
+              "id": "labelsToFields",
+              "options": {}
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "_start": true,
+                  "_stop": true,
+                  "amount {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": false
+                },
+                "includeByName": {},
+                "indexByName": {
+                  "_start": 7,
+                  "_stop": 8,
+                  "_time": 0,
+                  "addr": 2,
+                  "block": 1,
+                  "enode": 3,
+                  "liquidStateContract": 4,
+                  "oracleAddress": 5,
+                  "treasury": 6
+                },
+                "renameByName": {
+                  "amount {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": ""
+                }
+              }
+            }
+          ],
+          "type": "table"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "de85digryc1dsb"
+          },
+          "description": "Emitted after updating a enode address of a validator",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "custom": {
+                "align": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "filterable": true,
+                "inspect": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 203
+          },
+          "id": 62,
+          "options": {
+            "cellHeight": "sm",
+            "footer": {
+              "countRows": false,
+              "fields": "",
+              "reducer": [
+                "sum"
+              ],
+              "show": false
+            },
+            "frameIndex": 0,
+            "showHeader": true,
+            "sortBy": []
+          },
+          "pluginVersion": "11.4.0",
+          "targets": [
+            {
+              "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"EnodeUpdate\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>group(columns:[\"event_id_seer\"])\n|>group()\n|> drop (columns: [\"_time\", \"_measurement\", \"event_id_seer\", \"event_type\"])\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:10000)\n",
+              "refId": "A"
+            }
+          ],
+          "title": "EnodeUpdate",
+          "transformations": [
+            {
+              "id": "labelsToFields",
+              "options": {}
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "_start": true,
+                  "_stop": true,
+                  "amount {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": false
+                },
+                "includeByName": {},
+                "indexByName": {
+                  "_start": 7,
+                  "_stop": 8,
+                  "_time": 0,
+                  "addr": 2,
+                  "block": 1,
+                  "enode": 3,
+                  "liquidStateContract": 4,
+                  "oracleAddress": 5,
+                  "treasury": 6
+                },
+                "renameByName": {
+                  "amount {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": ""
+                }
+              }
+            }
+          ],
+          "type": "table"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "de85digryc1dsb"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "custom": {
+                "align": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "filterable": true,
+                "inspect": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 211
+          },
+          "id": 59,
+          "options": {
+            "cellHeight": "sm",
+            "footer": {
+              "countRows": false,
+              "fields": "",
+              "reducer": [
+                "sum"
+              ],
+              "show": false
+            },
+            "frameIndex": 0,
+            "showHeader": true,
+            "sortBy": []
+          },
+          "pluginVersion": "11.4.0",
+          "targets": [
+            {
+              "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"RegisteredValidator\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>group(columns:[\"event_id_seer\"])\n|>group()\n|> drop (columns: [\"_time\", \"_measurement\", \"event_id_seer\", \"event_type\"])\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:10000)\n",
+              "refId": "A"
+            }
+          ],
+          "title": "RegisteredValidator",
+          "transformations": [
+            {
+              "id": "labelsToFields",
+              "options": {}
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "_start": true,
+                  "_stop": true,
+                  "amount {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": false
+                },
+                "includeByName": {},
+                "indexByName": {
+                  "_start": 7,
+                  "_stop": 8,
+                  "_time": 0,
+                  "addr": 2,
+                  "block": 1,
+                  "enode": 3,
+                  "liquidStateContract": 4,
+                  "oracleAddress": 5,
+                  "treasury": 6
+                },
+                "renameByName": {
+                  "amount {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": ""
+                }
+              }
+            }
+          ],
+          "type": "table"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "de85digryc1dsb"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "custom": {
+                "align": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "inspect": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 211
+          },
+          "id": 3,
+          "options": {
+            "cellHeight": "sm",
+            "footer": {
+              "countRows": false,
+              "fields": "",
+              "reducer": [
+                "sum"
+              ],
+              "show": false
+            },
+            "showHeader": true
+          },
+          "pluginVersion": "11.4.0",
+          "targets": [
+            {
+              "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"ActivatedValidator\")\n|>pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>group(columns:[\"event_id_seer\"])\n|>group()\n|>drop (columns: [\"_time\", \"_measurement\", \"event_id_seer\", \"event_type\"])\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:10000)\n\n\n\n\n",
+              "refId": "A"
+            }
+          ],
+          "title": "ActivatedValidator",
+          "transformations": [
+            {
+              "id": "labelsToFields",
+              "options": {}
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "_start": true,
+                  "_stop": true
+                },
+                "includeByName": {},
+                "indexByName": {
+                  "_start": 5,
+                  "_stop": 6,
+                  "_time": 0,
+                  "addr": 2,
+                  "block": 1,
+                  "effectiveBlock": 3,
+                  "treasury": 4
+                },
+                "renameByName": {}
+              }
+            }
+          ],
+          "type": "table"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "de85digryc1dsb"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "custom": {
+                "align": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "filterable": true,
+                "inspect": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 219
+          },
+          "id": 8,
+          "options": {
+            "cellHeight": "sm",
+            "footer": {
+              "countRows": false,
+              "fields": "",
+              "reducer": [
+                "sum"
+              ],
+              "show": false
+            },
+            "showHeader": true,
+            "sortBy": []
+          },
+          "pluginVersion": "11.4.0",
+          "targets": [
+            {
+              "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"CommissionRateChange\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>group(columns:[\"event_id_seer\"])\n|>group()\n|>drop (columns: [\"_time\", \"_measurement\", \"event_id_seer\", \"event_type\"])\n|>limit(n:10000)\n",
+              "refId": "A"
+            }
+          ],
+          "title": "CommissionRateChange",
+          "type": "table"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "de85digryc1dsb"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "custom": {
+                "align": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "filterable": true,
+                "inspect": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 219
+          },
+          "id": 17,
+          "options": {
+            "cellHeight": "sm",
+            "footer": {
+              "countRows": false,
+              "fields": "",
+              "reducer": [
+                "sum"
+              ],
+              "show": false
+            },
+            "showHeader": true,
+            "sortBy": []
+          },
+          "pluginVersion": "11.4.0",
+          "targets": [
+            {
+              "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"PausedValidator\")\n|>pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>group(columns:[\"event_id_seer\"])\n|>group()\n|>drop (columns: [\"_time\", \"_measurement\", \"event_id_seer\", \"event_type\"])\n|>limit(n:1000)\n",
+              "refId": "A"
+            }
+          ],
+          "title": "PausedValidator",
+          "transformations": [
+            {
+              "id": "labelsToFields",
+              "options": {}
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "_start": true,
+                  "_stop": true,
+                  "amount {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": false
+                },
+                "includeByName": {},
+                "indexByName": {
+                  "_start": 5,
+                  "_stop": 6,
+                  "_time": 0,
+                  "addr": 2,
+                  "block": 1,
+                  "effectiveBlock": 3,
+                  "treasury": 4
+                },
+                "renameByName": {
+                  "amount {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": ""
+                }
+              }
+            }
+          ],
+          "type": "table"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "de85digryc1dsb"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "custom": {
+                "align": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "filterable": true,
+                "inspect": true
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "block"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 107
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 227
+          },
+          "id": 12,
+          "options": {
+            "cellHeight": "sm",
+            "footer": {
+              "countRows": false,
+              "fields": "",
+              "reducer": [
+                "sum"
+              ],
+              "show": false
+            },
+            "showHeader": true,
+            "sortBy": []
+          },
+          "pluginVersion": "11.4.0",
+          "targets": [
+            {
+              "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"MintedStake\" and r[\"event_type\"] == \"protocol\" )\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>group(columns:[\"event_id_seer\"])\n|>group()\n|> drop (columns: [\"_time\", \"_measurement\", \"event_id_seer\", \"event_type\"])\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:10000)\n",
+              "refId": "A"
+            }
+          ],
+          "title": "MintedStake",
+          "transformations": [
+            {
+              "id": "labelsToFields",
+              "options": {}
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "_start": true,
+                  "_stop": true
+                },
+                "includeByName": {},
+                "indexByName": {
+                  "_start": 4,
+                  "_stop": 5,
+                  "_time": 0,
+                  "addr": 2,
+                  "amount": 3,
+                  "block": 1
+                },
+                "renameByName": {}
+              }
+            }
+          ],
+          "type": "table"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "de85digryc1dsb"
+          },
+          "description": "Rewarded is emitted for every validator account which collects rewards",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "custom": {
+                "align": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "filterable": true,
+                "inspect": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 227
+          },
+          "id": 1,
+          "options": {
+            "cellHeight": "sm",
+            "footer": {
+              "countRows": false,
+              "fields": "",
+              "reducer": [
+                "sum"
+              ],
+              "show": false
+            },
+            "frameIndex": 0,
+            "showHeader": true
+          },
+          "pluginVersion": "11.4.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "influxdb",
+                "uid": "de85digryc1dsb"
+              },
+              "query": "from(bucket: \"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"Rewarded\")\n  |> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |>group(columns:[\"event_id_seer\"])\n  |>group()\n  |> drop (columns: [\"_time\", \"_measurement\", \"event_id_seer\", \"event_type\"])\n  |> limit(n:1000)\n\n",
+              "refId": "Rewarded"
+            }
+          ],
+          "title": "Rewarded",
+          "transformations": [
+            {
+              "id": "labelsToFields",
+              "options": {}
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "_start": true,
+                  "_stop": true
+                },
+                "includeByName": {},
+                "indexByName": {
+                  "_start": 5,
+                  "_stop": 6,
+                  "_time": 0,
+                  "addr": 2,
+                  "atnAmount": 3,
+                  "block": 1,
+                  "ntnAmount": 4
+                },
+                "renameByName": {
+                  "addr": "address",
+                  "atnAmount": "",
+                  "block": ""
+                }
+              }
+            }
+          ],
+          "type": "table"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "de85digryc1dsb"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "custom": {
+                "align": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "filterable": true,
+                "inspect": true
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "block"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 107
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 235
+          },
+          "id": 63,
+          "options": {
+            "cellHeight": "sm",
+            "footer": {
+              "countRows": false,
+              "fields": "",
+              "reducer": [
+                "sum"
+              ],
+              "show": false
+            },
+            "showHeader": true,
+            "sortBy": []
+          },
+          "pluginVersion": "11.4.0",
+          "targets": [
+            {
+              "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"BurnedStake\" and r[\"event_type\"] == \"protocol\" )\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>group(columns:[\"event_id_seer\"])\n|>group()\n|> drop (columns: [\"_time\", \"_measurement\", \"event_id_seer\", \"event_type\"])\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:10000)\n",
+              "refId": "A"
+            }
+          ],
+          "title": "BurnedStake",
+          "transformations": [
+            {
+              "id": "labelsToFields",
+              "options": {}
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "_start": true,
+                  "_stop": true
+                },
+                "includeByName": {},
+                "indexByName": {
+                  "_start": 4,
+                  "_stop": 5,
+                  "_time": 0,
+                  "addr": 2,
+                  "amount": 3,
+                  "block": 1
+                },
+                "renameByName": {}
+              }
+            }
+          ],
+          "type": "table"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "de85digryc1dsb"
+          },
+          "description": "This event is emitted when a registered bonding request to a validator is rejected",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "fixed"
+              },
+              "custom": {
+                "align": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "filterable": true,
+                "inspect": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 235
+          },
+          "id": 13,
+          "options": {
+            "cellHeight": "sm",
+            "footer": {
+              "countRows": false,
+              "fields": "",
+              "reducer": [
+                "sum"
+              ],
+              "show": false
+            },
+            "frameIndex": 0,
+            "showHeader": true,
+            "sortBy": []
+          },
+          "pluginVersion": "11.4.0",
+          "targets": [
+            {
+              "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"BondingRejected\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>group(columns:[\"event_id_seer\"])\n|>group()\n|> drop (columns: [\"_time\", \"_measurement\", \"event_id_seer\", \"event_type\"])\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:1000)\n",
+              "refId": "A"
+            }
+          ],
+          "title": "BondingRejected",
+          "transformations": [
+            {
+              "id": "labelsToFields",
+              "options": {}
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "_start": true,
+                  "_stop": true
+                },
+                "includeByName": {},
+                "indexByName": {
+                  "_start": 6,
+                  "_stop": 7,
+                  "_time": 0,
+                  "amount": 2,
+                  "block": 1,
+                  "delegator": 3,
+                  "selfBonded": 4,
+                  "validator": 5
+                },
+                "renameByName": {}
+              }
+            }
+          ],
+          "type": "table"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "de85digryc1dsb"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "fixed"
+              },
+              "custom": {
+                "align": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "filterable": true,
+                "inspect": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 243
+          },
+          "id": 64,
+          "options": {
+            "cellHeight": "sm",
+            "footer": {
+              "countRows": false,
+              "fields": "",
+              "reducer": [
+                "sum"
+              ],
+              "show": false
+            },
+            "frameIndex": 0,
+            "showHeader": true,
+            "sortBy": []
+          },
+          "pluginVersion": "11.4.0",
+          "targets": [
+            {
+              "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"NewBondingRequest\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>group(columns:[\"event_id_seer\"])\n|>group()\n|> drop (columns: [\"_time\", \"_measurement\", \"event_id_seer\", \"event_type\"])\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:1000)\n",
+              "refId": "A"
+            }
+          ],
+          "title": "NewBondingRequest",
+          "transformations": [
+            {
+              "id": "labelsToFields",
+              "options": {}
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "_start": true,
+                  "_stop": true
+                },
+                "includeByName": {},
+                "indexByName": {
+                  "_start": 6,
+                  "_stop": 7,
+                  "_time": 0,
+                  "amount": 2,
+                  "block": 1,
+                  "delegator": 3,
+                  "selfBonded": 4,
+                  "validator": 5
+                },
+                "renameByName": {}
+              }
+            }
+          ],
+          "type": "table"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "de85digryc1dsb"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "custom": {
+                "align": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "filterable": true,
+                "inspect": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "block"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 95
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 243
+          },
+          "id": 16,
+          "options": {
+            "cellHeight": "sm",
+            "footer": {
+              "countRows": false,
+              "fields": "",
+              "reducer": [
+                "sum"
+              ],
+              "show": false
+            },
+            "frameIndex": 1,
+            "showHeader": true,
+            "sortBy": []
+          },
+          "pluginVersion": "11.4.0",
+          "targets": [
+            {
+              "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"NewUnbondingRequest\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>group(columns:[\"event_id_seer\"])\n|>group()\n|> drop (columns: [\"_time\", \"_measurement\", \"event_id_seer\", \"event_type\"])\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:1000)\n",
+              "refId": "A"
+            }
+          ],
+          "title": "NewUnbondingRequest",
+          "transformations": [
+            {
+              "id": "labelsToFields",
+              "options": {}
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "_start": true,
+                  "_stop": true,
+                  "amount {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": false
+                },
+                "includeByName": {},
+                "indexByName": {
+                  "_start": 6,
+                  "_stop": 7,
+                  "_time": 0,
+                  "amount": 2,
+                  "block": 1,
+                  "delegator": 3,
+                  "selfBonded": 4,
+                  "validator": 5
+                },
+                "renameByName": {
+                  "amount {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": ""
+                }
+              }
+            }
+          ],
+          "type": "table"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "de85digryc1dsb"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "custom": {
+                "align": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "filterable": true,
+                "inspect": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "block"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 80
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "committee"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 1135
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 251
+          },
+          "id": 14,
+          "options": {
+            "cellHeight": "sm",
+            "footer": {
+              "countRows": false,
+              "fields": "",
+              "reducer": [
+                "sum"
+              ],
+              "show": false
+            },
+            "showHeader": true,
+            "sortBy": []
+          },
+          "pluginVersion": "11.4.0",
+          "targets": [
+            {
+              "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"EpochPeriodUpdated\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>group(columns:[\"event_id_seer\"])\n|>group()\n|> drop (columns: [\"_time\", \"_measurement\", \"event_id_seer\", \"event_type\"])\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:10000)\n",
+              "refId": "A"
+            }
+          ],
+          "title": "EpochPeriodUpdated",
+          "transformations": [
+            {
+              "id": "labelsToFields",
+              "options": {
+                "keepLabels": [
+                  "event_type"
+                ]
+              }
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "_measurement": true,
+                  "_start": true,
+                  "_stop": true,
+                  "event_type": true
+                },
+                "includeByName": {},
+                "indexByName": {},
+                "renameByName": {}
+              }
+            }
+          ],
+          "type": "table"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "de85digryc1dsb"
+          },
+          "description": "",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "custom": {
+                "align": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "filterable": true,
+                "inspect": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "block"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 80
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "committee"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 1135
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 251
+          },
+          "id": 66,
+          "options": {
+            "cellHeight": "sm",
+            "footer": {
+              "countRows": false,
+              "fields": "",
+              "reducer": [
+                "sum"
+              ],
+              "show": false
+            },
+            "showHeader": true,
+            "sortBy": []
+          },
+          "pluginVersion": "11.4.0",
+          "targets": [
+            {
+              "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"MinimumBaseFeeUpdated\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>group(columns:[\"event_id_seer\"])\n|>group()\n|> drop (columns: [\"_time\", \"_measurement\", \"event_id_seer\", \"event_type\"])\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:10000)\n",
+              "refId": "A"
+            }
+          ],
+          "title": "MinimumBaseFeeUpdated",
+          "transformations": [
+            {
+              "id": "labelsToFields",
+              "options": {
+                "keepLabels": [
+                  "event_type"
+                ]
+              }
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "_measurement": true,
+                  "_start": true,
+                  "_stop": true,
+                  "event_type": true
+                },
+                "includeByName": {},
+                "indexByName": {},
+                "renameByName": {}
+              }
+            }
+          ],
+          "type": "table"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "de85digryc1dsb"
+          },
+          "description": "This event is emitted when a call to an address fails in a protocol function",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "custom": {
+                "align": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "filterable": true,
+                "inspect": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "block"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 80
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "committee"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 1135
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 259
+          },
+          "id": 65,
+          "options": {
+            "cellHeight": "sm",
+            "footer": {
+              "countRows": false,
+              "fields": "",
+              "reducer": [
+                "sum"
+              ],
+              "show": false
+            },
+            "showHeader": true,
+            "sortBy": []
+          },
+          "pluginVersion": "11.4.0",
+          "targets": [
+            {
+              "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"CallFailed\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>group(columns:[\"event_id_seer\"])\n|>group()\n|> drop (columns: [\"_time\", \"_measurement\", \"event_id_seer\", \"event_type\"])\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:10000)\n",
+              "refId": "A"
+            }
+          ],
+          "title": "CallFailed",
+          "transformations": [
+            {
+              "id": "labelsToFields",
+              "options": {
+                "keepLabels": [
+                  "event_type"
+                ]
+              }
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "_measurement": true,
+                  "_start": true,
+                  "_stop": true,
+                  "event_type": true
+                },
+                "includeByName": {},
+                "indexByName": {},
+                "renameByName": {}
+              }
+            }
+          ],
+          "type": "table"
+        }
+      ],
+      "title": "Autonity",
+      "type": "row"
+    },
+    {
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 83
+      },
+      "id": 47,
+      "panels": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "de85digryc1dsb"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 124
+          },
+          "id": 46,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "11.4.0",
+          "targets": [
+            {
+              "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"NewFaultProof\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>group(columns:[\"event_id_seer\"])\n|>group()\n|> drop (columns: [\"_time\", \"_measurement\", \"event_id_seer\", \"event_type\"])\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:1000)\n",
+              "refId": "A"
+            }
+          ],
+          "title": "NewFaultProof",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "de85digryc1dsb"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 124
+          },
+          "id": 48,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "11.4.0",
+          "targets": [
+            {
+              "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"AccountabilityEvent\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>group(columns:[\"event_id_seer\"])\n|>group()\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:1000)\n",
+              "refId": "A"
+            }
+          ],
+          "title": "AccoutabilityEvent",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "de85digryc1dsb"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 180
+          },
+          "id": 49,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "11.4.0",
+          "targets": [
+            {
+              "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"SlashingEvent\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>group(columns:[\"event_id_seer\"])\n|>group()\n|> drop (columns: [\"_time\", \"_measurement\", \"event_id_seer\", \"event_type\"])\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:1000)\n",
+              "refId": "A"
+            }
+          ],
+          "title": "SlashingEvent",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "de85digryc1dsb"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 180
+          },
+          "id": 51,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "11.4.0",
+          "targets": [
+            {
+              "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"InnocenceProven\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>group(columns:[\"event_id_seer\"])\n|>group()\n|> drop (columns: [\"_time\", \"_measurement\", \"event_id_seer\", \"event_type\"])\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:1000)\n",
+              "refId": "A"
+            }
+          ],
+          "title": "InnocenceProven",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "de85digryc1dsb"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 188
+          },
+          "id": 50,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "11.4.0",
+          "targets": [
+            {
+              "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"NewAccusation\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>group(columns:[\"event_id_seer\"])\n|>group()\n|> drop (columns: [\"_time\", \"_measurement\", \"event_id_seer\", \"event_type\"])\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:1000)\n",
+              "refId": "A"
+            }
+          ],
+          "title": "NewAccusation",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "de85digryc1dsb"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 188
+          },
+          "id": 52,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "11.4.0",
+          "targets": [
+            {
+              "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"ReporterRewarded\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>group(columns:[\"event_id_seer\"])\n|>group()\n|> drop (columns: [\"_time\", \"_measurement\", \"event_id_seer\", \"event_type\"])\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:1000)\n",
+              "refId": "A"
+            }
+          ],
+          "title": "Reporter Rewarded",
+          "type": "timeseries"
+        }
+      ],
+      "title": "Accountability",
+      "type": "row"
+    },
+    {
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 84
+      },
+      "id": 25,
+      "panels": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "de85digryc1dsb"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "custom": {
+                "align": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "filterable": true,
+                "inspect": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "block"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 92
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 125
+          },
+          "id": 10,
+          "options": {
+            "cellHeight": "sm",
+            "footer": {
+              "countRows": false,
+              "fields": "",
+              "reducer": [
+                "sum"
+              ],
+              "show": false
+            },
+            "frameIndex": 1,
+            "showHeader": true,
+            "sortBy": []
+          },
+          "pluginVersion": "11.4.0",
+          "targets": [
+            {
+              "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"InactivityJailingEvent\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>group(columns:[\"event_id_seer\"])\n|>group()\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:1000)\n",
+              "refId": "A"
+            }
+          ],
+          "title": "InactivityJailingEvent",
+          "transformations": [
+            {
+              "id": "labelsToFields",
+              "options": {}
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "_measurement": true,
+                  "_start": true,
+                  "_stop": true,
+                  "event_id_seer": true,
+                  "event_type": true
+                },
+                "includeByName": {},
+                "indexByName": {
+                  "InactivityScore": 1,
+                  "_start": 4,
+                  "_stop": 5,
+                  "block": 0,
+                  "event_type": 6,
+                  "releaseBlock": 2,
+                  "validator": 3
+                },
+                "renameByName": {}
+              }
+            }
+          ],
+          "type": "table"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "de85digryc1dsb"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "custom": {
+                "align": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "filterable": true,
+                "inspect": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "block"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 92
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 125
+          },
+          "id": 67,
+          "options": {
+            "cellHeight": "sm",
+            "footer": {
+              "countRows": false,
+              "fields": "",
+              "reducer": [
+                "sum"
+              ],
+              "show": false
+            },
+            "frameIndex": 1,
+            "showHeader": true,
+            "sortBy": []
+          },
+          "pluginVersion": "11.4.0",
+          "targets": [
+            {
+              "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"InactivitySlashingEvent\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>group(columns:[\"event_id_seer\"])\n|>group()\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:1000)\n",
+              "refId": "A"
+            }
+          ],
+          "title": "InactivitySlashingEvent",
+          "transformations": [
+            {
+              "id": "labelsToFields",
+              "options": {}
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "_measurement": true,
+                  "_start": true,
+                  "_stop": true,
+                  "event_id_seer": true,
+                  "event_type": true
+                },
+                "includeByName": {},
+                "indexByName": {
+                  "InactivityScore": 1,
+                  "_start": 4,
+                  "_stop": 5,
+                  "block": 0,
+                  "event_type": 6,
+                  "releaseBlock": 2,
+                  "validator": 3
+                },
+                "renameByName": {}
+              }
+            }
+          ],
+          "type": "table"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "de85digryc1dsb"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "custom": {
+                "align": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "filterable": true,
+                "inspect": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "block"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 92
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 181
+          },
+          "id": 68,
+          "options": {
+            "cellHeight": "sm",
+            "footer": {
+              "countRows": false,
+              "fields": "",
+              "reducer": [
+                "sum"
+              ],
+              "show": false
+            },
+            "frameIndex": 1,
+            "showHeader": true,
+            "sortBy": []
+          },
+          "pluginVersion": "11.4.0",
+          "targets": [
+            {
+              "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"TotalProposerRewards\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>group(columns:[\"event_id_seer\"])\n|>group()\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:1000)\n",
+              "refId": "A"
+            }
+          ],
+          "title": "TotalProposerRewards",
+          "transformations": [
+            {
+              "id": "labelsToFields",
+              "options": {}
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "_measurement": true,
+                  "_start": true,
+                  "_stop": true,
+                  "event_id_seer": true,
+                  "event_type": true
+                },
+                "includeByName": {},
+                "indexByName": {
+                  "InactivityScore": 1,
+                  "_start": 4,
+                  "_stop": 5,
+                  "block": 0,
+                  "event_type": 6,
+                  "releaseBlock": 2,
+                  "validator": 3
+                },
+                "renameByName": {}
+              }
+            }
+          ],
+          "type": "table"
+        }
+      ],
+      "title": "OmissionAccountability",
+      "type": "row"
+    },
+    {
       "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 59
+        "y": 85
       },
       "id": 24,
       "panels": [],
@@ -1021,13 +3869,26 @@
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "block"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 76
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 60
+        "y": 86
       },
       "id": 15,
       "options": {
@@ -1043,10 +3904,10 @@
         "showHeader": true,
         "sortBy": []
       },
-      "pluginVersion": "11.4.0",
+      "pluginVersion": "11.5.0",
       "targets": [
         {
-          "query": "from(bucket:\"${bucket}\")\n|>range(start: $__from/1000, stop: $__to/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"NewRound\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:10000)\n",
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"NewRound\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|> group(columns:[\"event_id_seer\"])\n|> drop (columns: [\"_time\", \"event_type\", \"_height\", \"_measurement\", \"_timestamp\", \"event_id_seer\"])\n|>group()\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:1000)\n",
           "refId": "A"
         }
       ],
@@ -1156,7 +4017,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 60
+        "y": 86
       },
       "id": 2,
       "options": {
@@ -1172,10 +4033,10 @@
         "showHeader": true,
         "sortBy": []
       },
-      "pluginVersion": "11.4.0",
+      "pluginVersion": "11.5.0",
       "targets": [
         {
-          "query": "from(bucket:\"seer_test\")\n|>range(start: $__from/1000, stop: $__to/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"Penalized\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:10000)",
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"Penalized\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|> drop (columns: [\"_time\"])\n|>group(columns:[\"event_id_seer\"])\n|>group()\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:10000)",
           "refId": "A"
         }
       ],
@@ -1210,19 +4071,6 @@
       "type": "table"
     },
     {
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 68
-      },
-      "id": 26,
-      "panels": [],
-      "title": "SupplyControl",
-      "type": "row"
-    },
-    {
       "datasource": {
         "type": "influxdb",
         "uid": "de85digryc1dsb"
@@ -1261,9 +4109,9 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 69
+        "y": 94
       },
-      "id": 11,
+      "id": 71,
       "options": {
         "cellHeight": "sm",
         "footer": {
@@ -1277,18 +4125,20 @@
         "showHeader": true,
         "sortBy": []
       },
-      "pluginVersion": "11.4.0",
+      "pluginVersion": "11.5.0",
       "targets": [
         {
-          "query": "from(bucket:\"${bucket}\")\n|>range(start: $__from/1000, stop: $__to/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"Mint\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>limit(n:10000)\n",
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"OracleVote\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|> group(columns:[\"event_id_seer\"])\n|> drop (columns: [\"_time\", \"event_type\", \"_height\", \"_measurement\", \"_timestamp\", \"event_id_seer\"])\n|>group()\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:1000)\n",
           "refId": "A"
         }
       ],
-      "title": "Mint",
+      "title": "OracleVote",
       "transformations": [
         {
           "id": "labelsToFields",
-          "options": {}
+          "options": {
+            "mode": "columns"
+          }
         },
         {
           "id": "organize",
@@ -1299,114 +4149,13 @@
             },
             "includeByName": {},
             "indexByName": {
-              "_start": 4,
-              "_stop": 5,
+              "_height": 2,
+              "_round": 3,
+              "_start": 6,
+              "_stop": 7,
               "_time": 0,
-              "amount": 2,
-              "block": 1,
-              "recipient": 3
-            },
-            "renameByName": {}
-          }
-        }
-      ],
-      "type": "table"
-    },
-    {
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 77
-      },
-      "id": 23,
-      "panels": [],
-      "title": "Stablization",
-      "type": "row"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "de85digryc1dsb"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "custom": {
-            "align": "auto",
-            "cellOptions": {
-              "type": "auto"
-            },
-            "filterable": true,
-            "inspect": false
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 78
-      },
-      "id": 7,
-      "options": {
-        "cellHeight": "sm",
-        "footer": {
-          "countRows": false,
-          "fields": "",
-          "reducer": [
-            "sum"
-          ],
-          "show": false
-        },
-        "showHeader": true,
-        "sortBy": []
-      },
-      "pluginVersion": "11.4.0",
-      "targets": [
-        {
-          "query": "from(bucket:\"${bucket}\")\n|>range(start: $__from/1000, stop: $__to/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"Borrow\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>limit(n:10000)\n",
-          "refId": "A"
-        }
-      ],
-      "title": "Borrow",
-      "transformations": [
-        {
-          "id": "labelsToFields",
-          "options": {}
-        },
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": {
-              "_start": true,
-              "_stop": true
-            },
-            "includeByName": {},
-            "indexByName": {
-              "_start": 4,
-              "_stop": 5,
-              "_time": 0,
-              "account": 2,
-              "amount": 3,
+              "_timestamp": 4,
+              "_votePeriod": 5,
               "block": 1
             },
             "renameByName": {}
@@ -1420,6 +4169,7 @@
         "type": "influxdb",
         "uid": "de85digryc1dsb"
       },
+      "description": "Emitted when the oracle symbol list is updated",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1448,15 +4198,52 @@
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "_participant"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 426
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "block"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 92
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "_time"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 191
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 78
+        "y": 94
       },
-      "id": 9,
+      "id": 53,
       "options": {
         "cellHeight": "sm",
         "footer": {
@@ -1470,14 +4257,14 @@
         "showHeader": true,
         "sortBy": []
       },
-      "pluginVersion": "11.4.0",
+      "pluginVersion": "11.5.0",
       "targets": [
         {
-          "query": "from(bucket:\"${bucket}\")\n|>range(start: $__from/1000, stop: $__to/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"Deposit\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>limit(n:10000)\n",
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"NewSymbols\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>group(columns:[\"event_id_seer\"])\n|>group()\n|> drop (columns: [\"_time\", \"_measurement\", \"event_id_seer\", \"event_type\"])\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:10000)",
           "refId": "A"
         }
       ],
-      "title": "Deposit",
+      "title": "NewSymbols",
       "transformations": [
         {
           "id": "labelsToFields",
@@ -1492,11 +4279,13 @@
             },
             "includeByName": {},
             "indexByName": {
-              "_start": 4,
-              "_stop": 5,
+              "_median": 2,
+              "_participant": 3,
+              "_reported": 4,
+              "_start": 6,
+              "_stop": 7,
+              "_symbol": 5,
               "_time": 0,
-              "account": 2,
-              "amount": 3,
               "block": 1
             },
             "renameByName": {}
@@ -1504,19 +4293,6 @@
         }
       ],
       "type": "table"
-    },
-    {
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 86
-      },
-      "id": 28,
-      "panels": [],
-      "title": "ASM",
-      "type": "row"
     },
     {
       "datasource": {
@@ -1557,9 +4333,113 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 87
+        "y": 102
       },
-      "id": 20,
+      "id": 72,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "frameIndex": 0,
+        "showHeader": true,
+        "sortBy": []
+      },
+      "pluginVersion": "11.5.0",
+      "targets": [
+        {
+          "query": "// --- Price Table Query ---\nvoteTable = from(bucket: \"${bucket}\")\n  |> range(start: ${__from}/1000, stop: ${__to}/1000)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"OracleVote\")\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> group(columns:[\"sender\"])\n  |> group()\n  |> keep(columns: [\"block\", \"reported-price\", \"sender\", \"symbol\", \"confidence\"])\n  |> sort(columns: [\"block\"])\n\n// --- Round Table Query ---\nroundTable = from(bucket: \"${bucket}\")\n  |> range(start: ${__from}/1000, stop: ${__to}/1000)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"NewRound\")\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> keep(columns: [\"block\", \"_round\"])\n  |> rename(columns: {_round: \"round\"})\n  |> group() \n  |> sort(columns: [\"block\"])\n\n// --- Join the Tables with a Left Join ---\nunioned = union(tables: [voteTable, roundTable])\n  |> group()  // Group rows by block.\n  |> sort(columns: [\"block\"])\n\n// --- Fill Missing Round Values ---\nfilledTable = unioned\n  |> fill(column: \"round\", usePrevious: true)\n  \nfilteredTable = filledTable\n  |> filter(fn: (r) => r.sender != \"\")\n\npDeviation = filteredTable\n  |> map(fn: (r) => ({\n    r with percentDeviation: ((float(v: r[\"reported-price\"]) - float(v: r[\"reported-price\"]))/float(v: r[\"reported-price\"])) * 100.00 \n  }))\n\npDeviation\n",
+          "refId": "A"
+        }
+      ],
+      "title": "Vote Analysis",
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "de85digryc1dsb"
+      },
+      "description": "Emitted when a valid report is accepted",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true,
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "_participant"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 426
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "block"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 92
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "_time"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 191
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 102
+      },
+      "id": 56,
       "options": {
         "cellHeight": "sm",
         "footer": {
@@ -1571,21 +4451,16 @@
           "show": false
         },
         "showHeader": true,
-        "sortBy": [
-          {
-            "desc": true,
-            "displayName": "block"
-          }
-        ]
+        "sortBy": []
       },
-      "pluginVersion": "11.4.0",
+      "pluginVersion": "11.5.0",
       "targets": [
         {
-          "query": "from(bucket:\"${bucket}\")\n|>range(start: $__from/1000, stop: $__to/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"Updated\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:10000)\n",
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"SuccessfulVote\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>group(columns:[\"event_id_seer\"])\n|>group()\n|> drop (columns: [\"_time\", \"_measurement\", \"event_id_seer\", \"event_type\"])\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:10000)",
           "refId": "A"
         }
       ],
-      "title": "Updated",
+      "title": "SuccessfulVote",
       "transformations": [
         {
           "id": "labelsToFields",
@@ -1596,21 +4471,539 @@
           "options": {
             "excludeByName": {
               "_start": true,
-              "_stop": true,
-              "amount {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": false
+              "_stop": true
             },
             "includeByName": {},
             "indexByName": {
+              "_median": 2,
+              "_participant": 3,
+              "_reported": 4,
+              "_start": 6,
+              "_stop": 7,
+              "_symbol": 5,
               "_time": 0,
-              "amount {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": 1,
-              "block {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": 2,
-              "delegator {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": 3,
-              "selfBonded {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": 4,
-              "validator {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": 5
+              "block": 1
             },
-            "renameByName": {
-              "amount {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": ""
-            }
+            "renameByName": {}
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "de85digryc1dsb"
+      },
+      "description": "Emitted when oracle rewards are distributed",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true,
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "_participant"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 426
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "block"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 92
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "_time"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 191
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 110
+      },
+      "id": 54,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": []
+      },
+      "pluginVersion": "11.5.0",
+      "targets": [
+        {
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"TotalOracleRewards\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>group(columns:[\"event_id_seer\"])\n|>group()\n|> drop (columns: [\"_time\", \"_measurement\", \"event_id_seer\", \"event_type\"])\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:10000)",
+          "refId": "A"
+        }
+      ],
+      "title": "TotalOracleRewards",
+      "transformations": [
+        {
+          "id": "labelsToFields",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "_start": true,
+              "_stop": true
+            },
+            "includeByName": {},
+            "indexByName": {
+              "_median": 2,
+              "_participant": 3,
+              "_reported": 4,
+              "_start": 6,
+              "_stop": 7,
+              "_symbol": 5,
+              "_time": 0,
+              "block": 1
+            },
+            "renameByName": {}
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "de85digryc1dsb"
+      },
+      "description": "Emitted when a new price is calculated for a symbol",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true,
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "_participant"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 426
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "block"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 92
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "_time"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 191
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 110
+      },
+      "id": 58,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": []
+      },
+      "pluginVersion": "11.5.0",
+      "targets": [
+        {
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"PriceUpdated\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>group(columns:[\"event_id_seer\"])\n|>group()\n|> drop (columns: [\"_time\", \"_measurement\", \"event_id_seer\", \"event_type\"])\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:10000)",
+          "refId": "A"
+        }
+      ],
+      "title": "PriceUpdated",
+      "transformations": [
+        {
+          "id": "labelsToFields",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "_start": true,
+              "_stop": true
+            },
+            "includeByName": {},
+            "indexByName": {
+              "_median": 2,
+              "_participant": 3,
+              "_reported": 4,
+              "_start": 6,
+              "_stop": 7,
+              "_symbol": 5,
+              "_time": 0,
+              "block": 1
+            },
+            "renameByName": {}
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "de85digryc1dsb"
+      },
+      "description": " Emitted when an invalid report is submitted",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true,
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "_participant"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 426
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "block"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 92
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "_time"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 191
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 118
+      },
+      "id": 55,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": []
+      },
+      "pluginVersion": "11.5.0",
+      "targets": [
+        {
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"InvalidVote\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>group(columns:[\"event_id_seer\"])\n|>group()\n|> drop (columns: [\"_time\", \"_measurement\", \"event_id_seer\", \"event_type\"])\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:10000)",
+          "refId": "A"
+        }
+      ],
+      "title": "InvalidVote",
+      "transformations": [
+        {
+          "id": "labelsToFields",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "_start": true,
+              "_stop": true
+            },
+            "includeByName": {},
+            "indexByName": {
+              "_median": 2,
+              "_participant": 3,
+              "_reported": 4,
+              "_start": 6,
+              "_stop": 7,
+              "_symbol": 5,
+              "_time": 0,
+              "block": 1
+            },
+            "renameByName": {}
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "de85digryc1dsb"
+      },
+      "description": "Emitted when a new reporter submits a report without past report",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true,
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "_participant"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 426
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "block"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 92
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "_time"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 191
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 126
+      },
+      "id": 57,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": []
+      },
+      "pluginVersion": "11.5.0",
+      "targets": [
+        {
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"NewVoter\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>group(columns:[\"event_id_seer\"])\n|>group()\n|> drop (columns: [\"_time\", \"_measurement\", \"event_id_seer\", \"event_type\"])\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:10000)",
+          "refId": "A"
+        }
+      ],
+      "title": "NewVoter",
+      "transformations": [
+        {
+          "id": "labelsToFields",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "_start": true,
+              "_stop": true
+            },
+            "includeByName": {},
+            "indexByName": {
+              "_median": 2,
+              "_participant": 3,
+              "_reported": 4,
+              "_start": 6,
+              "_stop": 7,
+              "_symbol": 5,
+              "_time": 0,
+              "block": 1
+            },
+            "renameByName": {}
           }
         }
       ],
@@ -1622,9 +5015,9 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 95
+        "y": 134
       },
-      "id": 27,
+      "id": 26,
       "panels": [
         {
           "datasource": {
@@ -1649,8 +5042,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1659,15 +5051,28 @@
                 ]
               }
             },
-            "overrides": []
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "block"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 95
+                  }
+                ]
+              }
+            ]
           },
           "gridPos": {
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 344
+            "y": 175
           },
-          "id": 6,
+          "id": 11,
           "options": {
             "cellHeight": "sm",
             "footer": {
@@ -1684,11 +5089,11 @@
           "pluginVersion": "11.4.0",
           "targets": [
             {
-              "query": "from(bucket:\"${bucket}\")\n|>range(start: $__from/1000, stop: $__to/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"Approval\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>limit(n:10000)\n",
+              "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"Mint\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>group(columns:[\"event_id_seer\"])\n|>group()\n|> drop (columns: [\"_time\", \"_measurement\", \"event_id_seer\", \"event_type\"])\n|>sort(columns:[\"block\"], desc:true)\n|>limit(n:1000)\n",
               "refId": "A"
             }
           ],
-          "title": "Approval",
+          "title": "Mint",
           "transformations": [
             {
               "id": "labelsToFields",
@@ -1702,106 +5107,34 @@
                   "_stop": true
                 },
                 "includeByName": {},
-                "indexByName": {},
+                "indexByName": {
+                  "_start": 4,
+                  "_stop": 5,
+                  "_time": 0,
+                  "amount": 2,
+                  "block": 1,
+                  "recipient": 3
+                },
                 "renameByName": {}
               }
             }
           ],
           "type": "table"
-        },
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "de85digryc1dsb"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "thresholds"
-              },
-              "custom": {
-                "align": "auto",
-                "cellOptions": {
-                  "type": "auto"
-                },
-                "filterable": true,
-                "inspect": false
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 12,
-            "y": 344
-          },
-          "id": 19,
-          "options": {
-            "cellHeight": "sm",
-            "footer": {
-              "countRows": false,
-              "fields": "",
-              "reducer": [
-                "sum"
-              ],
-              "show": false
-            },
-            "showHeader": true,
-            "sortBy": []
-          },
-          "pluginVersion": "11.4.0",
-          "targets": [
-            {
-              "query": "from(bucket:\"${bucket}\")\n|>range(start: $__from/1000, stop: $__to/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"Transfer\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>limit(n:10000)\n",
-              "refId": "A"
-            }
-          ],
-          "title": "Transfer",
-          "transformations": [
-            {
-              "id": "labelsToFields",
-              "options": {}
-            },
-            {
-              "id": "organize",
-              "options": {
-                "excludeByName": {
-                  "_start": true,
-                  "_stop": true,
-                  "amount {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": false
-                },
-                "includeByName": {},
-                "indexByName": {
-                  "_time": 0,
-                  "amount {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": 1,
-                  "block {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": 2,
-                  "delegator {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": 3,
-                  "selfBonded {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": 4,
-                  "validator {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": 5
-                },
-                "renameByName": {
-                  "amount {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": ""
-                }
-              }
-            }
-          ],
-          "type": "table"
-        },
+        }
+      ],
+      "title": "SupplyControl",
+      "type": "row"
+    },
+    {
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 135
+      },
+      "id": 69,
+      "panels": [
         {
           "datasource": {
             "type": "influxdb",
@@ -1850,8 +5183,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1866,9 +5198,9 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 352
+            "y": 1
           },
-          "id": 5,
+          "id": 70,
           "options": {
             "legend": {
               "calcs": [],
@@ -1884,16 +5216,777 @@
           "pluginVersion": "11.4.0",
           "targets": [
             {
-              "query": "\n\tfrom(bucket:\"seer_test\")\n\t\t\t|> range(start: 0)\n\t\t\t|> filter(fn: (r) => r[\"_measurement\"]==\"LastProcessed\")\n\t\t\t|> sort(columns: [\"_time\"], desc: true)\n\t\t\t|> limit(n: 10)",
+              "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"NewSchedule\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>group(columns:[\"event_id_seer\"])\n|>group()\n|> drop (columns: [\"_time\", \"_measurement\", \"event_id_seer\", \"event_type\"])\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:10000)",
               "refId": "A"
             }
           ],
-          "title": "LastProcessed",
+          "title": "NewSchedule",
           "type": "timeseries"
         }
       ],
+      "title": "ScheduleController",
+      "type": "row"
+    },
+    {
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 136
+      },
+      "id": 23,
+      "panels": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "de85digryc1dsb"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "custom": {
+                "align": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "filterable": true,
+                "inspect": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "block"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 80
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 184
+          },
+          "id": 7,
+          "options": {
+            "cellHeight": "sm",
+            "footer": {
+              "countRows": false,
+              "fields": "",
+              "reducer": [
+                "sum"
+              ],
+              "show": false
+            },
+            "showHeader": true,
+            "sortBy": []
+          },
+          "pluginVersion": "11.4.0",
+          "targets": [
+            {
+              "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"Borrow\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>group(columns:[\"event_id_seer\"])\n|>group()\n|> drop (columns: [\"_time\", \"_measurement\", \"event_id_seer\", \"event_type\"])\n|>sort(columns:[\"block\"], desc:true)\n|>limit(n:1000)\n",
+              "refId": "A"
+            }
+          ],
+          "title": "Borrow",
+          "transformations": [
+            {
+              "id": "labelsToFields",
+              "options": {}
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "_start": true,
+                  "_stop": true
+                },
+                "includeByName": {},
+                "indexByName": {
+                  "_start": 4,
+                  "_stop": 5,
+                  "_time": 0,
+                  "account": 2,
+                  "amount": 3,
+                  "block": 1
+                },
+                "renameByName": {}
+              }
+            }
+          ],
+          "type": "table"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "de85digryc1dsb"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "custom": {
+                "align": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "filterable": true,
+                "inspect": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "block"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 83
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 184
+          },
+          "id": 9,
+          "options": {
+            "cellHeight": "sm",
+            "footer": {
+              "countRows": false,
+              "fields": "",
+              "reducer": [
+                "sum"
+              ],
+              "show": false
+            },
+            "showHeader": true,
+            "sortBy": []
+          },
+          "pluginVersion": "11.4.0",
+          "targets": [
+            {
+              "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"Deposit\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>group(columns:[\"event_id_seer\"])\n|>group()\n|> drop (columns: [\"_time\", \"_measurement\", \"event_id_seer\", \"event_type\"])\n|>sort(columns:[\"block\"], desc:true)\n|>limit(n:1000)\n",
+              "refId": "A"
+            }
+          ],
+          "title": "Deposit",
+          "transformations": [
+            {
+              "id": "labelsToFields",
+              "options": {}
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "_start": true,
+                  "_stop": true
+                },
+                "includeByName": {},
+                "indexByName": {
+                  "_start": 4,
+                  "_stop": 5,
+                  "_time": 0,
+                  "account": 2,
+                  "amount": 3,
+                  "block": 1
+                },
+                "renameByName": {}
+              }
+            }
+          ],
+          "type": "table"
+        }
+      ],
+      "title": "Stablization",
+      "type": "row"
+    },
+    {
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 137
+      },
+      "id": 28,
+      "panels": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "de85digryc1dsb"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "custom": {
+                "align": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "filterable": true,
+                "inspect": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "block"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 73
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 177
+          },
+          "id": 20,
+          "options": {
+            "cellHeight": "sm",
+            "footer": {
+              "countRows": false,
+              "fields": "",
+              "reducer": [
+                "sum"
+              ],
+              "show": false
+            },
+            "showHeader": true,
+            "sortBy": [
+              {
+                "desc": true,
+                "displayName": "block"
+              }
+            ]
+          },
+          "pluginVersion": "11.4.0",
+          "targets": [
+            {
+              "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"Updated\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>group(columns:[\"event_id_seer\"])\n|> drop (columns: [\"_time\", \"height\", \"event_type\", \"event_id_seer\", \"_measurement\"])\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:1000)\n",
+              "refId": "A"
+            }
+          ],
+          "title": "Updated",
+          "transformations": [
+            {
+              "id": "labelsToFields",
+              "options": {}
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "_start": true,
+                  "_stop": true,
+                  "amount {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": false
+                },
+                "includeByName": {},
+                "indexByName": {
+                  "_time": 0,
+                  "amount {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": 1,
+                  "block {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": 2,
+                  "delegator {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": 3,
+                  "selfBonded {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": 4,
+                  "validator {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": 5
+                },
+                "renameByName": {
+                  "amount {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": ""
+                }
+              }
+            }
+          ],
+          "type": "table"
+        }
+      ],
+      "title": "ASM",
+      "type": "row"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 138
+      },
+      "id": 27,
+      "panels": [],
       "title": "Misc",
       "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "de85digryc1dsb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true,
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "block"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 71
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 139
+      },
+      "id": 6,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": []
+      },
+      "pluginVersion": "11.5.0",
+      "targets": [
+        {
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"Approval\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>group(columns:[\"event_id_seer\"])\n|>group()\n|> drop (columns: [\"_time\", \"_measurement\", \"event_id_seer\", \"event_type\"])\n|>sort(columns:[\"block\"], desc:true)\n|>limit(n:1000)\n",
+          "refId": "A"
+        }
+      ],
+      "title": "Approval",
+      "transformations": [
+        {
+          "id": "labelsToFields",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "_start": true,
+              "_stop": true
+            },
+            "includeByName": {},
+            "indexByName": {},
+            "renameByName": {}
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "de85digryc1dsb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true,
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "block"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 91
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 139
+      },
+      "id": 19,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": []
+      },
+      "pluginVersion": "11.5.0",
+      "targets": [
+        {
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"Transfer\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>group(columns:[\"event_id_seer\"])\n|>group()\n|> drop (columns: [\"_time\", \"_measurement\", \"event_id_seer\", \"event_type\"])\n|>sort(columns:[\"block\"], desc:true)\n|>limit(n:1000)\n",
+          "refId": "A"
+        }
+      ],
+      "title": "Transfer",
+      "transformations": [
+        {
+          "id": "labelsToFields",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "_start": true,
+              "_stop": true,
+              "amount {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": false
+            },
+            "includeByName": {},
+            "indexByName": {
+              "_time": 0,
+              "amount {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": 1,
+              "block {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": 2,
+              "delegator {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": 3,
+              "selfBonded {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": 4,
+              "validator {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": 5
+            },
+            "renameByName": {
+              "amount {_start=\"2024-11-18 13:39:03 +0000 UTC\", _stop=\"2025-01-17 13:39:03 +0000 UTC\"}": ""
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "de85digryc1dsb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 147
+      },
+      "id": 45,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true
+      },
+      "pluginVersion": "11.5.0",
+      "targets": [
+        {
+          "query": "\n\tfrom(bucket:\"${bucket}\")\n\t\t\t|>range(start: -1y)\n\t\t\t|> filter(fn: (r) => r[\"_measurement\"]==\"LastProcessed\")\n\t\t\t|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n\t\t\t|> sort(columns: [\"_time\"], desc: true)\n\t\t\t|> group()\n\t\t\t|> limit(n: 1000)",
+          "refId": "A"
+        }
+      ],
+      "title": "LastProcessedBlock",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "_measurement": true,
+              "_start": true,
+              "_stop": true,
+              "block": false,
+              "event": true
+            },
+            "includeByName": {},
+            "indexByName": {
+              "_measurement": 5,
+              "_start": 3,
+              "_stop": 4,
+              "_time": 0,
+              "block": 1,
+              "event": 2
+            },
+            "renameByName": {}
+          }
+        },
+        {
+          "id": "filterByValue",
+          "options": {
+            "filters": [
+              {
+                "config": {
+                  "id": "isNull",
+                  "options": {}
+                },
+                "fieldName": "block"
+              }
+            ],
+            "match": "any",
+            "type": "exclude"
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "de85digryc1dsb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 147
+      },
+      "id": 5,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true
+      },
+      "pluginVersion": "11.5.0",
+      "targets": [
+        {
+          "query": "\n\tfrom(bucket:\"${bucket}\")\n\t\t\t|>range(start: -1y)\n\t\t\t|> filter(fn: (r) => r[\"_measurement\"]==\"LastProcessed\")\n\t\t\t|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n\t\t\t|> sort(columns: [\"_time\"], desc: true)\n\t\t\t|> group()\n\t\t\t|> limit(n: 1000)",
+          "refId": "A"
+        }
+      ],
+      "title": "LastProcessedEvent",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "_measurement": true,
+              "_start": true,
+              "_stop": true,
+              "block": true,
+              "event": false
+            },
+            "includeByName": {},
+            "indexByName": {
+              "_measurement": 5,
+              "_start": 3,
+              "_stop": 4,
+              "_time": 0,
+              "block": 2,
+              "event": 1
+            },
+            "renameByName": {}
+          }
+        },
+        {
+          "id": "filterByValue",
+          "options": {
+            "filters": [
+              {
+                "config": {
+                  "id": "isNull",
+                  "options": {}
+                },
+                "fieldName": "event"
+              }
+            ],
+            "match": "all",
+            "type": "exclude"
+          }
+        }
+      ],
+      "type": "table"
     }
   ],
   "preload": false,
@@ -1903,8 +5996,8 @@
     "list": [
       {
         "current": {
-          "text": "seer_test",
-          "value": "seer_test"
+          "text": "seer_temp",
+          "value": "seer_temp"
         },
         "definition": "buckets()",
         "description": "",
@@ -1917,17 +6010,52 @@
         "refresh": 1,
         "regex": "",
         "type": "query"
+      },
+      {
+        "current": {
+          "text": "0",
+          "value": "0"
+        },
+        "description": "",
+        "label": "block_start_num",
+        "name": "block_start_num",
+        "options": [
+          {
+            "selected": true,
+            "text": "0",
+            "value": "0"
+          }
+        ],
+        "query": "0",
+        "type": "textbox"
+      },
+      {
+        "current": {
+          "text": "10000",
+          "value": "10000"
+        },
+        "label": "block_end_num",
+        "name": "block_end_num",
+        "options": [
+          {
+            "selected": true,
+            "text": "10000",
+            "value": "10000"
+          }
+        ],
+        "query": "10000",
+        "type": "textbox"
       }
     ]
   },
   "time": {
-    "from": "2024-08-20T13:39:03.700Z",
-    "to": "2025-04-17T13:39:03.708Z"
+    "from": "now-15m",
+    "to": "now"
   },
   "timepicker": {},
   "timezone": "browser",
-  "title": "Autonity Events",
+  "title": "Autonity Events - Block Filter",
   "uid": "fe86msn60epdsf",
-  "version": 53,
+  "version": 193,
   "weekStart": ""
 }

@@ -10,7 +10,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 
-	"Seer/mocks"
+	"seer/mocks"
 )
 
 func TestBlockCache(t *testing.T) {

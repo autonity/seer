@@ -5,13 +5,17 @@ import (
 	"log"
 	"log/slog"
 
+	"github.com/autonity/autonity/ethclient"
+	"github.com/autonity/autonity/rpc"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	"Seer/config"
-	"Seer/db"
-	"Seer/listener"
-	"Seer/schema"
+	"seer/config"
+	"seer/core"
+	"seer/db"
+	"seer/events/registry"
+	"seer/net"
+	"seer/schema"
 )
 
 var startCommand = &cobra.Command{
@@ -29,16 +33,19 @@ func start(cmd *cobra.Command, args []string) {
 	if err := viper.Unmarshal(&cfg); err != nil {
 		log.Fatalf("Failed to unmarshal config: %v", err)
 	}
-	slog.Info("starting seer")
 
 	handler := db.NewHandler(cfg.InfluxDB)
+	registry.RegisterEventHandlers(handler)
 	parser := schema.NewABIParser(cfg.ABIs, handler)
 	err := parser.Start()
 	if err != nil {
 		slog.Error("Error parsing ", "error ", err)
 		return
 	}
-	l := listener.NewListener(cfg.Node, parser, handler)
+	rpcPool := net.NewConnectionPool[*rpc.Client](cfg.Node.RPC.URLs, cfg.Node.RPC.MaxConnections)
+	wsPool := net.NewConnectionPool[*ethclient.Client](cfg.Node.WS.URLs, cfg.Node.WS.MaxConnections)
+	cp := net.NewConnectionProvider(wsPool, rpcPool)
+	l := core.New(cfg.Node, parser, handler, cp)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	l.Start(ctx)

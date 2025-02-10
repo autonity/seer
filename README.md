@@ -32,7 +32,7 @@ UI tool.
    make build
    ```
 
-4. Run the application:
+4. Run application in default mode:
    ```bash
    cd bin
    ./seer start --config ../config/config.yaml
@@ -49,24 +49,28 @@ Seer uses **Viper** for configuration management. You can specify options via:
 
 ### Sample `config.yaml`:
 ```yaml
-node: #autonity node config
-  rpc: ""  
-db: # influx db config
-  url:
-  token:
-  bucket:
-  user:
-  password:
-  org: "autonity"
-contracts: # contracts config
-  - address:
-    name:
-    abi: # abi file name
-  - address:
-    name:
-    abi:
-logging:
-  level: "info"
+seer:
+   logLevel: "info"
+node:
+   rpc:
+      maxConnections: 25  # maximum rpc connections across all urls
+      urls:
+         - "http://35.242.168.170:8545"
+   ws:
+      maxConnections: 5 # maximum websocket connections across all urls
+      urls:
+         - "wss://rpc2.piccadilly.autonity.org/ws"
+         # - "wss://rpc-internal-1.piccadilly.autonity.org/ws"
+   sync:
+      history: true 
+db:
+   url: "http://127.0.0.1:8086"
+   # yamllint disable-line rule:line-length
+   token: ""
+   bucket: "seer_temp"
+   org: "autonity"
+abi:
+   dir: "../abis"
 ```
 ---
 
@@ -74,12 +78,17 @@ logging:
 
 ### CLI Commands
 
-1. **Start the Service**:
+1. **Start service in default which and sync live and historical blocks**:
    ```bash
-   ./seer start
+   ./seer start --config ../config/config.yaml
    ```
 
-2. **Check Version**:
+2. **Start service in pull mode where only given range of blocks are synced**:
+   ```bash
+   ./seer pull --start-block=1000 --end-block=20000 --config ../config/config.yaml
+   ```
+
+3. **Check Version**:
    ```bash
    ./seer version
    ```

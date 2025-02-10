@@ -5,10 +5,10 @@
 package mocks
 
 import (
-	model "Seer/model"
+	big "math/big"
 	reflect "reflect"
+	model "seer/model"
 
-	common "github.com/autonity/autonity/common"
 	types "github.com/autonity/autonity/core/types"
 	gomock "github.com/golang/mock/gomock"
 )
@@ -116,16 +116,29 @@ func (m *MockBlockCache) EXPECT() *MockBlockCacheMockRecorder {
 	return m.recorder
 }
 
-// Get mocks base method.
-func (m *MockBlockCache) Get(hash common.Hash) *types.Block {
+// Add mocks base method.
+func (m *MockBlockCache) Add(block *types.Block) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Get", hash)
+	m.ctrl.Call(m, "Add", block)
+}
+
+// Add indicates an expected call of Add.
+func (mr *MockBlockCacheMockRecorder) Add(block interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Add", reflect.TypeOf((*MockBlockCache)(nil).Add), block)
+}
+
+// Get mocks base method.
+func (m *MockBlockCache) Get(number *big.Int) (*types.Block, bool) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Get", number)
 	ret0, _ := ret[0].(*types.Block)
-	return ret0
+	ret1, _ := ret[1].(bool)
+	return ret0, ret1
 }
 
 // Get indicates an expected call of Get.
-func (mr *MockBlockCacheMockRecorder) Get(hash interface{}) *gomock.Call {
+func (mr *MockBlockCacheMockRecorder) Get(number interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockBlockCache)(nil).Get), hash)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockBlockCache)(nil).Get), number)
 }

@@ -17,9 +17,14 @@ type SyncConfig struct {
 }
 
 type NodeConfig struct {
-	RPC  string     `mapstructure:"rpc"`
-	WS   string     `mapstructure:"ws"`
+	RPC  Conn       `mapstructure:"rpc"`
+	WS   Conn       `mapstructure:"ws"`
 	Sync SyncConfig `mapstructure:"sync"`
+}
+
+type Conn struct {
+	MaxConnections int      `mapstructure:"maxConnections"`
+	URLs           []string `mapstructure:"urls"`
 }
 
 type InfluxDBConfig struct {
@@ -32,11 +37,5 @@ type InfluxDBConfig struct {
 }
 
 type ABIConfig struct {
-	Dir       string     `mapstrucuture:"dir"`
-	Contracts []Contract `mapstructure:"contracts"`
-}
-
-type Contract struct {
-	Name    string `mapstructure:"name"`
-	Address string `mapstructure:"address"`
+	Dir string `mapstrucuture:"dir"`
 }

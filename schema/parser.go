@@ -6,15 +6,16 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strconv"
 	"sync"
 
 	"github.com/autonity/autonity/accounts/abi"
 	"github.com/autonity/autonity/common"
 	"github.com/autonity/autonity/core/types"
 
-	"Seer/config"
-	"Seer/interfaces"
-	"Seer/model"
+	"seer/config"
+	"seer/interfaces"
+	"seer/model"
 )
 
 type EventDetails struct {
@@ -115,6 +116,8 @@ func (ap *abiParser) Decode(log types.Log) (model.EventSchema, error) {
 	defer ap.eventDetail.RUnlock()
 	eventDetails := ap.eventDetail.data[log.Topics[0]]
 	decodedEvent := map[string]interface{}{}
+	tags := map[string]string{}
+
 	indexed := make([]abi.Argument, 0)
 	for _, input := range eventDetails.abi.Inputs {
 		if input.Indexed {
@@ -134,7 +137,10 @@ func (ap *abiParser) Decode(log types.Log) (model.EventSchema, error) {
 		slog.Error("unable to decode event", "error", err)
 		return model.EventSchema{}, err
 	}
-	evSchema := model.EventSchema{Measurement: eventDetails.abi.Name, Fields: decodedEvent}
+	// unique tag within this block
+	tags["event_id_seer"] = log.Topics[0].String() + "_" + strconv.Itoa(int(log.Index))
+	tags["event_type"] = "protocol"
+	evSchema := model.EventSchema{Measurement: eventDetails.abi.Name, Fields: decodedEvent, Tags: tags}
 	return evSchema, nil
 }
 
@@ -176,6 +182,7 @@ func (ap *abiParser) Parse(filename string) error {
 		schema := model.EventSchema{
 			Measurement: ap.getEventName(event.ID, name),
 			Fields:      map[string]interface{}{},
+			Tags:        map[string]string{},
 		}
 		for _, input := range event.Inputs {
 			fieldType := input.Type.String()

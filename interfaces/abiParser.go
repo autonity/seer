@@ -1,10 +1,11 @@
 package interfaces
 
 import (
-	"github.com/autonity/autonity/common"
+	"math/big"
+
 	"github.com/autonity/autonity/core/types"
 
-	"Seer/model"
+	"seer/model"
 )
 
 type ABIParser interface {
@@ -15,5 +16,6 @@ type ABIParser interface {
 }
 
 type BlockCache interface {
-	Get(hash common.Hash) *types.Block
+	Get(number *big.Int) (*types.Block, bool)
+	Add(block *types.Block)
 }
