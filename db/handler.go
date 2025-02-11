@@ -46,7 +46,6 @@ func (h *handler) getOrg() *domain.Organization {
 }
 
 func (h *handler) ensureBucket() {
-	org := h.getOrg()
 	bucketAPI := h.client.BucketsAPI()
 	buckets, _ := bucketAPI.FindBucketsByOrgName(context.Background(), h.cfg.Org)
 	if buckets != nil {
@@ -57,13 +56,13 @@ func (h *handler) ensureBucket() {
 		}
 	}
 
-	slog.Info("configured bucket not found, creating new one")
-	_, err := bucketAPI.CreateBucketWithName(context.Background(), org, h.cfg.Bucket, domain.RetentionRule{})
-	if err != nil {
-		panic(fmt.Sprintf("Failed to create bucket error %s", err))
-	}
-	slog.Info("Successfully created bucket", "name", h.cfg.Bucket)
-	return
+	panic(fmt.Sprintf("configured bucket not found"))
+
+	//_, err := bucketAPI.CreateBucketWithName(context.Background(), h.cfg.Org, h.cfg.Bucket, domain.RetentionRule{})
+	//if err != nil {
+	//}
+	//slog.Info("Successfully created bucket", "name", h.cfg.Bucket)
+	// return
 }
 
 func NewHandler(dbConfig config.InfluxDBConfig) interfaces.DatabaseHandler {
