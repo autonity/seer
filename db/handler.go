@@ -35,7 +35,7 @@ func (h *handler) getOrg() *domain.Organization {
 	if err == nil {
 		return org
 	}
-	slog.Info("configured org not found, creating new one", "error ", err)
+	slog.Info("configured org not found", "error ", err)
 	//TODO: create doesn't work with org specific token
 	_, err = orgAPI.CreateOrganizationWithName(context.Background(), h.cfg.Org)
 	if err != nil {
