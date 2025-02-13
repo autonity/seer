@@ -413,6 +413,10 @@ func (c *core) ReadBlockHistory(ctx context.Context, workQueue chan [2]uint64) {
 					slog.Error("Error json unmarshalling head", "error", err)
 					continue
 				}
+				if head == nil {
+					slog.Error("nil head")
+					continue
+				}
 				if err := json.Unmarshal(*call.Result.(*json.RawMessage), &body); err != nil {
 					slog.Error("Error json unmarshalling, body", "error", err)
 					continue
