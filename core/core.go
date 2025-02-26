@@ -92,7 +92,7 @@ type core struct {
 	cp            net.ConnectionProvider
 	historySynced atomic.Bool
 
-	newBlocks chan *types.Block
+	newBlocks chan *SeerBlock
 	newEvents chan types.Log
 
 	blockCache     interfaces.BlockCache
@@ -133,7 +133,7 @@ func (tx *rpcTransaction) UnmarshalJSON(msg []byte) error {
 func New(cfg config.NodeConfig, parser interfaces.ABIParser, dbHandler interfaces.DatabaseHandler, cp net.ConnectionProvider) interfaces.Core {
 	c := &core{
 		nodeConfig:     cfg,
-		newBlocks:      make(chan *types.Block, liveBlockProcessors),
+		newBlocks:      make(chan *SeerBlock, liveBlockProcessors),
 		newEvents:      make(chan types.Log, liveEventProcessors),
 		abiParser:      parser,
 		dbHandler:      dbHandler,
@@ -363,9 +363,9 @@ func (c *core) ReadEventHistory(ctx context.Context, workQueue chan [2]uint64) {
 
 func (c *core) ReadBlockHistory(ctx context.Context, workQueue chan [2]uint64) {
 	processorConcurrency := int(blockBatchSize) * 10
-	blockChs := make([]chan *types.Block, processorConcurrency)
+	blockChs := make([]chan *SeerBlock, processorConcurrency)
 	for i := 0; i < processorConcurrency; i++ {
-		blockChs[i] = make(chan *types.Block)
+		blockChs[i] = make(chan *SeerBlock)
 		NewBlockProcessor(ctx, c, blockChs[i], false, c.chainID).Process()
 	}
 	counter := 0
@@ -427,7 +427,7 @@ func (c *core) ReadBlockHistory(ctx context.Context, workQueue chan [2]uint64) {
 						txs = append(txs, rpcTx.tx)
 					}
 				}
-				blockChs[counter%processorConcurrency] <- types.NewBlock(head, txs, nil, nil, new(trie.Trie))
+				blockChs[counter%processorConcurrency] <- &SeerBlock{types.NewBlock(head, txs, nil, nil, new(trie.Trie)), len(body.Transactions)}
 				counter++
 			}
 			// get Block receipts
@@ -472,7 +472,7 @@ func (c *core) blockReader(ctx context.Context) {
 					"error", err)
 				continue
 			}
-			c.newBlocks <- block
+			c.newBlocks <- &SeerBlock{block, block.Transactions().Len()}
 		}
 	}
 }

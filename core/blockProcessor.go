@@ -20,17 +20,23 @@ import (
 )
 
 var (
-	acnPeers       = "ACNPeers"
-	BlockHeader    = "BlockHeader"
-	BlockTimestamp = "BlockTimestamp"
-	QCAbsentees    = "QuorumCertificateAbsentees"
-	APAbsentees    = "ActivityProofAbsentees"
+	acnPeers          = "ACNPeers"
+	BlockHeader       = "BlockHeader"
+	BlockTimestamp    = "BlockTimestamp"
+	QCAbsentees       = "QuorumCertificateAbsentees"
+	APAbsentees       = "ActivityProofAbsentees"
+	BlockTransactions = "BlockTransactions"
 )
+
+type SeerBlock struct {
+	autonityBlock    *types.Block
+	transactionCount int
+}
 
 type blockProcessor struct {
 	core                 *core
 	ctx                  context.Context
-	blockCh              chan *types.Block
+	blockCh              chan *SeerBlock
 	blockRecorderFields  map[string]interface{}
 	acnPeerFields        map[string]interface{}
 	blockTimestampFields map[string]interface{}
@@ -42,7 +48,7 @@ type blockProcessor struct {
 	signer               types.Signer
 }
 
-func NewBlockProcessor(ctx context.Context, core *core, newBlocks chan *types.Block, isLive bool, chainID *big.Int) interfaces.Processor {
+func NewBlockProcessor(ctx context.Context, core *core, newBlocks chan *SeerBlock, isLive bool, chainID *big.Int) interfaces.Processor {
 	bp := &blockProcessor{
 		ctx:                  ctx,
 		core:                 core,
@@ -66,10 +72,11 @@ func (bp *blockProcessor) Process() {
 			select {
 			case <-bp.ctx.Done():
 				return
-			case block, ok := <-bp.blockCh:
+			case seerBlock, ok := <-bp.blockCh:
 				if !ok {
 					return
 				}
+				block := seerBlock.autonityBlock
 				slog.Debug("new block received", "number", block.NumberU64())
 				header := block.Header()
 				bp.core.blockCache.Add(block)
@@ -80,6 +87,7 @@ func (bp *blockProcessor) Process() {
 				bp.recordBlockTimestamp(header)
 				bp.recordBlock(header)
 				bp.checkOracleVote(block)
+				bp.recordTxCount(block, seerBlock.transactionCount)
 			}
 		}
 	}()
@@ -91,11 +99,18 @@ func (bp *blockProcessor) recordBlockTimestamp(header *types.Header) {
 	bp.core.dbHandler.WritePoint(BlockTimestamp, nil, bp.blockTimestampFields, ts)
 }
 
+func (bp *blockProcessor) recordTxCount(block *types.Block, txCount int) {
+	ts := time.Unix(int64(block.Header().Time), 0)
+	fields := make(map[string]interface{})
+	fields["transactionCount"] = txCount
+	fields["block"] = block.NumberU64()
+	bp.core.dbHandler.WritePoint(BlockTransactions, nil, fields, ts)
+}
+
 func (bp *blockProcessor) recordACNPeers(header *types.Header) {
 
 	now := time.Now()
 	if now.Unix()-int64(header.Time) > 5 {
-		slog.Debug("block older than 5 seconds. not retrieving acn peers")
 		return
 	}
 
