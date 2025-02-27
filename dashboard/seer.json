@@ -196,7 +196,7 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
+        "h": 17,
         "w": 12,
         "x": 0,
         "y": 10
@@ -283,7 +283,7 @@
       "targets": [
         {
           "hide": false,
-          "query": "from(bucket: \"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"nodeLocation\")\n|>pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|> keep(columns: [\"_time\", \"address\", \"lat\", \"lon\", \"ip\", \"nodeStake\", \"percentageStake\", \"block\"])\n|> group()\n",
+          "query": "from(bucket: \"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"nodeLocation\")\n|>pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|> keep(columns: [\"_time\", \"address\", \"lat\", \"lon\", \"ip\", \"nodeStake\", \"percentageStake\", \"block\", \"totalStake\"])\n|> group()\n",
           "refId": "start-time"
         }
       ],
@@ -399,7 +399,7 @@
         ]
       },
       "gridPos": {
-        "h": 8,
+        "h": 17,
         "w": 12,
         "x": 12,
         "y": 10
@@ -547,7 +547,220 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 18
+        "y": 27
+      },
+      "id": 73,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.5.2",
+      "targets": [
+        {
+          "query": "from(bucket: \"${bucket}\")\n    |> range(start: -1y)\n    |> filter(fn: (r) => r[\"_measurement\"] == \"BlockTransactions\")\n    |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n    |> keep(columns: [\"_time\", \"transactionCount\"])\n    |> sort(columns: [\"_time\"], desc: false)\n    |> derivative(unit: 1s, nonNegative: true, columns: [\"transactionCount\"])\n    |> rename(columns: {transactionCount: \"TPS\"})\n    |> group()\n    |> limit(n: 10000)",
+          "refId": "A"
+        }
+      ],
+      "title": "TPS",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "_measurement": true,
+              "_start": true,
+              "_stop": true,
+              "block": false,
+              "event": true
+            },
+            "includeByName": {},
+            "indexByName": {
+              "_measurement": 5,
+              "_start": 3,
+              "_stop": 4,
+              "_time": 0,
+              "block": 1,
+              "event": 2
+            },
+            "renameByName": {}
+          }
+        },
+        {
+          "id": "filterByValue",
+          "options": {
+            "filters": [
+              {
+                "config": {
+                  "id": "isNull",
+                  "options": {}
+                },
+                "fieldName": "block"
+              }
+            ],
+            "match": "any",
+            "type": "exclude"
+          }
+        }
+      ],
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "de85digryc1dsb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "color-text"
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 27
+      },
+      "id": 4,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "count"
+          }
+        ]
+      },
+      "pluginVersion": "11.5.2",
+      "targets": [
+        {
+          "query": "from(bucket:\"${bucket}\")\n  |>range(start: ${__from}/1000, stop: ${__to}/1000)\n  |> filter(fn: (r) => r[\"event_type\"]== \"protocol\")\n  |> pivot(\n      rowKey:[\"_time\"],          \n      columnKey: [\"_field\"],     \n      valueColumn: \"_value\"    \n  )\n  |> group(columns: [\"_measurement\"]) \n  |> count(column: \"event_type\") \n  |> group() \n  |> rename(columns: {event_type: \"count\"}) ",
+          "refId": "A"
+        }
+      ],
+      "title": "Summary",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {},
+            "includeByName": {},
+            "indexByName": {
+              "_measurement": 0,
+              "total_values": 1
+            },
+            "renameByName": {
+              "_measurement": "event",
+              "total_values": ""
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "de85digryc1dsb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 35
       },
       "id": 43,
       "options": {
@@ -622,199 +835,6 @@
         }
       ],
       "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "de85digryc1dsb"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "custom": {
-            "align": "auto",
-            "cellOptions": {
-              "type": "color-text"
-            },
-            "inspect": false
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 18
-      },
-      "id": 4,
-      "options": {
-        "cellHeight": "sm",
-        "footer": {
-          "countRows": false,
-          "fields": "",
-          "reducer": [
-            "sum"
-          ],
-          "show": false
-        },
-        "showHeader": true,
-        "sortBy": [
-          {
-            "desc": true,
-            "displayName": "count"
-          }
-        ]
-      },
-      "pluginVersion": "11.5.2",
-      "targets": [
-        {
-          "query": "from(bucket:\"${bucket}\")\n  |>range(start: ${__from}/1000, stop: ${__to}/1000)\n  |> filter(fn: (r) => r[\"event_type\"]== \"protocol\")\n  |> pivot(\n      rowKey:[\"_time\"],          \n      columnKey: [\"_field\"],     \n      valueColumn: \"_value\"    \n  )\n  |> group(columns: [\"_measurement\"]) \n  |> count(column: \"event_type\") \n  |> group() \n  |> rename(columns: {event_type: \"count\"}) ",
-          "refId": "A"
-        }
-      ],
-      "title": "Summary",
-      "transformations": [
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": {},
-            "includeByName": {},
-            "indexByName": {
-              "_measurement": 0,
-              "total_values": 1
-            },
-            "renameByName": {
-              "_measurement": "event",
-              "total_values": ""
-            }
-          }
-        }
-      ],
-      "type": "table"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "de85digryc1dsb"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "custom": {
-            "align": "auto",
-            "cellOptions": {
-              "type": "auto"
-            },
-            "filterable": true,
-            "inspect": false
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "committee"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 1029
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "block"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 81
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 26
-      },
-      "id": 33,
-      "options": {
-        "cellHeight": "sm",
-        "footer": {
-          "countRows": false,
-          "fields": "",
-          "reducer": [
-            "sum"
-          ],
-          "show": false
-        },
-        "frameIndex": 0,
-        "showHeader": true,
-        "sortBy": []
-      },
-      "pluginVersion": "11.5.2",
-      "targets": [
-        {
-          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"BlockHeader\")\n|>pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>keep(columns: [\"block\",  \"proposer\", \"skipped-proposer\", \"committee\"])\n|>group()\n|>sort(columns:[\"block\"], desc:true)\n|> limit(n:2000)\n\n\n\n",
-          "refId": "A"
-        }
-      ],
-      "title": "Block Committee",
-      "transformations": [
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": {
-              "_measurement": true,
-              "_start": true,
-              "_stop": true
-            },
-            "includeByName": {},
-            "indexByName": {
-              "block": 0,
-              "committee": 3,
-              "proposer": 1,
-              "skipped-proposer": 2
-            },
-            "renameByName": {}
-          }
-        }
-      ],
-      "type": "table"
     },
     {
       "datasource": {
@@ -904,7 +924,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 26
+        "y": 35
       },
       "id": 32,
       "options": {
@@ -959,70 +979,109 @@
       },
       "fieldConfig": {
         "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
           "custom": {
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
             },
-            "scaleDistribution": {
-              "type": "linear"
-            }
+            "filterable": true,
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "committee"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 1029
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "block"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 81
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 34
+        "y": 43
       },
-      "id": 39,
+      "id": 33,
       "options": {
-        "calculate": false,
-        "cellGap": 1,
-        "color": {
-          "exponent": 0.5,
-          "fill": "dark-orange",
-          "min": 6,
-          "mode": "scheme",
-          "reverse": false,
-          "scale": "exponential",
-          "scheme": "RdYlGn",
-          "steps": 64
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
         },
-        "exemplars": {
-          "color": "rgba(255,0,255,0.7)"
-        },
-        "filterValues": {
-          "le": 1e-9
-        },
-        "legend": {
-          "show": true
-        },
-        "rowsFrame": {
-          "layout": "auto"
-        },
-        "tooltip": {
-          "mode": "single",
-          "showColorScale": false,
-          "yHistogram": false
-        },
-        "yAxis": {
-          "axisPlacement": "left",
-          "reverse": false
-        }
+        "frameIndex": 0,
+        "showHeader": true,
+        "sortBy": []
       },
       "pluginVersion": "11.5.2",
       "targets": [
         {
-          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"BlockHeader\")\n|>pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>keep(columns: [\"_time\",  \"num-qc-absentees\"])\n|>\n\n\n\n",
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"BlockHeader\")\n|>pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>keep(columns: [\"block\",  \"proposer\", \"skipped-proposer\", \"committee\"])\n|>group()\n|>sort(columns:[\"block\"], desc:true)\n|> limit(n:2000)\n\n\n\n",
           "refId": "A"
         }
       ],
-      "title": "Number of Quorum Certificate Absentees",
-      "type": "heatmap"
+      "title": "Block Committee",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "_measurement": true,
+              "_start": true,
+              "_stop": true
+            },
+            "includeByName": {},
+            "indexByName": {
+              "block": 0,
+              "committee": 3,
+              "proposer": 1,
+              "skipped-proposer": 2
+            },
+            "renameByName": {}
+          }
+        }
+      ],
+      "type": "table"
     },
     {
       "datasource": {
@@ -1063,7 +1122,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 34
+        "y": 43
       },
       "id": 38,
       "options": {
@@ -1117,44 +1176,15 @@
       },
       "fieldConfig": {
         "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
           "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "fillOpacity": 50,
             "hideFrom": {
               "legend": false,
               "tooltip": false,
               "viz": false
             },
-            "pointShape": "circle",
-            "pointSize": {
-              "fixed": 5
-            },
-            "pointStrokeWidth": 1,
             "scaleDistribution": {
               "type": "linear"
-            },
-            "show": "points"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
+            }
           }
         },
         "overrides": []
@@ -1163,45 +1193,53 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 42
+        "y": 51
       },
-      "id": 37,
+      "id": 39,
       "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
+        "calculate": false,
+        "cellGap": 1,
+        "color": {
+          "exponent": 0.5,
+          "fill": "dark-orange",
+          "min": 6,
+          "mode": "scheme",
+          "reverse": false,
+          "scale": "exponential",
+          "scheme": "RdYlGn",
+          "steps": 64
         },
-        "mapping": "auto",
-        "series": [
-          {}
-        ],
+        "exemplars": {
+          "color": "rgba(255,0,255,0.7)"
+        },
+        "filterValues": {
+          "le": 1e-9
+        },
+        "legend": {
+          "show": true
+        },
+        "rowsFrame": {
+          "layout": "auto"
+        },
         "tooltip": {
-          "hideZeros": false,
           "mode": "single",
-          "sort": "none"
+          "showColorScale": false,
+          "yHistogram": false
+        },
+        "yAxis": {
+          "axisPlacement": "left",
+          "reverse": false
         }
       },
       "pluginVersion": "11.5.2",
       "targets": [
         {
-          "hide": false,
-          "query": "from(bucket:\"${bucket}\")\n |>range(start: ${__from}/1000, stop: ${__to}/1000)\n |> filter(fn: (r) => r[\"_measurement\"]== \"Penalized\")\n |> pivot(\n     rowKey:[\"_time\"],         \n     columnKey: [\"_field\"],    \n     valueColumn: \"_value\"   \n )\n |> group(columns: [\"block\"])\n |> count(column: \"event_type\")\n |> group()\n |> rename(columns: {event_type: \"count\"})\n |> map(fn: (r)=> ({block:r.block, penalized:r.count}))\n\n\n",
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"BlockHeader\")\n|>pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>keep(columns: [\"_time\",  \"num-qc-absentees\"])\n\n\n\n",
           "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "de85digryc1dsb"
-          },
-          "hide": false,
-          "query": "from(bucket:\"${bucket}\")\n |>range(start: ${__from}/1000, stop: ${__to}/1000)\n |> filter(fn: (r) => r[\"_measurement\"]== \"InactivityJailingEvent\")\n |> pivot(\n     rowKey:[\"_time\"],         \n     columnKey: [\"_field\"],    \n     valueColumn: \"_value\"   \n )\n |> group(columns: [\"block\"])\n |> count(column: \"event_type\")\n |> group()\n |> rename(columns: {event_type: \"count\"})\n |> map(fn: (r)=> ({block:r.block, inactivityJaillingEvent:r.count}))\n\n\n",
-          "refId": "B"
         }
       ],
-      "title": "Accountability Events Over blocks",
-      "type": "xychart"
+      "title": "Number of Quorum Certificate Absentees",
+      "type": "heatmap"
     },
     {
       "datasource": {
@@ -1267,7 +1305,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 42
+        "y": 51
       },
       "id": 36,
       "options": {
@@ -1328,6 +1366,197 @@
       },
       "fieldConfig": {
         "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true,
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 59
+      },
+      "id": 30,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "block"
+          }
+        ]
+      },
+      "pluginVersion": "11.5.2",
+      "targets": [
+        {
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"ACNPeers\")\n|>pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|> drop (columns: [\"_time\"])\n|> group()\n|> limit(n:1000)\n\n",
+          "refId": "A"
+        }
+      ],
+      "title": "ACN Peers",
+      "transformations": [
+        {
+          "id": "labelsToFields",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "_measurement": true,
+              "_start": true,
+              "_stop": true
+            },
+            "includeByName": {},
+            "indexByName": {
+              "RemoteAddress": 5,
+              "_start": 6,
+              "_stop": 7,
+              "_time": 0,
+              "block": 1,
+              "enode": 2,
+              "id": 3,
+              "localAddress": 4
+            },
+            "renameByName": {}
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "de85digryc1dsb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "fillOpacity": 50,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "pointShape": "circle",
+            "pointSize": {
+              "fixed": 5
+            },
+            "pointStrokeWidth": 1,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "show": "points"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 59
+      },
+      "id": 37,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "mapping": "auto",
+        "series": [
+          {}
+        ],
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.5.2",
+      "targets": [
+        {
+          "hide": false,
+          "query": "from(bucket:\"${bucket}\")\n |>range(start: ${__from}/1000, stop: ${__to}/1000)\n |> filter(fn: (r) => r[\"_measurement\"]== \"Penalized\")\n |> pivot(\n     rowKey:[\"_time\"],         \n     columnKey: [\"_field\"],    \n     valueColumn: \"_value\"   \n )\n |> group(columns: [\"block\"])\n |> count(column: \"event_type\")\n |> group()\n |> rename(columns: {event_type: \"count\"})\n |> map(fn: (r)=> ({block:r.block, penalized:r.count}))\n\n\n",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "de85digryc1dsb"
+          },
+          "hide": false,
+          "query": "from(bucket:\"${bucket}\")\n |>range(start: ${__from}/1000, stop: ${__to}/1000)\n |> filter(fn: (r) => r[\"_measurement\"]== \"InactivityJailingEvent\")\n |> pivot(\n     rowKey:[\"_time\"],         \n     columnKey: [\"_field\"],    \n     valueColumn: \"_value\"   \n )\n |> group(columns: [\"block\"])\n |> count(column: \"event_type\")\n |> group()\n |> rename(columns: {event_type: \"count\"})\n |> map(fn: (r)=> ({block:r.block, inactivityJaillingEvent:r.count}))\n\n\n",
+          "refId": "B"
+        }
+      ],
+      "title": "Accountability Events Over blocks",
+      "type": "xychart"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "de85digryc1dsb"
+      },
+      "fieldConfig": {
+        "defaults": {
           "custom": {
             "hideFrom": {
               "legend": false,
@@ -1345,7 +1574,7 @@
         "h": 16,
         "w": 24,
         "x": 0,
-        "y": 50
+        "y": 67
       },
       "id": 40,
       "options": {
@@ -1426,7 +1655,7 @@
         "h": 16,
         "w": 24,
         "x": 0,
-        "y": 66
+        "y": 83
       },
       "id": 44,
       "options": {
@@ -1484,110 +1713,12 @@
       "type": "heatmap"
     },
     {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "de85digryc1dsb"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "custom": {
-            "align": "auto",
-            "cellOptions": {
-              "type": "auto"
-            },
-            "filterable": true,
-            "inspect": false
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 82
-      },
-      "id": 30,
-      "options": {
-        "cellHeight": "sm",
-        "footer": {
-          "countRows": false,
-          "fields": "",
-          "reducer": [
-            "sum"
-          ],
-          "show": false
-        },
-        "showHeader": true,
-        "sortBy": [
-          {
-            "desc": true,
-            "displayName": "block"
-          }
-        ]
-      },
-      "pluginVersion": "11.5.2",
-      "targets": [
-        {
-          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"ACNPeers\")\n|>pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|> drop (columns: [\"_time\"])\n|> group()\n|> limit(n:1000)\n\n",
-          "refId": "A"
-        }
-      ],
-      "title": "ACN Peers",
-      "transformations": [
-        {
-          "id": "labelsToFields",
-          "options": {}
-        },
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": {
-              "_measurement": true,
-              "_start": true,
-              "_stop": true
-            },
-            "includeByName": {},
-            "indexByName": {
-              "RemoteAddress": 5,
-              "_start": 6,
-              "_stop": 7,
-              "_time": 0,
-              "block": 1,
-              "enode": 2,
-              "id": 3,
-              "localAddress": 4
-            },
-            "renameByName": {}
-          }
-        }
-      ],
-      "type": "table"
-    },
-    {
       "collapsed": true,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 90
+        "y": 99
       },
       "id": 21,
       "panels": [
@@ -3267,7 +3398,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 91
+        "y": 100
       },
       "id": 47,
       "panels": [
@@ -3809,7 +3940,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 92
+        "y": 101
       },
       "id": 25,
       "panels": [],
@@ -3839,8 +3970,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -3868,7 +3998,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 93
+        "y": 102
       },
       "id": 10,
       "options": {
@@ -3947,8 +4077,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -3976,7 +4105,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 93
+        "y": 102
       },
       "id": 67,
       "options": {
@@ -4055,8 +4184,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -4084,7 +4212,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 101
+        "y": 110
       },
       "id": 68,
       "options": {
@@ -4146,7 +4274,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 109
+        "y": 118
       },
       "id": 24,
       "panels": [
@@ -5324,7 +5452,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 110
+        "y": 119
       },
       "id": 26,
       "panels": [
@@ -5440,7 +5568,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 111
+        "y": 120
       },
       "id": 69,
       "panels": [
@@ -5542,7 +5670,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 112
+        "y": 121
       },
       "id": 23,
       "panels": [
@@ -5760,7 +5888,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 113
+        "y": 122
       },
       "id": 28,
       "panels": [
@@ -5884,7 +6012,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 114
+        "y": 123
       },
       "id": 27,
       "panels": [],
@@ -5914,8 +6042,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -5943,7 +6070,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 115
+        "y": 124
       },
       "id": 6,
       "options": {
@@ -6010,8 +6137,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -6039,7 +6165,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 115
+        "y": 124
       },
       "id": 19,
       "options": {
@@ -6101,22 +6227,36 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "thresholds"
+            "mode": "palette-classic"
           },
           "custom": {
-            "align": "auto",
-            "cellOptions": {
-              "type": "auto"
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "fillOpacity": 50,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
             },
-            "inspect": false
+            "pointShape": "circle",
+            "pointSize": {
+              "fixed": 5
+            },
+            "pointStrokeWidth": 1,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "show": "points"
           },
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -6131,7 +6271,128 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 123
+        "y": 132
+      },
+      "id": 74,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "mapping": "auto",
+        "series": [
+          {
+            "x": {
+              "matcher": {
+                "id": "byName",
+                "options": "block"
+              }
+            },
+            "y": {
+              "matcher": {
+                "id": "byName",
+                "options": "transactionCount"
+              }
+            }
+          }
+        ],
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.5.2",
+      "targets": [
+        {
+          "query": "from(bucket: \"${bucket}\")\n    |> range(start: -1y)\n    |> filter(fn: (r) => r[\"_measurement\"] == \"BlockTransactions\")\n    |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n    |> keep(columns: [\"block\", \"transactionCount\"])\n    |> group()\n    |> limit(n: 5000)",
+          "refId": "A"
+        }
+      ],
+      "title": "Transactions/Block",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "_measurement": true,
+              "_start": true,
+              "_stop": true,
+              "block": false,
+              "event": true
+            },
+            "includeByName": {},
+            "indexByName": {
+              "_measurement": 5,
+              "_start": 3,
+              "_stop": 4,
+              "_time": 0,
+              "block": 1,
+              "event": 2
+            },
+            "renameByName": {}
+          }
+        },
+        {
+          "id": "filterByValue",
+          "options": {
+            "filters": [
+              {
+                "config": {
+                  "id": "isNull",
+                  "options": {}
+                },
+                "fieldName": "block"
+              }
+            ],
+            "match": "any",
+            "type": "exclude"
+          }
+        }
+      ],
+      "type": "xychart"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "de85digryc1dsb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 132
       },
       "id": 45,
       "options": {
@@ -6219,8 +6480,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -6234,8 +6494,8 @@
       "gridPos": {
         "h": 8,
         "w": 12,
-        "x": 12,
-        "y": 123
+        "x": 0,
+        "y": 140
       },
       "id": 5,
       "options": {
@@ -6300,274 +6560,6 @@
         }
       ],
       "type": "table"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "de85digryc1dsb"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 131
-      },
-      "id": 73,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "11.5.2",
-      "targets": [
-        {
-          "query": "from(bucket: \"${bucket}\")\n    |> range(start: -1y)\n    |> filter(fn: (r) => r[\"_measurement\"] == \"BlockTransactions\")\n    |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n    |> keep(columns: [\"_time\", \"transactionCount\"])\n    |> sort(columns: [\"_time\"], desc: false)\n    |> derivative(unit: 1s, nonNegative: true, columns: [\"transactionCount\"])\n    |> rename(columns: {transactionCount: \"TPS\"})\n    |> group()\n    |> limit(n: 10000)",
-          "refId": "A"
-        }
-      ],
-      "title": "TPS",
-      "transformations": [
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": {
-              "Time": true,
-              "_measurement": true,
-              "_start": true,
-              "_stop": true,
-              "block": false,
-              "event": true
-            },
-            "includeByName": {},
-            "indexByName": {
-              "_measurement": 5,
-              "_start": 3,
-              "_stop": 4,
-              "_time": 0,
-              "block": 1,
-              "event": 2
-            },
-            "renameByName": {}
-          }
-        },
-        {
-          "id": "filterByValue",
-          "options": {
-            "filters": [
-              {
-                "config": {
-                  "id": "isNull",
-                  "options": {}
-                },
-                "fieldName": "block"
-              }
-            ],
-            "match": "any",
-            "type": "exclude"
-          }
-        }
-      ],
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "de85digryc1dsb"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "fillOpacity": 50,
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "pointShape": "circle",
-            "pointSize": {
-              "fixed": 5
-            },
-            "pointStrokeWidth": 1,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "show": "points"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 131
-      },
-      "id": 74,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "mapping": "auto",
-        "series": [
-          {
-            "x": {
-              "matcher": {
-                "id": "byName",
-                "options": "block"
-              }
-            },
-            "y": {
-              "matcher": {
-                "id": "byName",
-                "options": "transactionCount"
-              }
-            }
-          }
-        ],
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "11.5.2",
-      "targets": [
-        {
-          "query": "from(bucket: \"${bucket}\")\n    |> range(start: -1y)\n    |> filter(fn: (r) => r[\"_measurement\"] == \"BlockTransactions\")\n    |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n    |> keep(columns: [\"block\", \"transactionCount\"])\n    |> group()\n    |> limit(n: 5000)",
-          "refId": "A"
-        }
-      ],
-      "title": "Transactions/Block",
-      "transformations": [
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": {
-              "Time": true,
-              "_measurement": true,
-              "_start": true,
-              "_stop": true,
-              "block": false,
-              "event": true
-            },
-            "includeByName": {},
-            "indexByName": {
-              "_measurement": 5,
-              "_start": 3,
-              "_stop": 4,
-              "_time": 0,
-              "block": 1,
-              "event": 2
-            },
-            "renameByName": {}
-          }
-        },
-        {
-          "id": "filterByValue",
-          "options": {
-            "filters": [
-              {
-                "config": {
-                  "id": "isNull",
-                  "options": {}
-                },
-                "fieldName": "block"
-              }
-            ],
-            "match": "any",
-            "type": "exclude"
-          }
-        }
-      ],
-      "type": "xychart"
     }
   ],
   "preload": false,
@@ -6637,6 +6629,6 @@
   "timezone": "browser",
   "title": "Autonity Events - Block Filter",
   "uid": "fe86msn60epdsf",
-  "version": 204,
+  "version": 205,
   "weekStart": ""
 }
