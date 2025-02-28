@@ -566,7 +566,7 @@
       "pluginVersion": "11.5.2",
       "targets": [
         {
-          "query": "from(bucket: \"${bucket}\")\n    |> range(start: -1y)\n    |> filter(fn: (r) => r[\"_measurement\"] == \"BlockTransactions\")\n    |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n    |> keep(columns: [\"_time\", \"transactionCount\"])\n    |> sort(columns: [\"_time\"], desc: false)\n    |> derivative(unit: 1s, nonNegative: true, columns: [\"transactionCount\"])\n    |> rename(columns: {transactionCount: \"TPS\"})\n    |> group()\n    |> limit(n: 10000)",
+          "query": "from(bucket: \"${bucket}\")\n    |>range(start: ${__from}/1000, stop: ${__to}/1000)\n    |> filter(fn: (r) => r[\"_measurement\"] == \"BlockTransactions\")\n    |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n    |> keep(columns: [\"_time\", \"transactionCount\"])\n    |> sort(columns: [\"_time\"], desc: false)\n    |> derivative(unit: 1s, nonNegative: true, columns: [\"transactionCount\"])\n    |> rename(columns: {transactionCount: \"TPS\"})\n    |> group()\n    |> limit(n: 10000)",
           "refId": "A"
         }
       ],
@@ -3970,7 +3970,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -4077,7 +4078,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -4184,7 +4186,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -6042,7 +6045,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -6137,7 +6141,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -6256,7 +6261,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -6377,7 +6383,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -6480,7 +6487,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -6586,8 +6594,8 @@
       },
       {
         "current": {
-          "text": "0",
-          "value": "0"
+          "text": "100000",
+          "value": "100000"
         },
         "description": "",
         "label": "block_start_num",
@@ -6595,40 +6603,40 @@
         "options": [
           {
             "selected": true,
-            "text": "0",
-            "value": "0"
+            "text": "100000",
+            "value": "100000"
           }
         ],
-        "query": "0",
+        "query": "100000",
         "type": "textbox"
       },
       {
         "current": {
-          "text": "10000",
-          "value": "10000"
+          "text": "110000",
+          "value": "110000"
         },
         "label": "block_end_num",
         "name": "block_end_num",
         "options": [
           {
             "selected": true,
-            "text": "10000",
-            "value": "10000"
+            "text": "110000",
+            "value": "110000"
           }
         ],
-        "query": "10000",
+        "query": "110000",
         "type": "textbox"
       }
     ]
   },
   "time": {
-    "from": "2024-12-11T13:00:01.000Z",
-    "to": "2024-12-11T16:16:54.000Z"
+    "from": "2024-12-12T20:15:06.000Z",
+    "to": "2024-12-12T21:15:06.000Z"
   },
   "timepicker": {},
   "timezone": "browser",
   "title": "Autonity Events - Block Filter",
   "uid": "fe86msn60epdsf",
-  "version": 205,
+  "version": 206,
   "weekStart": ""
 }
