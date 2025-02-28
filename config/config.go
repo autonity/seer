@@ -28,12 +28,11 @@ type Conn struct {
 }
 
 type InfluxDBConfig struct {
-	URL      string `mapstructure:"url"`
-	Token    string `mapstructure:"token"`
-	Org      string `mapstructure:"org"`
-	Bucket   string `mapstructure:"bucket"`
-	User     string `mapstructure:"user"`
-	password string `mapstructure:"password"`
+	URL          string `mapstructure:"url"`
+	Token        string `mapstructure:"token"`
+	Org          string `mapstructure:"org"`
+	Bucket       string `mapstructure:"bucket"`
+	CreateBucket bool `mapstructure:"createBucket"`
 }
 
 type ABIConfig struct {
