@@ -4,11 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"math/big"
 	"net/http"
 	"time"
 
 	"github.com/autonity/autonity/accounts/abi/bind"
 	"github.com/autonity/autonity/autonity"
+	"github.com/autonity/autonity/common"
 	"github.com/autonity/autonity/common/fixsizecache"
 	"github.com/autonity/autonity/core/types"
 	"github.com/autonity/autonity/crypto"
@@ -95,7 +97,6 @@ func (ev *NewEpochHandler) Handle(schema model.EventSchema, header *types.Header
 		slog.Error("NewEpoch Handler, committee information is nor present")
 		return
 	}
-	//TODO
 	con := cp.GetWebSocketConnection()
 	autBindings, err := autonity.NewAutonity(helper.AutonityContractAddress, con.Client)
 	if err != nil {
@@ -106,31 +107,66 @@ func (ev *NewEpochHandler) Handle(schema model.EventSchema, header *types.Header
 		BlockNumber: header.Number,
 	})
 
-	totalVotingPower, err := autBindings.EpochTotalBondedStake(&bind.CallOpts{
-		BlockNumber: header.Number,
-	})
-	//totalVotingPower := header.Epoch.Committee.TotalVotingPower()
-
 	nodes := types.NewNodes(enodeStrings, true)
 	fields := map[string]interface{}{}
 	tags := map[string]string{}
 	ts := time.Unix(int64(header.Time), 0)
 
+	totalVotingPower, committee, err := ev.GetStake(autBindings, header)
+	if err != nil {
+		slog.Error("NewEpoch Handler, can't fetch stake", "error", err)
+		return
+	}
+	totalVotingPowerFloat := new(big.Float).SetInt(totalVotingPower)
 	for _, node := range nodes.List {
 		lat, lon, err := getCoordinates(node.IP().String())
 		if err != nil {
 			slog.Error("error fetching latitude longitude", "error", err)
 			continue
 		}
+
 		addr := crypto.PubkeyToAddress(*node.Pubkey())
-		member := header.Epoch.Committee.MemberByAddress(addr)
+		votingPower := getVotingPower(committee, addr)
+
 		tags["address"] = addr.String()
-		fields["nodeStake"] = member.VotingPower.Uint64()
-		fields["percentageStake"] = (member.VotingPower.Uint64() / totalVotingPower.Uint64()) * 100
+		fields["nodeStake"] = votingPower
+		fields["totalStake"] = totalVotingPower
+
+		votingPowerFloat := new(big.Float).SetInt(votingPower)
+		percentage := new(big.Float).Quo(votingPowerFloat, totalVotingPowerFloat)
+		percentage.Mul(percentage, big.NewFloat(100))
+
+		fields["percentageStake"] = percentage.Text('f', 2)
 		fields["lat"] = lat
 		fields["lon"] = lon
 		fields["ip"] = node.IP().String()
 		fields["block"] = header.Number.Uint64()
 		ev.DBHandler.WritePoint(nodeLocationMeasurement, tags, fields, ts)
 	}
+}
+
+func (ev *NewEpochHandler) GetStake(autBindings *autonity.Autonity, header *types.Header) (*big.Int, []autonity.AutonityCommitteeMember, error) {
+	totalVotingPower, err := autBindings.EpochTotalBondedStake(&bind.CallOpts{
+		BlockNumber: header.Number,
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	committee, err := autBindings.GetCommittee(&bind.CallOpts{
+		BlockNumber: header.Number,
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+	return totalVotingPower, committee, nil
+}
+
+func getVotingPower(committee []autonity.AutonityCommitteeMember, address common.Address) *big.Int {
+	for _, c := range committee {
+		if c.Addr == address {
+			return c.VotingPower
+		}
+	}
+	return nil
 }
