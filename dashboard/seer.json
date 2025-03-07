@@ -413,10 +413,10 @@
         },
         "view": {
           "allLayers": true,
-          "id": "zero",
-          "lat": 0,
-          "lon": 0,
-          "zoom": 1
+          "id": "coords",
+          "lat": 21.02089,
+          "lon": 73.275502,
+          "zoom": 2.44
         }
       },
       "pluginVersion": "11.5.2",
@@ -7002,6 +7002,6 @@
   "timezone": "browser",
   "title": "Autonity Events - Block Filter",
   "uid": "fe86msn60epdsf",
-  "version": 225,
+  "version": 226,
   "weekStart": ""
 }
