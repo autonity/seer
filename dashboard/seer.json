@@ -149,6 +149,146 @@
       "type": "table"
     },
     {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "de85digryc1dsb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 1
+      },
+      "id": 43,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.5.2",
+      "targets": [
+        {
+          "hide": false,
+          "query": "from(bucket: \"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"BlockHeader\")\n|>pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|> keep(columns: [\"_time\", \"block\"])",
+          "refId": "start-time"
+        }
+      ],
+      "title": "Block timestamps",
+      "transformations": [
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "block_timestamp",
+            "binary": {
+              "left": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "_value"
+                }
+              },
+              "operator": "*",
+              "right": {
+                "fixed": "1000"
+              }
+            },
+            "mode": "binary",
+            "reduce": {
+              "include": [],
+              "reducer": "sum"
+            },
+            "replaceFields": false
+          }
+        },
+        {
+          "id": "convertFieldType",
+          "options": {
+            "conversions": [
+              {
+                "destinationType": "time",
+                "targetField": "block_timestamp"
+              }
+            ],
+            "fields": {}
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "_value": true
+            },
+            "includeByName": {},
+            "indexByName": {},
+            "renameByName": {}
+          }
+        }
+      ],
+      "type": "timeseries"
+    },
+    {
       "collapsed": false,
       "gridPos": {
         "h": 1,
@@ -354,6 +494,7 @@
             "cellOptions": {
               "type": "auto"
             },
+            "filterable": true,
             "inspect": false
           },
           "mappings": [],
@@ -491,7 +632,124 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "palette-classic"
+            "mode": "thresholds"
+          },
+          "custom": {
+            "fillOpacity": 70,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineWidth": 1
+          },
+          "mappings": [
+            {
+              "options": {
+                "0": {
+                  "color": "red",
+                  "index": 0,
+                  "text": "Absent"
+                },
+                "1": {
+                  "color": "green",
+                  "index": 1,
+                  "text": "Present"
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "meta_round.*"
+            },
+            "properties": [
+              {
+                "id": "custom.hideFrom",
+                "value": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": true
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 16,
+        "w": 12,
+        "x": 0,
+        "y": 27
+      },
+      "id": 79,
+      "options": {
+        "colWidth": 0.9,
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "rowHeight": 0.9,
+        "showValue": "auto",
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.5.2",
+      "targets": [
+        {
+          "query": "round_time_mapping = from(bucket:\"${bucket}\")\n  |> range(start: ${__from}/1000, stop: ${__to}/1000)\n  |> filter(fn: (r) => r._measurement == \"OracleVoters\")\n  |> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> keep(columns: [\"round\", \"_time\"]) // Preserve the time\n  |> unique(column: \"round\")\n  \n\nall_voters_per_round = from(bucket:\"${bucket}\")\n  |> range(start: ${__from}/1000, stop: ${__to}/1000)\n  |> filter(fn: (r) => r._measurement == \"OracleVoters\")\n  |> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> group(columns: [\"round\", \"voter\"]) // Ensure grouping is correct\n  |> map(fn: (r) => ({ r with participated: 0.0 })) \n  |> keep(columns: [\"_time\", \"round\", \"voter\", \"participated\"])\n  |>group()\n\nvoted_voters_per_round = from(bucket: \"${bucket}\")\n  |> range(start: ${__from}/1000, stop: ${__to}/1000)\n  |> filter(fn: (r) => r._measurement == \"OracleVote\")\n  |> filter(fn: (r) => r._field == \"round\") // Filter successful votes\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> group(columns: [\"round\", \"voter\"]) // Group by round and voter\n  |> map(fn: (r) => ({ r with participated: 1.0 })) // Mark as participated\n  |> keep(columns: [\"_time\", \"round\", \"voter\", \"participated\"])\n  |>group()\n\nunioned = union(tables: [all_voters_per_round, voted_voters_per_round])\n  |> group(columns: [\"round\", \"voter\"])\n  |> max(column: \"participated\")\n  |> map(fn: (r) => ({\n      _time: r._time,\n      voter: r.voter,\n      _value: r.participated\n    \n    }))\n   \n\nunioned\n\n",
+          "refId": "A"
+        }
+      ],
+      "title": "Oracle Voter Participation in Round",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "_measurement": true,
+              "_start": true,
+              "_stop": true
+            },
+            "includeByName": {},
+            "indexByName": {
+              "block": 0,
+              "committee": 3,
+              "proposer": 1,
+              "skipped-proposer": 2
+            },
+            "renameByName": {}
+          }
+        }
+      ],
+      "type": "status-history"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "de85digryc1dsb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
           },
           "custom": {
             "axisBorderShow": false,
@@ -499,28 +757,16 @@
             "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 0,
+            "fillOpacity": 80,
             "gradientMode": "none",
             "hideFrom": {
               "legend": false,
               "tooltip": false,
               "viz": false
             },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
             "lineWidth": 1,
-            "pointSize": 5,
             "scaleDistribution": {
               "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
             },
             "thresholdsStyle": {
               "mode": "off"
@@ -531,11 +777,23 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "dark-red",
                 "value": null
               },
               {
-                "color": "red",
+                "color": "#EAB839",
+                "value": 50
+              },
+              {
+                "color": "#6ED0E0",
+                "value": 60
+              },
+              {
+                "color": "purple",
+                "value": 70
+              },
+              {
+                "color": "green",
                 "value": 80
               }
             ]
@@ -544,75 +802,64 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
+        "h": 16,
         "w": 12,
-        "x": 0,
+        "x": 12,
         "y": 27
       },
-      "id": 73,
+      "id": 78,
       "options": {
+        "barRadius": 0,
+        "barWidth": 0.97,
+        "fullHighlight": false,
+        "groupWidth": 0.7,
         "legend": {
           "calcs": [],
           "displayMode": "list",
           "placement": "bottom",
           "showLegend": true
         },
+        "orientation": "auto",
+        "showValue": "auto",
+        "stacking": "none",
         "tooltip": {
           "hideZeros": false,
           "mode": "single",
           "sort": "none"
-        }
+        },
+        "xField": "round",
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0
       },
       "pluginVersion": "11.5.2",
       "targets": [
         {
-          "query": "from(bucket: \"${bucket}\")\n    |>range(start: ${__from}/1000, stop: ${__to}/1000)\n    |> filter(fn: (r) => r[\"_measurement\"] == \"BlockTransactions\")\n    |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n    |> keep(columns: [\"_time\", \"transactionCount\"])\n    |> sort(columns: [\"_time\"], desc: false)\n    |> derivative(unit: 1s, nonNegative: true, columns: [\"transactionCount\"])\n    |> rename(columns: {transactionCount: \"TPS\"})\n    |> group()\n    |> limit(n: 10000)",
+          "query": "total_voters_per_round = from(bucket:\"${bucket}\")\n  |>range(start: ${__from}/1000, stop: ${__to}/1000)\n  |> filter(fn: (r) => r._measurement == \"OracleVoters\")\n  |> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> group(columns: [\"round\"])\n  |> map(fn: (r) => ({ r with total_voters: float(v: r.numVoters) }))\n  |> limit(n:1)\n  |> group()\n  |> keep(columns: [\"round\", \"total_voters\"])\n\n\nvoted_voters_per_round = from(bucket: \"${bucket}\")\n  |> range(start: ${__from}/1000, stop: ${__to}/1000)\n  |> filter(fn: (r) => r._measurement == \"OracleVote\")\n  |> filter(fn: (r) => r._field == \"round\") // Filter successful votes\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> group(columns: [\"round\"])\n  |> distinct(column: \"voter\")\n  |> count()\n  |> group()\n  |> map(fn: (r) => ({ r with voted_count: float(v: r._value), round: r.round }))\n  |> keep(columns: [\"round\", \"voted_count\"])\n\nunioned = union(tables: [total_voters_per_round, voted_voters_per_round])\n  |> sort(columns: [\"round\"])\n  |> group(columns: [\"round\"])\n  |> reduce(\n    fn: (r, accumulator) => ({\n      round: r.round,\n      total_voters: if exists r.total_voters then r.total_voters else accumulator.total_voters,\n      voted_count: if exists r.voted_count then r.voted_count else accumulator.voted_count\n    }),\n    identity: {round: uint(v: 0), total_voters: 0.0, voted_count: 0.0}\n  )\n  |> group()\n\n  pDeviation = unioned\n  |> map(fn: (r) => ({\n    r with participation_rate: if r.total_voters > 0.0 then (r.voted_count / r.total_voters) * 100.0 else 0.0\n  }))\n  |> keep(columns:[\"round\", \"participation_rate\"])\n\n  pDeviation\n",
           "refId": "A"
         }
       ],
-      "title": "TPS",
+      "title": "Oracle Participation-rate",
       "transformations": [
         {
           "id": "organize",
           "options": {
             "excludeByName": {
-              "Time": true,
               "_measurement": true,
               "_start": true,
-              "_stop": true,
-              "block": false,
-              "event": true
+              "_stop": true
             },
             "includeByName": {},
             "indexByName": {
-              "_measurement": 5,
-              "_start": 3,
-              "_stop": 4,
-              "_time": 0,
-              "block": 1,
-              "event": 2
+              "block": 0,
+              "committee": 3,
+              "proposer": 1,
+              "skipped-proposer": 2
             },
             "renameByName": {}
           }
-        },
-        {
-          "id": "filterByValue",
-          "options": {
-            "filters": [
-              {
-                "config": {
-                  "id": "isNull",
-                  "options": {}
-                },
-                "fieldName": "block"
-              }
-            ],
-            "match": "any",
-            "type": "exclude"
-          }
         }
       ],
-      "type": "timeseries"
+      "type": "barchart"
     },
     {
       "datasource": {
@@ -647,8 +894,8 @@
       "gridPos": {
         "h": 8,
         "w": 12,
-        "x": 12,
-        "y": 27
+        "x": 0,
+        "y": 43
       },
       "id": 4,
       "options": {
@@ -676,7 +923,7 @@
           "refId": "A"
         }
       ],
-      "title": "Summary",
+      "title": "Events",
       "transformations": [
         {
           "id": "organize",
@@ -695,146 +942,6 @@
         }
       ],
       "type": "table"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "de85digryc1dsb"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 35
-      },
-      "id": 43,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "11.5.2",
-      "targets": [
-        {
-          "hide": false,
-          "query": "from(bucket: \"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"BlockHeader\")\n|>pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|> keep(columns: [\"_time\", \"block\"])",
-          "refId": "start-time"
-        }
-      ],
-      "title": "Block timestamps",
-      "transformations": [
-        {
-          "id": "calculateField",
-          "options": {
-            "alias": "block_timestamp",
-            "binary": {
-              "left": {
-                "matcher": {
-                  "id": "byName",
-                  "options": "_value"
-                }
-              },
-              "operator": "*",
-              "right": {
-                "fixed": "1000"
-              }
-            },
-            "mode": "binary",
-            "reduce": {
-              "include": [],
-              "reducer": "sum"
-            },
-            "replaceFields": false
-          }
-        },
-        {
-          "id": "convertFieldType",
-          "options": {
-            "conversions": [
-              {
-                "destinationType": "time",
-                "targetField": "block_timestamp"
-              }
-            ],
-            "fields": {}
-          }
-        },
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": {
-              "_value": true
-            },
-            "includeByName": {},
-            "indexByName": {},
-            "renameByName": {}
-          }
-        }
-      ],
-      "type": "timeseries"
     },
     {
       "datasource": {
@@ -924,7 +1031,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 35
+        "y": 43
       },
       "id": 32,
       "options": {
@@ -980,15 +1087,40 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "thresholds"
+            "mode": "palette-classic"
           },
           "custom": {
-            "align": "auto",
-            "cellOptions": {
-              "type": "auto"
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
             },
-            "filterable": true,
-            "inspect": false
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
           },
           "mappings": [],
           "thresholds": {
@@ -1005,188 +1137,6 @@
             ]
           }
         },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "committee"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 1029
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "block"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 81
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 43
-      },
-      "id": 33,
-      "options": {
-        "cellHeight": "sm",
-        "footer": {
-          "countRows": false,
-          "fields": "",
-          "reducer": [
-            "sum"
-          ],
-          "show": false
-        },
-        "frameIndex": 0,
-        "showHeader": true,
-        "sortBy": []
-      },
-      "pluginVersion": "11.5.2",
-      "targets": [
-        {
-          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"BlockHeader\")\n|>pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>keep(columns: [\"block\",  \"proposer\", \"skipped-proposer\", \"committee\"])\n|>group()\n|>sort(columns:[\"block\"], desc:true)\n|> limit(n:2000)\n\n\n\n",
-          "refId": "A"
-        }
-      ],
-      "title": "Block Committee",
-      "transformations": [
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": {
-              "_measurement": true,
-              "_start": true,
-              "_stop": true
-            },
-            "includeByName": {},
-            "indexByName": {
-              "block": 0,
-              "committee": 3,
-              "proposer": 1,
-              "skipped-proposer": 2
-            },
-            "renameByName": {}
-          }
-        }
-      ],
-      "type": "table"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "de85digryc1dsb"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "scaleDistribution": {
-              "type": "linear"
-            }
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "committee"
-            },
-            "properties": []
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "block"
-            },
-            "properties": []
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 43
-      },
-      "id": 38,
-      "options": {
-        "calculate": false,
-        "cellGap": 1,
-        "color": {
-          "exponent": 0.5,
-          "fill": "dark-orange",
-          "mode": "scheme",
-          "reverse": false,
-          "scale": "exponential",
-          "scheme": "RdYlGn",
-          "steps": 64
-        },
-        "exemplars": {
-          "color": "rgba(255,0,255,0.7)"
-        },
-        "filterValues": {
-          "le": 1e-9
-        },
-        "legend": {
-          "show": true
-        },
-        "rowsFrame": {
-          "layout": "auto"
-        },
-        "tooltip": {
-          "mode": "single",
-          "showColorScale": false,
-          "yHistogram": false
-        },
-        "yAxis": {
-          "axisPlacement": "left",
-          "reverse": false
-        }
-      },
-      "pluginVersion": "11.5.2",
-      "targets": [
-        {
-          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"BlockHeader\")\n|>pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>keep(columns: [\"_time\", \"num-ap-absentees\"])\n\n",
-          "refId": "A"
-        }
-      ],
-      "title": "Number of Activity Proof Absentees",
-      "type": "heatmap"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "de85digryc1dsb"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "scaleDistribution": {
-              "type": "linear"
-            }
-          }
-        },
         "overrides": []
       },
       "gridPos": {
@@ -1195,51 +1145,70 @@
         "x": 0,
         "y": 51
       },
-      "id": 39,
+      "id": 73,
       "options": {
-        "calculate": false,
-        "cellGap": 1,
-        "color": {
-          "exponent": 0.5,
-          "fill": "dark-orange",
-          "min": 6,
-          "mode": "scheme",
-          "reverse": false,
-          "scale": "exponential",
-          "scheme": "RdYlGn",
-          "steps": 64
-        },
-        "exemplars": {
-          "color": "rgba(255,0,255,0.7)"
-        },
-        "filterValues": {
-          "le": 1e-9
-        },
         "legend": {
-          "show": true
-        },
-        "rowsFrame": {
-          "layout": "auto"
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "single",
-          "showColorScale": false,
-          "yHistogram": false
-        },
-        "yAxis": {
-          "axisPlacement": "left",
-          "reverse": false
+          "sort": "none"
         }
       },
       "pluginVersion": "11.5.2",
       "targets": [
         {
-          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"BlockHeader\")\n|>pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>keep(columns: [\"_time\",  \"num-qc-absentees\"])\n\n\n\n",
+          "query": "from(bucket: \"${bucket}\")\n    |>range(start: ${__from}/1000, stop: ${__to}/1000)\n    |> filter(fn: (r) => r[\"_measurement\"] == \"BlockTransactions\")\n    |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n    |> keep(columns: [\"_time\", \"transactionCount\"])\n    |> sort(columns: [\"_time\"], desc: false)\n    |> derivative(unit: 1s, nonNegative: true, columns: [\"transactionCount\"])\n    |> rename(columns: {transactionCount: \"TPS\"})\n    |> group()\n    |> limit(n: 10000)",
           "refId": "A"
         }
       ],
-      "title": "Number of Quorum Certificate Absentees",
-      "type": "heatmap"
+      "title": "TPS",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "_measurement": true,
+              "_start": true,
+              "_stop": true,
+              "block": false,
+              "event": true
+            },
+            "includeByName": {},
+            "indexByName": {
+              "_measurement": 5,
+              "_start": 3,
+              "_stop": 4,
+              "_time": 0,
+              "block": 1,
+              "event": 2
+            },
+            "renameByName": {}
+          }
+        },
+        {
+          "id": "filterByValue",
+          "options": {
+            "filters": [
+              {
+                "config": {
+                  "id": "isNull",
+                  "options": {}
+                },
+                "fieldName": "block"
+              }
+            ],
+            "match": "any",
+            "type": "exclude"
+          }
+        }
+      ],
+      "type": "timeseries"
     },
     {
       "datasource": {
@@ -1325,7 +1294,7 @@
       "pluginVersion": "11.5.2",
       "targets": [
         {
-          "query": "from(bucket:\"${bucket}\")\n|>range(start: $__from/1000, stop: $__to/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"BlockHeader\")\n|>pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>drop(columns: [\"_time\", \"committee\", \"proposer\", \"ap-absentees\", \"qc-absentees\", \"skipped-proposer\"])\n|>group()\n|>sort(columns:[\"block\"], desc:true)\n|> limit(n:1000)\n\n\n\n",
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: $__from/1000, stop: $__to/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"BlockHeader\")\n|>pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>drop(columns: [\"_time\", \"committee\", \"proposer\", \"ap-absentees\", \"qc-absentees\", \"skipped-proposer\", \"num-ap-absentees\", \"num-qc-absentees\"])\n|>group()\n|>sort(columns:[\"block\"], desc:true)\n|> limit(n:1000)\n\n\n\n",
           "refId": "A"
         }
       ],
@@ -1392,13 +1361,559 @@
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "committee"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 1029
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "block"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 81
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 0,
         "y": 59
+      },
+      "id": 33,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "frameIndex": 0,
+        "showHeader": true,
+        "sortBy": []
+      },
+      "pluginVersion": "11.5.2",
+      "targets": [
+        {
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"BlockHeader\")\n|>pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>keep(columns: [\"block\",  \"proposer\", \"skipped-proposer\", \"committee\"])\n|>group()\n|>sort(columns:[\"block\"], desc:true)\n|> limit(n:2000)\n\n\n\n",
+          "refId": "A"
+        }
+      ],
+      "title": "Block Committee",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "_measurement": true,
+              "_start": true,
+              "_stop": true
+            },
+            "includeByName": {},
+            "indexByName": {
+              "block": 0,
+              "committee": 3,
+              "proposer": 1,
+              "skipped-proposer": 2
+            },
+            "renameByName": {}
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "de85digryc1dsb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "scaleDistribution": {
+              "type": "linear"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "committee"
+            },
+            "properties": []
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "block"
+            },
+            "properties": []
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 59
+      },
+      "id": 38,
+      "options": {
+        "calculate": false,
+        "cellGap": 1,
+        "color": {
+          "exponent": 0.5,
+          "fill": "dark-orange",
+          "mode": "scheme",
+          "reverse": false,
+          "scale": "exponential",
+          "scheme": "RdYlGn",
+          "steps": 64
+        },
+        "exemplars": {
+          "color": "rgba(255,0,255,0.7)"
+        },
+        "filterValues": {
+          "le": 1e-9
+        },
+        "legend": {
+          "show": true
+        },
+        "rowsFrame": {
+          "layout": "auto"
+        },
+        "tooltip": {
+          "mode": "single",
+          "showColorScale": false,
+          "yHistogram": false
+        },
+        "yAxis": {
+          "axisPlacement": "left",
+          "reverse": false
+        }
+      },
+      "pluginVersion": "11.5.2",
+      "targets": [
+        {
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"BlockHeader\")\n|>pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>keep(columns: [\"_time\", \"num-ap-absentees\"])\n\n",
+          "refId": "A"
+        }
+      ],
+      "title": "Number of Activity Proof Absentees",
+      "type": "heatmap"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "de85digryc1dsb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true,
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "committee"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 1029
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "block"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 81
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 67
+      },
+      "id": 77,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "frameIndex": 0,
+        "showHeader": true,
+        "sortBy": []
+      },
+      "pluginVersion": "11.5.2",
+      "targets": [
+        {
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"OracleVoters\")\n|>pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>group()\n|> drop(columns:[\"numVoters\"])\n|>sort(columns:[\"block\"], desc:true)\n|> limit(n:2000)\n\n\n\n",
+          "refId": "A"
+        }
+      ],
+      "title": "Oracle Voters per round",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "_measurement": true,
+              "_start": true,
+              "_stop": true,
+              "_time": false
+            },
+            "includeByName": {},
+            "indexByName": {
+              "_measurement": 6,
+              "_start": 4,
+              "_stop": 5,
+              "_time": 0,
+              "block": 1,
+              "round": 2,
+              "voter": 3
+            },
+            "renameByName": {}
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "de85digryc1dsb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "scaleDistribution": {
+              "type": "linear"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 67
+      },
+      "id": 39,
+      "options": {
+        "calculate": false,
+        "cellGap": 1,
+        "color": {
+          "exponent": 0.5,
+          "fill": "dark-orange",
+          "min": 6,
+          "mode": "scheme",
+          "reverse": false,
+          "scale": "exponential",
+          "scheme": "RdYlGn",
+          "steps": 64
+        },
+        "exemplars": {
+          "color": "rgba(255,0,255,0.7)"
+        },
+        "filterValues": {
+          "le": 1e-9
+        },
+        "legend": {
+          "show": true
+        },
+        "rowsFrame": {
+          "layout": "auto"
+        },
+        "tooltip": {
+          "mode": "single",
+          "showColorScale": false,
+          "yHistogram": false
+        },
+        "yAxis": {
+          "axisPlacement": "left",
+          "reverse": false
+        }
+      },
+      "pluginVersion": "11.5.2",
+      "targets": [
+        {
+          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"BlockHeader\")\n|>pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>keep(columns: [\"_time\",  \"num-qc-absentees\"])\n\n\n\n",
+          "refId": "A"
+        }
+      ],
+      "title": "Number of Quorum Certificate Absentees",
+      "type": "heatmap"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "de85digryc1dsb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "scaleDistribution": {
+              "type": "linear"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 16,
+        "w": 24,
+        "x": 0,
+        "y": 75
+      },
+      "id": 40,
+      "options": {
+        "calculate": false,
+        "calculation": {
+          "xBuckets": {
+            "value": ""
+          },
+          "yBuckets": {
+            "scale": {
+              "type": "linear"
+            }
+          }
+        },
+        "cellGap": 1,
+        "color": {
+          "exponent": 0.5,
+          "fill": "dark-orange",
+          "mode": "scheme",
+          "reverse": false,
+          "scale": "exponential",
+          "scheme": "RdYlGn",
+          "steps": 64
+        },
+        "exemplars": {
+          "color": "#ff00ffb3"
+        },
+        "filterValues": {
+          "le": 1e-9
+        },
+        "legend": {
+          "show": true
+        },
+        "rowsFrame": {
+          "layout": "auto"
+        },
+        "tooltip": {
+          "mode": "single",
+          "showColorScale": false,
+          "yHistogram": false
+        },
+        "yAxis": {
+          "axisPlacement": "left",
+          "reverse": false
+        }
+      },
+      "pluginVersion": "11.5.2",
+      "targets": [
+        {
+          "query": "from(bucket: \"${bucket}\")\n  |> range(start: ${__from}/1000, stop: ${__to}/1000)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"QuorumCertificateAbsentees\")\n  |> filter(fn: (r) => r._field == \"absent\")\n  |> group(columns: [\"validator\"])\n  |> aggregateWindow(every: 10s, fn: sum, createEmpty: false)\n\n",
+          "refId": "A"
+        }
+      ],
+      "title": "Quorum Certificate Absentees - aggregated 10s",
+      "type": "heatmap"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "de85digryc1dsb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "scaleDistribution": {
+              "type": "linear"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 16,
+        "w": 24,
+        "x": 0,
+        "y": 91
+      },
+      "id": 44,
+      "options": {
+        "calculate": false,
+        "calculation": {
+          "xBuckets": {
+            "value": ""
+          },
+          "yBuckets": {
+            "scale": {
+              "type": "linear"
+            }
+          }
+        },
+        "cellGap": 1,
+        "color": {
+          "exponent": 0.5,
+          "fill": "dark-orange",
+          "mode": "scheme",
+          "reverse": false,
+          "scale": "exponential",
+          "scheme": "RdYlGn",
+          "steps": 64
+        },
+        "exemplars": {
+          "color": "#ff00ffb3"
+        },
+        "filterValues": {
+          "le": 1e-9
+        },
+        "legend": {
+          "show": true
+        },
+        "rowsFrame": {
+          "layout": "auto"
+        },
+        "tooltip": {
+          "mode": "single",
+          "showColorScale": false,
+          "yHistogram": false
+        },
+        "yAxis": {
+          "axisPlacement": "left",
+          "reverse": false
+        }
+      },
+      "pluginVersion": "11.5.2",
+      "targets": [
+        {
+          "query": "from(bucket: \"${bucket}\")\n  |> range(start: ${__from}/1000, stop: ${__to}/1000)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"ActivityProofAbsentees\")\n  |> filter(fn: (r) => r._field == \"absent\")\n  |> group(columns: [\"validator\"])\n  |> aggregateWindow(every: 10s, fn: sum, createEmpty: false)\n\n",
+          "refId": "A"
+        }
+      ],
+      "title": "Activity Proof Absentees - aggregated 10s",
+      "type": "heatmap"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "de85digryc1dsb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true,
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 107
       },
       "id": 30,
       "options": {
@@ -1510,7 +2025,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 59
+        "y": 107
       },
       "id": 37,
       "options": {
@@ -1551,174 +2066,12 @@
       "type": "xychart"
     },
     {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "de85digryc1dsb"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "scaleDistribution": {
-              "type": "linear"
-            }
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 16,
-        "w": 24,
-        "x": 0,
-        "y": 67
-      },
-      "id": 40,
-      "options": {
-        "calculate": false,
-        "calculation": {
-          "xBuckets": {
-            "value": ""
-          },
-          "yBuckets": {
-            "scale": {
-              "type": "linear"
-            }
-          }
-        },
-        "cellGap": 1,
-        "color": {
-          "exponent": 0.5,
-          "fill": "dark-orange",
-          "mode": "scheme",
-          "reverse": false,
-          "scale": "exponential",
-          "scheme": "RdYlGn",
-          "steps": 64
-        },
-        "exemplars": {
-          "color": "#ff00ffb3"
-        },
-        "filterValues": {
-          "le": 1e-9
-        },
-        "legend": {
-          "show": true
-        },
-        "rowsFrame": {
-          "layout": "auto"
-        },
-        "tooltip": {
-          "mode": "single",
-          "showColorScale": false,
-          "yHistogram": false
-        },
-        "yAxis": {
-          "axisPlacement": "left",
-          "reverse": false
-        }
-      },
-      "pluginVersion": "11.5.2",
-      "targets": [
-        {
-          "query": "from(bucket: \"${bucket}\")\n  |> range(start: ${__from}/1000, stop: ${__to}/1000)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"QuorumCertificateAbsentees\")\n  |> filter(fn: (r) => r._field == \"absent\")\n  |> group(columns: [\"validator\"])\n  |> aggregateWindow(every: 10s, fn: sum, createEmpty: false)\n\n",
-          "refId": "A"
-        }
-      ],
-      "title": "Quorum Certificate Absentees - aggregated 10s",
-      "type": "heatmap"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "de85digryc1dsb"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "scaleDistribution": {
-              "type": "linear"
-            }
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 16,
-        "w": 24,
-        "x": 0,
-        "y": 83
-      },
-      "id": 44,
-      "options": {
-        "calculate": false,
-        "calculation": {
-          "xBuckets": {
-            "value": ""
-          },
-          "yBuckets": {
-            "scale": {
-              "type": "linear"
-            }
-          }
-        },
-        "cellGap": 1,
-        "color": {
-          "exponent": 0.5,
-          "fill": "dark-orange",
-          "mode": "scheme",
-          "reverse": false,
-          "scale": "exponential",
-          "scheme": "RdYlGn",
-          "steps": 64
-        },
-        "exemplars": {
-          "color": "#ff00ffb3"
-        },
-        "filterValues": {
-          "le": 1e-9
-        },
-        "legend": {
-          "show": true
-        },
-        "rowsFrame": {
-          "layout": "auto"
-        },
-        "tooltip": {
-          "mode": "single",
-          "showColorScale": false,
-          "yHistogram": false
-        },
-        "yAxis": {
-          "axisPlacement": "left",
-          "reverse": false
-        }
-      },
-      "pluginVersion": "11.5.2",
-      "targets": [
-        {
-          "query": "from(bucket: \"${bucket}\")\n  |> range(start: ${__from}/1000, stop: ${__to}/1000)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"ActivityProofAbsentees\")\n  |> filter(fn: (r) => r._field == \"absent\")\n  |> group(columns: [\"validator\"])\n  |> aggregateWindow(every: 10s, fn: sum, createEmpty: false)\n\n",
-          "refId": "A"
-        }
-      ],
-      "title": "Activity Proof Absentees - aggregated 10s",
-      "type": "heatmap"
-    },
-    {
       "collapsed": true,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 99
+        "y": 115
       },
       "id": 21,
       "panels": [
@@ -1955,7 +2308,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 171
+            "y": 235
           },
           "id": 61,
           "options": {
@@ -2052,7 +2405,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 171
+            "y": 235
           },
           "id": 62,
           "options": {
@@ -2148,7 +2501,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 179
+            "y": 243
           },
           "id": 59,
           "options": {
@@ -2243,7 +2596,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 179
+            "y": 243
           },
           "id": 3,
           "options": {
@@ -2332,7 +2685,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 187
+            "y": 251
           },
           "id": 8,
           "options": {
@@ -2396,7 +2749,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 187
+            "y": 251
           },
           "id": 17,
           "options": {
@@ -2502,7 +2855,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 195
+            "y": 259
           },
           "id": 12,
           "options": {
@@ -2592,7 +2945,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 195
+            "y": 259
           },
           "id": 1,
           "options": {
@@ -2703,7 +3056,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 203
+            "y": 267
           },
           "id": 63,
           "options": {
@@ -2793,7 +3146,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 203
+            "y": 267
           },
           "id": 13,
           "options": {
@@ -2885,7 +3238,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 211
+            "y": 275
           },
           "id": 64,
           "options": {
@@ -2990,7 +3343,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 211
+            "y": 275
           },
           "id": 16,
           "options": {
@@ -3110,7 +3463,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 219
+            "y": 283
           },
           "id": 14,
           "options": {
@@ -3224,7 +3577,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 219
+            "y": 283
           },
           "id": 66,
           "options": {
@@ -3338,7 +3691,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 227
+            "y": 291
           },
           "id": 65,
           "options": {
@@ -3398,7 +3751,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 100
+        "y": 116
       },
       "id": 47,
       "panels": [
@@ -3465,7 +3818,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 420
+            "y": 484
           },
           "id": 46,
           "options": {
@@ -3553,7 +3906,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 420
+            "y": 484
           },
           "id": 48,
           "options": {
@@ -3641,7 +3994,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 476
+            "y": 540
           },
           "id": 49,
           "options": {
@@ -3729,7 +4082,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 476
+            "y": 540
           },
           "id": 51,
           "options": {
@@ -3817,7 +4170,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 484
+            "y": 548
           },
           "id": 50,
           "options": {
@@ -3905,7 +4258,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 484
+            "y": 548
           },
           "id": 52,
           "options": {
@@ -3935,341 +4288,342 @@
       "type": "row"
     },
     {
-      "collapsed": false,
+      "collapsed": true,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 101
+        "y": 117
       },
       "id": 25,
-      "panels": [],
+      "panels": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "de85digryc1dsb"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "custom": {
+                "align": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "filterable": true,
+                "inspect": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "block"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 92
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 118
+          },
+          "id": 10,
+          "options": {
+            "cellHeight": "sm",
+            "footer": {
+              "countRows": false,
+              "fields": "",
+              "reducer": [
+                "sum"
+              ],
+              "show": false
+            },
+            "frameIndex": 1,
+            "showHeader": true,
+            "sortBy": []
+          },
+          "pluginVersion": "11.5.2",
+          "targets": [
+            {
+              "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"InactivityJailingEvent\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>group(columns:[\"event_id_seer\"])\n|>group()\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:1000)\n",
+              "refId": "A"
+            }
+          ],
+          "title": "InactivityJailingEvent",
+          "transformations": [
+            {
+              "id": "labelsToFields",
+              "options": {}
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "_measurement": true,
+                  "_start": true,
+                  "_stop": true,
+                  "event_id_seer": true,
+                  "event_type": true
+                },
+                "includeByName": {},
+                "indexByName": {
+                  "InactivityScore": 1,
+                  "_start": 4,
+                  "_stop": 5,
+                  "block": 0,
+                  "event_type": 6,
+                  "releaseBlock": 2,
+                  "validator": 3
+                },
+                "renameByName": {}
+              }
+            }
+          ],
+          "type": "table"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "de85digryc1dsb"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "custom": {
+                "align": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "filterable": true,
+                "inspect": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "block"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 92
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 118
+          },
+          "id": 67,
+          "options": {
+            "cellHeight": "sm",
+            "footer": {
+              "countRows": false,
+              "fields": "",
+              "reducer": [
+                "sum"
+              ],
+              "show": false
+            },
+            "frameIndex": 1,
+            "showHeader": true,
+            "sortBy": []
+          },
+          "pluginVersion": "11.5.2",
+          "targets": [
+            {
+              "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"InactivitySlashingEvent\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>group(columns:[\"event_id_seer\"])\n|>group()\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:1000)\n",
+              "refId": "A"
+            }
+          ],
+          "title": "InactivitySlashingEvent",
+          "transformations": [
+            {
+              "id": "labelsToFields",
+              "options": {}
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "_measurement": true,
+                  "_start": true,
+                  "_stop": true,
+                  "event_id_seer": true,
+                  "event_type": true
+                },
+                "includeByName": {},
+                "indexByName": {
+                  "InactivityScore": 1,
+                  "_start": 4,
+                  "_stop": 5,
+                  "block": 0,
+                  "event_type": 6,
+                  "releaseBlock": 2,
+                  "validator": 3
+                },
+                "renameByName": {}
+              }
+            }
+          ],
+          "type": "table"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "de85digryc1dsb"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "custom": {
+                "align": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "filterable": true,
+                "inspect": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "block"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 92
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 126
+          },
+          "id": 68,
+          "options": {
+            "cellHeight": "sm",
+            "footer": {
+              "countRows": false,
+              "fields": "",
+              "reducer": [
+                "sum"
+              ],
+              "show": false
+            },
+            "frameIndex": 1,
+            "showHeader": true,
+            "sortBy": []
+          },
+          "pluginVersion": "11.5.2",
+          "targets": [
+            {
+              "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"TotalProposerRewards\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>group(columns:[\"event_id_seer\"])\n|>group()\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:1000)\n",
+              "refId": "A"
+            }
+          ],
+          "title": "TotalProposerRewards",
+          "transformations": [
+            {
+              "id": "labelsToFields",
+              "options": {}
+            },
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "_measurement": true,
+                  "_start": true,
+                  "_stop": true,
+                  "event_id_seer": true,
+                  "event_type": true
+                },
+                "includeByName": {},
+                "indexByName": {
+                  "InactivityScore": 1,
+                  "_start": 4,
+                  "_stop": 5,
+                  "block": 0,
+                  "event_type": 6,
+                  "releaseBlock": 2,
+                  "validator": 3
+                },
+                "renameByName": {}
+              }
+            }
+          ],
+          "type": "table"
+        }
+      ],
       "title": "OmissionAccountability",
       "type": "row"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "de85digryc1dsb"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "custom": {
-            "align": "auto",
-            "cellOptions": {
-              "type": "auto"
-            },
-            "filterable": true,
-            "inspect": false
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "block"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 92
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 102
-      },
-      "id": 10,
-      "options": {
-        "cellHeight": "sm",
-        "footer": {
-          "countRows": false,
-          "fields": "",
-          "reducer": [
-            "sum"
-          ],
-          "show": false
-        },
-        "frameIndex": 1,
-        "showHeader": true,
-        "sortBy": []
-      },
-      "pluginVersion": "11.5.2",
-      "targets": [
-        {
-          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"InactivityJailingEvent\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>group(columns:[\"event_id_seer\"])\n|>group()\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:1000)\n",
-          "refId": "A"
-        }
-      ],
-      "title": "InactivityJailingEvent",
-      "transformations": [
-        {
-          "id": "labelsToFields",
-          "options": {}
-        },
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": {
-              "_measurement": true,
-              "_start": true,
-              "_stop": true,
-              "event_id_seer": true,
-              "event_type": true
-            },
-            "includeByName": {},
-            "indexByName": {
-              "InactivityScore": 1,
-              "_start": 4,
-              "_stop": 5,
-              "block": 0,
-              "event_type": 6,
-              "releaseBlock": 2,
-              "validator": 3
-            },
-            "renameByName": {}
-          }
-        }
-      ],
-      "type": "table"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "de85digryc1dsb"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "custom": {
-            "align": "auto",
-            "cellOptions": {
-              "type": "auto"
-            },
-            "filterable": true,
-            "inspect": false
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "block"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 92
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 102
-      },
-      "id": 67,
-      "options": {
-        "cellHeight": "sm",
-        "footer": {
-          "countRows": false,
-          "fields": "",
-          "reducer": [
-            "sum"
-          ],
-          "show": false
-        },
-        "frameIndex": 1,
-        "showHeader": true,
-        "sortBy": []
-      },
-      "pluginVersion": "11.5.2",
-      "targets": [
-        {
-          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"InactivitySlashingEvent\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>group(columns:[\"event_id_seer\"])\n|>group()\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:1000)\n",
-          "refId": "A"
-        }
-      ],
-      "title": "InactivitySlashingEvent",
-      "transformations": [
-        {
-          "id": "labelsToFields",
-          "options": {}
-        },
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": {
-              "_measurement": true,
-              "_start": true,
-              "_stop": true,
-              "event_id_seer": true,
-              "event_type": true
-            },
-            "includeByName": {},
-            "indexByName": {
-              "InactivityScore": 1,
-              "_start": 4,
-              "_stop": 5,
-              "block": 0,
-              "event_type": 6,
-              "releaseBlock": 2,
-              "validator": 3
-            },
-            "renameByName": {}
-          }
-        }
-      ],
-      "type": "table"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "de85digryc1dsb"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "custom": {
-            "align": "auto",
-            "cellOptions": {
-              "type": "auto"
-            },
-            "filterable": true,
-            "inspect": false
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "block"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 92
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 110
-      },
-      "id": 68,
-      "options": {
-        "cellHeight": "sm",
-        "footer": {
-          "countRows": false,
-          "fields": "",
-          "reducer": [
-            "sum"
-          ],
-          "show": false
-        },
-        "frameIndex": 1,
-        "showHeader": true,
-        "sortBy": []
-      },
-      "pluginVersion": "11.5.2",
-      "targets": [
-        {
-          "query": "from(bucket:\"${bucket}\")\n|>range(start: ${__from}/1000, stop: ${__to}/1000)\n|>filter(fn:(r)=>r[\"_measurement\"]==\"TotalProposerRewards\")\n|> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n|>group(columns:[\"event_id_seer\"])\n|>group()\n|>sort(columns: [\"block\"], desc: true)\n|>limit(n:1000)\n",
-          "refId": "A"
-        }
-      ],
-      "title": "TotalProposerRewards",
-      "transformations": [
-        {
-          "id": "labelsToFields",
-          "options": {}
-        },
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": {
-              "_measurement": true,
-              "_start": true,
-              "_stop": true,
-              "event_id_seer": true,
-              "event_type": true
-            },
-            "includeByName": {},
-            "indexByName": {
-              "InactivityScore": 1,
-              "_start": 4,
-              "_stop": 5,
-              "block": 0,
-              "event_type": 6,
-              "releaseBlock": 2,
-              "validator": 3
-            },
-            "renameByName": {}
-          }
-        }
-      ],
-      "type": "table"
     },
     {
       "collapsed": true,
@@ -4304,7 +4658,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -4332,7 +4687,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 86
+            "y": 119
           },
           "id": 15,
           "options": {
@@ -4408,7 +4763,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -4460,7 +4816,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 86
+            "y": 119
           },
           "id": 2,
           "options": {
@@ -4536,7 +4892,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -4551,7 +4908,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 110
+            "y": 127
           },
           "id": 71,
           "options": {
@@ -4630,7 +4987,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -4682,7 +5040,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 110
+            "y": 127
           },
           "id": 53,
           "options": {
@@ -4758,7 +5116,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -4773,7 +5132,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 118
+            "y": 135
           },
           "id": 72,
           "options": {
@@ -4793,7 +5152,7 @@
           "pluginVersion": "11.5.2",
           "targets": [
             {
-              "query": "// --- Price Table Query ---\nvoteTable = from(bucket: \"${bucket}\")\n  |> range(start: ${__from}/1000, stop: ${__to}/1000)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"OracleVote\")\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> group(columns:[\"sender\"])\n  |> group()\n  |> keep(columns: [\"block\", \"reported-price\", \"sender\", \"symbol\", \"confidence\"])\n  |> sort(columns: [\"block\"])\n\n// --- Round Table Query ---\nroundTable = from(bucket: \"${bucket}\")\n  |> range(start: ${__from}/1000, stop: ${__to}/1000)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"NewRound\")\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> keep(columns: [\"block\", \"_round\"])\n  |> rename(columns: {_round: \"round\"})\n  |> group() \n  |> sort(columns: [\"block\"])\n\n// --- Join the Tables with a Left Join ---\nunioned = union(tables: [voteTable, roundTable])\n  |> group()  // Group rows by block.\n  |> sort(columns: [\"block\"])\n\n// --- Fill Missing Round Values ---\nfilledTable = unioned\n  |> fill(column: \"round\", usePrevious: true)\n  \nfilteredTable = filledTable\n  |> filter(fn: (r) => r.sender != \"\")\n\npDeviation = filteredTable\n  |> map(fn: (r) => ({\n    r with percentDeviation: ((float(v: r[\"reported-price\"]) - float(v: r[\"reported-price\"]))/float(v: r[\"reported-price\"])) * 100.00 \n  }))\n\npDeviation\n",
+              "query": "// --- Price Table Query ---\nvoteTable = from(bucket: \"${bucket}\")\n  |> range(start: ${__from}/1000, stop: ${__to}/1000)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"OracleVote\")\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> group(columns:[\"sender\"])\n  |> group()\n  |> keep(columns: [\"block\", \"reported-price\", \"voter\", \"symbol\", \"confidence\"])\n  |> sort(columns: [\"block\"])\n\n// --- Round Table Query ---\nroundTable = from(bucket: \"${bucket}\")\n  |> range(start: ${__from}/1000, stop: ${__to}/1000)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"NewRound\")\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> keep(columns: [\"block\", \"_round\"])\n  |> rename(columns: {_round: \"round\"})\n  |> group() \n  |> sort(columns: [\"block\"])\n\n// --- Join the Tables with a Left Join ---\nunioned = union(tables: [voteTable, roundTable])\n  |> group()  // Group rows by block.\n  |> sort(columns: [\"block\"])\n\n// --- Fill Missing Round Values ---\nfilledTable = unioned\n  |> fill(column: \"round\", usePrevious: true)\n  \nfilteredTable = filledTable\n  |> filter(fn: (r) => r.voter != \"\")\n\npDeviation = filteredTable\n  |> map(fn: (r) => ({\n    r with percentDeviation: ((float(v: r[\"reported-price\"]) - float(v: r[\"reported-price\"]))/float(v: r[\"reported-price\"])) * 100.00 \n  }))\n  |> limit (n:2000)\n\npDeviation\n",
               "refId": "A"
             }
           ],
@@ -4824,7 +5183,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -4876,7 +5236,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 118
+            "y": 135
           },
           "id": 56,
           "options": {
@@ -4953,7 +5313,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -5005,7 +5366,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 126
+            "y": 143
           },
           "id": 54,
           "options": {
@@ -5082,7 +5443,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -5134,7 +5496,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 126
+            "y": 143
           },
           "id": 58,
           "options": {
@@ -5211,7 +5573,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -5263,7 +5626,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 134
+            "y": 151
           },
           "id": 55,
           "options": {
@@ -5340,7 +5703,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -5391,8 +5755,8 @@
           "gridPos": {
             "h": 8,
             "w": 12,
-            "x": 0,
-            "y": 142
+            "x": 12,
+            "y": 151
           },
           "id": 57,
           "options": {
@@ -5510,7 +5874,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 471
+            "y": 535
           },
           "id": 11,
           "options": {
@@ -5728,7 +6092,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 480
+            "y": 544
           },
           "id": 7,
           "options": {
@@ -5830,7 +6194,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 480
+            "y": 544
           },
           "id": 9,
           "options": {
@@ -5946,7 +6310,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 473
+            "y": 537
           },
           "id": 20,
           "options": {
@@ -6571,6 +6935,7 @@
     }
   ],
   "preload": false,
+  "refresh": "",
   "schemaVersion": 40,
   "tags": [],
   "templating": {
@@ -6594,8 +6959,8 @@
       },
       {
         "current": {
-          "text": "100000",
-          "value": "100000"
+          "text": "1",
+          "value": "1"
         },
         "description": "",
         "label": "block_start_num",
@@ -6603,40 +6968,40 @@
         "options": [
           {
             "selected": true,
-            "text": "100000",
-            "value": "100000"
+            "text": "1",
+            "value": "1"
           }
         ],
-        "query": "100000",
+        "query": "1",
         "type": "textbox"
       },
       {
         "current": {
-          "text": "110000",
-          "value": "110000"
+          "text": "5000",
+          "value": "5000"
         },
         "label": "block_end_num",
         "name": "block_end_num",
         "options": [
           {
             "selected": true,
-            "text": "110000",
-            "value": "110000"
+            "text": "5000",
+            "value": "5000"
           }
         ],
-        "query": "110000",
+        "query": "5000",
         "type": "textbox"
       }
     ]
   },
   "time": {
-    "from": "2024-12-12T20:15:06.000Z",
-    "to": "2024-12-12T21:15:06.000Z"
+    "from": "2024-12-12T11:30:01.000Z",
+    "to": "2024-12-12T15:30:01.000Z"
   },
   "timepicker": {},
   "timezone": "browser",
   "title": "Autonity Events - Block Filter",
   "uid": "fe86msn60epdsf",
-  "version": 206,
+  "version": 225,
   "weekStart": ""
 }
