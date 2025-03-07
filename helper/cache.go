@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"math/big"
 
+	ethereum "github.com/autonity/autonity"
 	"github.com/autonity/autonity/accounts/abi/bind"
 	"github.com/autonity/autonity/autonity"
 	"github.com/autonity/autonity/common"
@@ -12,7 +13,6 @@ import (
 	"github.com/autonity/autonity/core/types"
 	"github.com/autonity/autonity/ethclient"
 
-	"seer/interfaces"
 	"seer/net"
 )
 
@@ -21,12 +21,21 @@ var (
 	entryPerBucket = uint(10)
 )
 
-type blockCache struct {
-	cache *fixsizecache.Cache[common.Hash, *types.Block]
-	cl    interfaces.EthClient
+type EthClient interface {
+	SubscribeNewHead(ctx context.Context, ch chan<- *types.Header) (ethereum.Subscription, error)
+	SubscribeFilterLogs(ctx context.Context, q ethereum.FilterQuery, ch chan<- types.Log) (ethereum.Subscription, error)
+	BlockByNumber(ctx context.Context, number *big.Int) (*types.Block, error)
+	BlockByHash(ctx context.Context, hash common.Hash) (*types.Block, error)
+	BlockNumber(ctx context.Context) (uint64, error)
+	FilterLogs(ctx context.Context, q ethereum.FilterQuery) ([]types.Log, error)
 }
 
-func NewBlockCache(cp net.ConnectionProvider) interfaces.BlockCache {
+type blockCache struct {
+	cache *fixsizecache.Cache[common.Hash, *types.Block]
+	cl    EthClient
+}
+
+func NewBlockCache(cp net.ConnectionProvider) BlockCache {
 	return &blockCache{
 		cache: fixsizecache.New[common.Hash, *types.Block](numBuckets, entryPerBucket, fixsizecache.HashKey[common.Hash]),
 		cl:    cp.GetWebSocketConnection().Client,
@@ -55,7 +64,7 @@ func (bc *blockCache) Add(block *types.Block) {
 type EpochCache struct {
 	cache             *fixsizecache.Cache[common.Hash, *autonity.AutonityEpochInfo]
 	blockToEpochBlock *fixsizecache.Cache[common.Hash, *big.Int]
-	cl                interfaces.EthClient
+	cl                EthClient
 	autonityBindings  *autonity.Autonity
 }
 
@@ -142,4 +151,9 @@ func (ec *EpochCache) retrieveEpochInfo(number *big.Int) *autonity.AutonityEpoch
 		i.Add(i, big.NewInt(1))
 	}
 	return &epochInfo
+}
+
+type BlockCache interface {
+	Get(number *big.Int) (*types.Block, bool)
+	Add(block *types.Block)
 }

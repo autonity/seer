@@ -11,15 +11,14 @@ import (
 	"seer/helper"
 	"seer/interfaces"
 	"seer/model"
-	"seer/net"
 )
 
 type NewAccusationHandler struct {
 	DBHandler interfaces.DatabaseHandler
 }
 
-func (handler *NewAccusationHandler) Handle(schema model.EventSchema, header *types.Header, cp net.ConnectionProvider) {
-	con := cp.GetWebSocketConnection()
+func (handler *NewAccusationHandler) Handle(schema model.EventSchema, header *types.Header, core interfaces.Core) {
+	con := core.ConnectionProvider().GetWebSocketConnection()
 	accBindings, err := autonity.NewAccountability(helper.AccountabilityContractAddress, con.Client)
 	if err != nil {
 		slog.Error("unable to create autonity bindings", "error", err)

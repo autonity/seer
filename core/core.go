@@ -95,7 +95,7 @@ type core struct {
 	newBlocks chan *SeerBlock
 	newEvents chan types.Log
 
-	blockCache     interfaces.BlockCache
+	blockCache     helper.BlockCache
 	epochInfoCache *helper.EpochCache
 
 	blockTracker *syncTracker
@@ -235,6 +235,14 @@ func (c *core) ProcessRange(ctx context.Context, start, end uint64) {
 
 func (c *core) Stop() {
 	c.cancel()
+}
+
+func (c *core) ConnectionProvider() net.ConnectionProvider {
+	return c.cp
+}
+
+func (c *core) EpochCache() *helper.EpochCache {
+	return c.epochInfoCache
 }
 
 func (c *core) runInGoroutine(ctx context.Context, fn func(ctx context.Context)) {

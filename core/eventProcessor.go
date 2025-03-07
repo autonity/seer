@@ -71,7 +71,7 @@ func (ep *eventProcessor) recordEvent(header *types.Header, schema model.EventSc
 	handler := registry.GetEventHandler(schema.Measurement)
 	//custom event handling only if registered
 	if handler != nil {
-		handler.Handle(schema, header, ep.core.cp)
+		handler.Handle(schema, header, ep.core)
 	}
 	slog.Debug("new log event received", "name", schema.Measurement, "block", header.Number.Uint64())
 	schema.Fields["block"] = header.Number.Uint64()

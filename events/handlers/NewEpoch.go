@@ -19,7 +19,6 @@ import (
 	"seer/helper"
 	"seer/interfaces"
 	"seer/model"
-	"seer/net"
 )
 
 type Location struct {
@@ -92,12 +91,12 @@ type NewEpochHandler struct {
 	DBHandler interfaces.DatabaseHandler
 }
 
-func (ev *NewEpochHandler) Handle(schema model.EventSchema, header *types.Header, cp net.ConnectionProvider) {
+func (ev *NewEpochHandler) Handle(schema model.EventSchema, header *types.Header, core interfaces.Core) {
 	if header.Epoch == nil {
 		slog.Error("NewEpoch Handler, committee information is nor present")
 		return
 	}
-	con := cp.GetWebSocketConnection()
+	con := core.ConnectionProvider().GetWebSocketConnection()
 	autBindings, err := autonity.NewAutonity(helper.AutonityContractAddress, con.Client)
 	if err != nil {
 		slog.Error("unable to create autonity bindings", "error", err)

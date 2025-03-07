@@ -11,7 +11,6 @@ import (
 	"seer/helper"
 	"seer/interfaces"
 	"seer/model"
-	"seer/net"
 )
 
 //Note: stick to this naming convention for handlers
@@ -21,8 +20,8 @@ type InactivityjJaillingEventHandler struct {
 	DBHandler interfaces.DatabaseHandler
 }
 
-func (ev *InactivityjJaillingEventHandler) Handle(schema model.EventSchema, header *types.Header, cp net.ConnectionProvider) {
-	con := cp.GetWebSocketConnection()
+func (ev *InactivityjJaillingEventHandler) Handle(schema model.EventSchema, header *types.Header, core interfaces.Core) {
+	con := core.ConnectionProvider().GetWebSocketConnection()
 	omissionBindings, err := autonity.NewOmissionAccountability(helper.OmissionAccountabilityContractAddress, con.Client)
 	if err != nil {
 		slog.Error("unable to create autonity bindings", "error", err)
