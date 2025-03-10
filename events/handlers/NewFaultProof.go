@@ -23,6 +23,7 @@ func (handler *NewFaultProofHandler) Handle(schema model.EventSchema, header *ty
 	accBindings, err := autonity.NewAccountability(helper.AccountabilityContractAddress, con.Client)
 	if err != nil {
 		slog.Error("unable to create autonity bindings", "error", err)
+		return
 	}
 
 	validator := schema.Fields["offender"]

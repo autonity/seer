@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"math/big"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/autonity/autonity/accounts/abi/bind"
@@ -36,6 +37,7 @@ var (
 	cacheTTL                = time.Minute * 10
 	ipInfoSource            = "http://ip-api.com/json/"
 	nodeLocationMeasurement = "nodeLocation"
+	ValidatorToOracleMap    = "validatorToOracle"
 )
 
 func HashString(ip string) uint {
@@ -93,13 +95,14 @@ type NewEpochHandler struct {
 
 func (ev *NewEpochHandler) Handle(schema model.EventSchema, header *types.Header, core interfaces.Core) {
 	if header.Epoch == nil {
-		slog.Error("NewEpoch Handler, committee information is nor present")
+		slog.Error("NewEpoch Handler, committee information is not present")
 		return
 	}
 	con := core.ConnectionProvider().GetWebSocketConnection()
 	autBindings, err := autonity.NewAutonity(helper.AutonityContractAddress, con.Client)
 	if err != nil {
 		slog.Error("unable to create autonity bindings", "error", err)
+		return
 	}
 
 	enodeStrings, err := autBindings.GetCommitteeEnodes(&bind.CallOpts{
@@ -141,6 +144,39 @@ func (ev *NewEpochHandler) Handle(schema model.EventSchema, header *types.Header
 		fields["ip"] = node.IP().String()
 		fields["block"] = header.Number.Uint64()
 		ev.DBHandler.WritePoint(nodeLocationMeasurement, tags, fields, ts)
+	}
+
+	oracleBindings, err := autonity.NewOracle(helper.OracleContractAddress, con.Client)
+	if err != nil {
+		slog.Error("unable to create autonity bindings", "error", err)
+		return
+	}
+
+	oracleVoters, err := oracleBindings.GetNewVoters(&bind.CallOpts{
+		BlockNumber: header.Number,
+	})
+	if err != nil {
+		slog.Error("unable to fetch oracleVoters", "error", err)
+		return
+
+	}
+	committee, err = autBindings.GetCommittee(&bind.CallOpts{
+		BlockNumber: header.Number,
+	})
+
+	if err != nil {
+		slog.Error("unable to fetch committee", "error", err)
+		return
+	}
+
+	fields = make(map[string]interface{})
+	tags = make(map[string]string)
+	for i := range len(oracleVoters) {
+		fields["oracleAddress"] = oracleVoters[i]
+		fields["validatorAddress"] = committee[i].Addr
+		fields["block"] = header.Number
+		tags["index"] = strconv.Itoa(i)
+		ev.DBHandler.WritePoint(ValidatorToOracleMap, tags, fields, ts)
 	}
 }
 

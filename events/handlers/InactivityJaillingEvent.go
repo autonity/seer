@@ -25,6 +25,7 @@ func (ev *InactivityjJaillingEventHandler) Handle(schema model.EventSchema, head
 	omissionBindings, err := autonity.NewOmissionAccountability(helper.OmissionAccountabilityContractAddress, con.Client)
 	if err != nil {
 		slog.Error("unable to create autonity bindings", "error", err)
+		return
 	}
 
 	validator := schema.Fields["validator"]

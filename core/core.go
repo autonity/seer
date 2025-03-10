@@ -28,8 +28,8 @@ import (
 )
 
 var (
-	eventMaxConcurrency = 20
-	eventBatchSize      = uint64(100)
+	eventMaxConcurrency = 40
+	eventBatchSize      = uint64(50)
 	liveEventProcessors = 10
 
 	blockMaxConcurrency = 50
