@@ -45,9 +45,9 @@ func start(cmd *cobra.Command, args []string) {
 	rpcPool := net.NewConnectionPool[*rpc.Client](cfg.Node.RPC.URLs, cfg.Node.RPC.MaxConnections)
 	wsPool := net.NewConnectionPool[*ethclient.Client](cfg.Node.WS.URLs, cfg.Node.WS.MaxConnections)
 	cp := net.NewConnectionProvider(wsPool, rpcPool)
-	l := core.New(cfg.Node, parser, handler, cp)
+	c := core.New(cfg.Node, parser, handler, cp)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	l.Start(ctx)
-	l.Stop()
+	c.Start(ctx)
+	c.Stop()
 }

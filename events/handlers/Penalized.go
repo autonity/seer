@@ -5,13 +5,12 @@ import (
 
 	"seer/interfaces"
 	"seer/model"
-	"seer/net"
 )
 
 type PenalizedHandler struct {
 	DBHandler interfaces.DatabaseHandler
 }
 
-func (ev *PenalizedHandler) Handle(schema model.EventSchema, header *types.Header, cp net.ConnectionProvider) {
+func (ev *PenalizedHandler) Handle(schema model.EventSchema, header *types.Header, core interfaces.Core) {
 
 }

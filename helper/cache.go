@@ -5,31 +5,39 @@ import (
 	"log/slog"
 	"math/big"
 
+	ethereum "github.com/autonity/autonity"
 	"github.com/autonity/autonity/accounts/abi/bind"
 	"github.com/autonity/autonity/autonity"
 	"github.com/autonity/autonity/common"
 	"github.com/autonity/autonity/common/fixsizecache"
 	"github.com/autonity/autonity/core/types"
-	"github.com/autonity/autonity/ethclient"
 
-	"seer/interfaces"
 	"seer/net"
 )
 
 var (
-	numBuckets     = uint(9997)
-	entryPerBucket = uint(10)
+	numBuckets     = uint(8999)
+	entryPerBucket = uint(5)
 )
+
+type EthClient interface {
+	SubscribeNewHead(ctx context.Context, ch chan<- *types.Header) (ethereum.Subscription, error)
+	SubscribeFilterLogs(ctx context.Context, q ethereum.FilterQuery, ch chan<- types.Log) (ethereum.Subscription, error)
+	BlockByNumber(ctx context.Context, number *big.Int) (*types.Block, error)
+	BlockByHash(ctx context.Context, hash common.Hash) (*types.Block, error)
+	BlockNumber(ctx context.Context) (uint64, error)
+	FilterLogs(ctx context.Context, q ethereum.FilterQuery) ([]types.Log, error)
+}
 
 type blockCache struct {
 	cache *fixsizecache.Cache[common.Hash, *types.Block]
-	cl    interfaces.EthClient
+	cp    net.ConnectionProvider
 }
 
-func NewBlockCache(cp net.ConnectionProvider) interfaces.BlockCache {
+func NewBlockCache(cp net.ConnectionProvider) BlockCache {
 	return &blockCache{
 		cache: fixsizecache.New[common.Hash, *types.Block](numBuckets, entryPerBucket, fixsizecache.HashKey[common.Hash]),
-		cl:    cp.GetWebSocketConnection().Client,
+		cp:    cp,
 	}
 }
 
@@ -38,7 +46,8 @@ func (bc *blockCache) Get(number *big.Int) (*types.Block, bool) {
 	if ok {
 		return blk.(*types.Block), true
 	}
-	block, err := bc.cl.BlockByNumber(context.Background(), number)
+	cl := bc.cp.GetWebSocketConnection().Client
+	block, err := cl.BlockByNumber(context.Background(), number)
 	if err != nil {
 		slog.Error("unable to fetch block", "error", err)
 		//todo: error handling module
@@ -55,7 +64,7 @@ func (bc *blockCache) Add(block *types.Block) {
 type EpochCache struct {
 	cache             *fixsizecache.Cache[common.Hash, *autonity.AutonityEpochInfo]
 	blockToEpochBlock *fixsizecache.Cache[common.Hash, *big.Int]
-	cl                interfaces.EthClient
+	cp                net.ConnectionProvider
 	autonityBindings  *autonity.Autonity
 }
 
@@ -63,10 +72,11 @@ func NewEpochInfoCache(cp net.ConnectionProvider) *EpochCache {
 	ec := EpochCache{
 		cache:             fixsizecache.New[common.Hash, *autonity.AutonityEpochInfo](numBuckets, entryPerBucket, fixsizecache.HashKey[common.Hash]),
 		blockToEpochBlock: fixsizecache.New[common.Hash, *big.Int](numBuckets, entryPerBucket, fixsizecache.HashKey[common.Hash]),
-		cl:                cp.GetWebSocketConnection().Client,
+		cp:                cp,
 	}
 	var err error
-	ec.autonityBindings, err = autonity.NewAutonity(AutonityContractAddress, ec.cl.(*ethclient.Client))
+	cl := cp.GetWebSocketConnection().Client
+	ec.autonityBindings, err = autonity.NewAutonity(AutonityContractAddress, cl)
 	if err != nil {
 		slog.Error("unable to create autonity bindings", "error", err)
 		return nil
@@ -90,8 +100,6 @@ func (ec *EpochCache) Add(header *types.Header) {
 	if header.Epoch == nil {
 		return
 	}
-	//TODO : epoch cache info for the epoch block is wrong
-
 	committee := make([]autonity.AutonityCommitteeMember, 0)
 	for _, member := range header.Epoch.Committee.Members {
 		committee = append(committee, autonity.AutonityCommitteeMember{
@@ -130,7 +138,6 @@ func (ec *EpochCache) retrieveEpochInfo(number *big.Int) *autonity.AutonityEpoch
 
 	nextEpochBlock := epochInfo.NextEpochBlock
 	currentEpochBlock := epochInfo.EpochBlock
-	//TODO: hash based look up for range search
 	nextBlock := big.NewInt(currentEpochBlock.Int64()).Add(currentEpochBlock, big.NewInt(1))
 	// committee in epochInfo is applicable from epochBlock + 1 onwards
 	ec.cache.Add(common.BigToHash(nextBlock), &epochInfo)
@@ -142,4 +149,9 @@ func (ec *EpochCache) retrieveEpochInfo(number *big.Int) *autonity.AutonityEpoch
 		i.Add(i, big.NewInt(1))
 	}
 	return &epochInfo
+}
+
+type BlockCache interface {
+	Get(number *big.Int) (*types.Block, bool)
+	Add(block *types.Block)
 }

@@ -12,7 +12,6 @@ import (
 	"seer/helper"
 	"seer/interfaces"
 	"seer/model"
-	"seer/net"
 )
 
 var (
@@ -23,17 +22,19 @@ type SlashingEventHandler struct {
 	DBHandler interfaces.DatabaseHandler
 }
 
-func (handler *SlashingEventHandler) Handle(schema model.EventSchema, header *types.Header, cp net.ConnectionProvider) {
-	con := cp.GetWebSocketConnection()
+func (handler *SlashingEventHandler) Handle(schema model.EventSchema, header *types.Header, core interfaces.Core) {
+	con := core.ConnectionProvider().GetWebSocketConnection()
 	accountabilityBindings, err := autonity.NewAccountability(helper.AccountabilityContractAddress, con.Client)
 	if err != nil {
 		slog.Error("unable to create autonity bindings", "error", err)
+		return
 	}
 	evID := schema.Fields["id"]
 	event, err := accountabilityBindings.Events(&bind.CallOpts{
 		BlockNumber: header.Number,
 	}, evID.(*big.Int))
 	if err != nil {
+		slog.Error("unable to fetch accountability event", "error", err)
 		return
 	}
 	RecordAccountabilityEvent(handler.DBHandler, event, header)

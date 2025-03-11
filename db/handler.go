@@ -56,13 +56,17 @@ func (h *handler) ensureBucket() {
 		}
 	}
 
-	panic(fmt.Sprintf("configured bucket not found"))
+	if h.cfg.CreateBucket {
+		org := h.getOrg()
+		_, err := bucketAPI.CreateBucketWithName(context.Background(), org, h.cfg.Bucket, domain.RetentionRule{})
+		if err != nil {
+		}
+		slog.Info("Successfully created bucket", "name", h.cfg.Bucket)
+	} else {
+		panic(fmt.Sprintf("configured bucket not found"))
+	}
 
-	//_, err := bucketAPI.CreateBucketWithName(context.Background(), h.cfg.Org, h.cfg.Bucket, domain.RetentionRule{})
-	//if err != nil {
-	//}
-	//slog.Info("Successfully created bucket", "name", h.cfg.Bucket)
-	// return
+	return
 }
 
 func NewHandler(dbConfig config.InfluxDBConfig) interfaces.DatabaseHandler {

@@ -13,6 +13,7 @@ import (
 	"github.com/autonity/autonity/common"
 	"github.com/autonity/autonity/core/types"
 	"github.com/autonity/autonity/p2p"
+	"github.com/autonity/autonity/params"
 	"github.com/autonity/autonity/params/generated"
 
 	"seer/helper"
@@ -62,7 +63,7 @@ func NewBlockProcessor(ctx context.Context, core *core, newBlocks chan *SeerBloc
 		qcTags:               make(map[string]string, 1),
 		apTags:               make(map[string]string, 1),
 	}
-	bp.signer = types.NewLondonSigner(chainID)
+	bp.signer = types.LatestSigner(params.PiccadillyChainConfig)
 	return bp
 }
 
@@ -257,6 +258,7 @@ func (bp *blockProcessor) checkOracleVote(block *types.Block) {
 func (bp *blockProcessor) processVoteTransaction(tx *types.Transaction, voteMethod *abi.Method, blockNumber *big.Int, blockTime uint64) {
 	var receipt *types.Receipt
 	var symbols []string
+	var round *big.Int
 
 	wg := sync.WaitGroup{}
 	wg.Add(1)
@@ -280,13 +282,17 @@ func (bp *blockProcessor) processVoteTransaction(tx *types.Transaction, voteMeth
 			slog.Error("unable to create oracle bindings", "error", err)
 			return
 		}
-		symbols, err = oracleBindings.GetSymbols(&bind.CallOpts{
-			BlockNumber: blockNumber,
-		})
+		symbols, err = oracleBindings.GetSymbols(
+			&bind.CallOpts{
+				BlockNumber: blockNumber,
+			})
 		if err != nil {
 			slog.Error("unable to get oracle symbols ", "error", err)
 			return
 		}
+		round, err = oracleBindings.GetRound(&bind.CallOpts{
+			BlockNumber: blockNumber,
+		})
 	}()
 
 	fields := make(map[string]interface{}, 5)
@@ -298,7 +304,7 @@ func (bp *blockProcessor) processVoteTransaction(tx *types.Transaction, voteMeth
 		slog.Error("unable to get tx sender info", "error", err)
 		return
 	}
-	tags["sender"] = sender.String()
+	tags["voter"] = sender.Hex()
 	fields["voted"] = true
 	fields["block"] = blockNumber.Uint64()
 
@@ -313,10 +319,12 @@ func (bp *blockProcessor) processVoteTransaction(tx *types.Transaction, voteMeth
 	})
 	wg.Wait()
 
-	if receipt == nil || len(symbols) == 0 {
+	if receipt == nil || len(symbols) == 0 || round == nil {
+		slog.Error("unable to record vote transaction.. retry")
 		return
 	}
 
+	fields["round"] = round.Uint64()
 	if receipt.Status == 0 {
 		fields["status"] = "failed"
 	} else {

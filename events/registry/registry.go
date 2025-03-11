@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	handlerRegistry = make(map[string]interfaces.EventHandler)
+	handlerRegistry = make(map[string]handlers.EventHandler)
 	mu              sync.RWMutex
 )
 
@@ -17,6 +17,9 @@ const (
 	InactivityJailingEvent = "InactivityJailingEvent"
 	SlashingEvent          = "SlashingEvent"
 	Penalized              = "Penalized"
+	NewRound               = "NewRound"
+	NewAccusation          = "NewAccusation"
+	NewFaultProof          = "NewFaultProof"
 )
 
 func RegisterEventHandlers(dbHandler interfaces.DatabaseHandler) {
@@ -27,9 +30,12 @@ func RegisterEventHandlers(dbHandler interfaces.DatabaseHandler) {
 	handlerRegistry[InactivityJailingEvent] = &handlers.InactivityjJaillingEventHandler{DBHandler: dbHandler}
 	handlerRegistry[Penalized] = &handlers.PenalizedHandler{DBHandler: dbHandler}
 	handlerRegistry[SlashingEvent] = &handlers.SlashingEventHandler{DBHandler: dbHandler}
+	handlerRegistry[NewRound] = &handlers.NewRoundHandler{DBHandler: dbHandler}
+	handlerRegistry[NewAccusation] = &handlers.NewAccusationHandler{DBHandler: dbHandler}
+	handlerRegistry[NewFaultProof] = &handlers.NewFaultProofHandler{DBHandler: dbHandler}
 }
 
-func GetEventHandler(eventName string) interfaces.EventHandler {
+func GetEventHandler(eventName string) handlers.EventHandler {
 	mu.RLock()
 	defer mu.RUnlock()
 	return handlerRegistry[eventName]
