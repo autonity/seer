@@ -13,7 +13,8 @@ type SeerConfig struct {
 }
 
 type SyncConfig struct {
-	History bool `mapstructure:"history"`
+	History   bool `mapstructure:"history"`
+	AdminLive bool `mapstructure:"adminLive"`
 }
 
 type NodeConfig struct {

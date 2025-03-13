@@ -5,21 +5,37 @@ node:
   rpc:
     maxConnections: 25
     urls:
-      - "http://35.242.168.170:8545"
+      - http://35.228.72.189:6000
+      - http://34.150.80.209:6001
+      - http://34.93.49.180:6002
+      - http://34.81.87.163:6003
+      - http://34.40.32.110:6004
+      - http://34.106.154.153:6005
+      - http://34.118.185.113:6006
+      - http://34.125.194.221:6007
+      - http://35.237.107.56:6008
+      - http://34.65.207.183:6009
   ws:
-    maxConnections: 5
+    maxConnections: 10
     urls:
-      - "wss://rpc2.piccadilly.autonity.org/ws"
-        # - "wss://rpc-internal-1.piccadilly.autonity.org/ws"
+      - ws://35.228.72.189:7000
+      - ws://34.150.80.209:7001
+      - ws://34.93.49.180:7002
+      - ws://34.81.87.163:7003
+      - ws://34.40.32.110:7004
+      - ws://34.106.154.153:7005
+      - ws://34.118.185.113:7006
+      - ws://34.125.194.221:7007
+      - ws://35.237.107.56:7008
+      - ws://34.65.207.183:7009
   sync:
     history: true  # options last, latest or genesis
 db:
   url: "http://127.0.0.1:8086"
   # yamllint disable-line rule:line-length
-  token: "eHSHkn4oF2t5W8HeB8OSdoM5MvokeVypG6gdmEx4oIYc5hP3w2mISDU3GrQDdDLkhYQxFW0nzg6xtB2m6q0ZJA=="
-  bucket: "seer_temp_1"
-  org: "autonity"
-  createBucket: false
+  token: "<>"
+  bucket: "seer-local"
+  org: "<>"
 abi:
-  dir: "../abis"
+  dir: "./abis"
 ...

@@ -198,7 +198,7 @@ func (c *core) Start(ctx context.Context) {
 	helper.PrintContractAddresses()
 
 	for i := 0; i < liveBlockProcessors; i++ {
-		NewBlockProcessor(ctx, c, c.newBlocks, true, c.chainID).Process()
+		NewBlockProcessor(ctx, c, c.newBlocks, true, c.chainID, c.nodeConfig.Sync.AdminLive).Process()
 	}
 	for i := 0; i < liveEventProcessors; i++ {
 		NewEventProcessor(ctx, c, c.newEvents, true).Process()
@@ -374,7 +374,7 @@ func (c *core) ReadBlockHistory(ctx context.Context, workQueue chan [2]uint64) {
 	blockChs := make([]chan *SeerBlock, processorConcurrency)
 	for i := 0; i < processorConcurrency; i++ {
 		blockChs[i] = make(chan *SeerBlock)
-		NewBlockProcessor(ctx, c, blockChs[i], false, c.chainID).Process()
+		NewBlockProcessor(ctx, c, blockChs[i], false, c.chainID, c.nodeConfig.Sync.AdminLive).Process()
 	}
 	counter := 0
 	con := c.cp.GetRPCConnection()

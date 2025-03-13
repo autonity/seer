@@ -2,6 +2,8 @@ package core
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"log/slog"
 	"math/big"
 	"sync"
@@ -46,10 +48,11 @@ type blockProcessor struct {
 	qcTags               map[string]string
 	apTags               map[string]string
 	isLive               bool // differenciates whether we are processing blocks history or live
+	adminLive            bool
 	signer               types.Signer
 }
 
-func NewBlockProcessor(ctx context.Context, core *core, newBlocks chan *SeerBlock, isLive bool, chainID *big.Int) interfaces.Processor {
+func NewBlockProcessor(ctx context.Context, core *core, newBlocks chan *SeerBlock, isLive bool, chainID *big.Int, adminLive bool) interfaces.Processor {
 	bp := &blockProcessor{
 		ctx:                  ctx,
 		core:                 core,
@@ -62,6 +65,7 @@ func NewBlockProcessor(ctx context.Context, core *core, newBlocks chan *SeerBloc
 		apAbsenteesFields:    make(map[string]interface{}, 2),
 		qcTags:               make(map[string]string, 1),
 		apTags:               make(map[string]string, 1),
+		adminLive:            adminLive,
 	}
 	bp.signer = types.LatestSigner(params.PiccadillyChainConfig)
 	return bp
@@ -88,6 +92,7 @@ func (bp *blockProcessor) Process() {
 				bp.recordBlockTimestamp(header)
 				bp.recordBlock(header)
 				bp.checkOracleVote(block)
+				bp.checkLatency(block)
 				bp.recordTxCount(block, seerBlock.transactionCount)
 			}
 		}
@@ -109,7 +114,9 @@ func (bp *blockProcessor) recordTxCount(block *types.Block, txCount int) {
 }
 
 func (bp *blockProcessor) recordACNPeers(header *types.Header) {
-
+	if !bp.adminLive {
+		return
+	}
 	now := time.Now()
 	if now.Unix()-int64(header.Time) > 5 {
 		return
@@ -232,6 +239,110 @@ func (bp *blockProcessor) trackInactivity(header *types.Header, qcAbsentees, apA
 	for _, m := range apAbsentees {
 		bp.apTags["validator"] = m.String()
 		bp.core.dbHandler.WritePoint(APAbsentees, bp.apTags, bp.apAbsenteesFields, ts)
+	}
+}
+
+func (bp *blockProcessor) checkLatency(block *types.Block) {
+	for _, tx := range block.Transactions() {
+		if tx.To() != nil && *tx.To() == helper.LatencyContractAddress {
+			data := tx.Data()
+			if len(data) < 4 {
+				continue
+			}
+			reportMethod, err := generated.LatencyAbi.MethodById(tx.Data())
+			if err != nil {
+				slog.Error("Error fetching method by ID", "error", err, "block", block.NumberU64())
+				continue
+			}
+			t := tx
+			if reportMethod.Name == "report" {
+				bp.processLatencyReport(t, reportMethod, block.Number(), block.Time())
+			}
+		}
+	}
+}
+
+func (bp *blockProcessor) processLatencyReport(tx *types.Transaction, reportMethod *abi.Method, blockNumber *big.Int, blockTime uint64) {
+	var receipt *types.Receipt
+	var committee []common.Address
+
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+
+	retries := 5
+	go func() {
+		defer wg.Done()
+		var err error
+		for i := 0; i < retries; i++ {
+			con := bp.core.cp.GetWebSocketConnection()
+			receipt, err = con.Client.TransactionReceipt(bp.ctx, tx.Hash())
+			if err != nil {
+				slog.Error("Error fetching latency transaction receipt", "error", err, "connection", con.URL)
+			} else {
+				return
+			}
+		}
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		var err error
+		var latencyBindings *autonity.Latency
+		for i := 0; i < retries; i++ {
+			con := bp.core.cp.GetWebSocketConnection()
+			latencyBindings, err = autonity.NewLatency(helper.LatencyContractAddress, con.Client)
+			if err != nil {
+				slog.Error("unable to create latency bindings", "error", err)
+				continue
+			}
+			committee, err = latencyBindings.GetCommittee(&bind.CallOpts{
+				BlockNumber: blockNumber,
+			})
+			if err != nil {
+				slog.Error("unable to get committee", "error", err)
+			} else {
+				return
+			}
+		}
+	}()
+
+	fields := make(map[string]interface{}, 2)
+	tags := make(map[string]string, 3)
+	ts := time.Unix(int64(blockTime), 0)
+
+	sender, err := types.NewLondonSigner(tx.ChainId()).Sender(tx)
+	if err != nil {
+		if txBytes, err := json.Marshal(tx); err != nil {
+			slog.Error("unable to marshal tx, unable to get signer", "error", err)
+			return
+		} else {
+			slog.Error("unable to get tx sender info", "error", err, "tx", string(txBytes))
+		}
+		return
+	}
+	tags["from"] = sender.String()
+	fields["block"] = blockNumber.Uint64()
+
+	reportData, err := reportMethod.Inputs.Unpack(tx.Data()[4:])
+	if err != nil {
+		slog.Error("unable to unpack vote method ", "error", err)
+		return
+	}
+
+	latencies := reportData[0].([]uint8)
+
+	wg.Wait()
+
+	if receipt == nil || len(committee) == 0 {
+		return
+	}
+
+	for i, report := range latencies {
+		tags["to"] = committee[i].Hex()
+		tags["event_id"] = fmt.Sprintf("%s_%d", tx.Hash().Hex(), i)
+		fields["latency"] = report
+		bp.core.dbHandler.WritePoint("LatencyReport", tags, fields, ts)
 	}
 }
 

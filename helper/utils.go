@@ -23,6 +23,7 @@ var (
 	StakeableVestingManagerContractAddress = crypto.CreateAddress(DeployerAddress, 8)
 	NonStakeableVestingContractAddress     = crypto.CreateAddress(DeployerAddress, 9)
 	OmissionAccountabilityContractAddress  = crypto.CreateAddress(DeployerAddress, 10)
+	LatencyContractAddress                 = crypto.CreateAddress(DeployerAddress, 11)
 
 	ContractAddresses = append([]common.Address{
 		AutonityContractAddress,
@@ -53,6 +54,7 @@ func PrintContractAddresses() {
 		"StakeableVestingManagerContractAddress", StakeableVestingManagerContractAddress.Hex(),
 		"NonStakeableVestingContractAddress", NonStakeableVestingContractAddress.Hex(),
 		"OmissionAccountabilityContractAddress", OmissionAccountabilityContractAddress.Hex(),
+		"LatencyContractAddress", LatencyContractAddress.Hex(),
 	)
 }
 
@@ -61,7 +63,7 @@ func addressToABI(address common.Address) abi.ABI {
 	switch address {
 	case AccountabilityContractAddress:
 		return abi.ABI{}
-		
+
 	}
 	return abi.ABI{}
 }

@@ -1,0 +1,4 @@
+# IDE stuff
+/.idea/
+*.iml
+.vscode/
