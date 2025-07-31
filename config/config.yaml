@@ -5,11 +5,11 @@ node:
   rpc:
     maxConnections: 25
     urls:
-      - "http://34.147.156.5:8545"
+      - "https://rpc.devnet.clearmatics.network/"
   ws:
     maxConnections: 5
     urls:
-      - "wss://rpc2.piccadilly.autonity.org/ws"
+      - "wss://rpc.devnet.clearmatics.network/ws"
         # - "wss://rpc-internal-1.piccadilly.autonity.org/ws"
   sync:
     history: true  # options last, latest or genesis
