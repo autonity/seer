@@ -13,7 +13,7 @@ require (
 	github.com/stretchr/testify v1.10.0
 )
 
-replace github.com/autonity/autonity => github.com/autonity/autonity v1.0.2-alpha.0.20250304124628-b61d7f52657f
+replace github.com/autonity/autonity => github.com/autonity/autonity v1.0.2-alpha.0.20250730181314-f7c384296fb6
 
 require (
 	github.com/JekaMas/notify v0.9.4 // indirect
@@ -35,7 +35,6 @@ require (
 	github.com/holiman/uint256 v1.3.2 // indirect
 	github.com/huin/goupnp v1.3.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
-	github.com/influxdata/influxdb v1.11.8 // indirect
 	github.com/influxdata/line-protocol v0.0.0-20210922203350-b1ad95c89adf // indirect
 	github.com/jackpal/go-nat-pmp v1.0.2 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect

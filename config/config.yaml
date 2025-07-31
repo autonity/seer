@@ -5,7 +5,7 @@ node:
   rpc:
     maxConnections: 25
     urls:
-      - "http://35.242.168.170:8545"
+      - "http://34.147.156.5:8545"
   ws:
     maxConnections: 5
     urls:
@@ -16,10 +16,10 @@ node:
 db:
   url: "http://127.0.0.1:8086"
   # yamllint disable-line rule:line-length
-  token: "eHSHkn4oF2t5W8HeB8OSdoM5MvokeVypG6gdmEx4oIYc5hP3w2mISDU3GrQDdDLkhYQxFW0nzg6xtB2m6q0ZJA=="
-  bucket: "seer_temp_1"
+  token: "51uslKJjS7prMkfmNZVWyPon71vP43dlI4yD_Jws01g-sDkV5fRCj4CPAxaZvl13qU6BueAlTtJ0nQKLUbByUA=="
+  bucket: "seer_devnet"
   org: "autonity"
-  createBucket: false
+  createBucket: true
 abi:
   dir: "../abis"
 ...

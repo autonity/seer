@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/autonity/autonity/accounts/abi/bind"
-	"github.com/autonity/autonity/autonity"
+	"github.com/autonity/autonity/autonity/bindings"
 	"github.com/autonity/autonity/core/types"
 
 	"seer/helper"
@@ -29,7 +29,7 @@ func (ev *NewRoundHandler) Handle(schema model.EventSchema, header *types.Header
 	fields["block"] = header.Number.Uint64()
 
 	con := core.ConnectionProvider().GetWebSocketConnection()
-	oracleBindings, _ := autonity.NewOracle(helper.OracleContractAddress, con.Client)
+	oracleBindings, _ := bindings.NewOracle(helper.OracleContractAddress, con.Client)
 	voters, _ := oracleBindings.GetNewVoters(&bind.CallOpts{
 		BlockNumber: header.Number,
 	})

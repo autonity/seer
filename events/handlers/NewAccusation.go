@@ -4,7 +4,7 @@ import (
 	"log/slog"
 
 	"github.com/autonity/autonity/accounts/abi/bind"
-	"github.com/autonity/autonity/autonity"
+	"github.com/autonity/autonity/autonity/bindings"
 	"github.com/autonity/autonity/common"
 	"github.com/autonity/autonity/core/types"
 
@@ -19,7 +19,7 @@ type NewAccusationHandler struct {
 
 func (handler *NewAccusationHandler) Handle(schema model.EventSchema, header *types.Header, core interfaces.Core) {
 	con := core.ConnectionProvider().GetWebSocketConnection()
-	accBindings, err := autonity.NewAccountability(helper.AccountabilityContractAddress, con.Client)
+	accBindings, err := bindings.NewAccountability(helper.AccountabilityContractAddress, con.Client)
 	if err != nil {
 		slog.Error("unable to create autonity bindings", "error", err)
 		return

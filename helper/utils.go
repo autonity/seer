@@ -4,7 +4,7 @@ import (
 	"log/slog"
 
 	"github.com/autonity/autonity/accounts/abi"
-	"github.com/autonity/autonity/autonity"
+	"github.com/autonity/autonity/autonity/bindings"
 	"github.com/autonity/autonity/common"
 	"github.com/autonity/autonity/core/types"
 	"github.com/autonity/autonity/crypto"
@@ -61,7 +61,7 @@ func addressToABI(address common.Address) abi.ABI {
 	switch address {
 	case AccountabilityContractAddress:
 		return abi.ABI{}
-		
+
 	}
 	return abi.ABI{}
 }
@@ -94,7 +94,7 @@ func AddressToContractName(address common.Address) string {
 	return "Unknown"
 }
 
-func AutCommitteeToCommittee(autCommittee []autonity.AutonityCommitteeMember) []types.CommitteeMember {
+func AutCommitteeToCommittee(autCommittee []bindings.IAutonityCommitteeMember) []types.CommitteeMember {
 	committee := make([]types.CommitteeMember, 0)
 	for _, member := range autCommittee {
 		committee = append(committee, types.CommitteeMember{
@@ -105,10 +105,10 @@ func AutCommitteeToCommittee(autCommittee []autonity.AutonityCommitteeMember) []
 	}
 	return committee
 }
-func CommitteeToAutCommittee(committee []types.CommitteeMember) []autonity.AutonityCommitteeMember {
-	autCommittee := make([]autonity.AutonityCommitteeMember, 0)
+func CommitteeToAutCommittee(committee []types.CommitteeMember) []bindings.IAutonityCommitteeMember {
+	autCommittee := make([]bindings.IAutonityCommitteeMember, 0)
 	for _, member := range committee {
-		autCommittee = append(autCommittee, autonity.AutonityCommitteeMember{
+		autCommittee = append(autCommittee, bindings.IAutonityCommitteeMember{
 			Addr:         member.Address,
 			ConsensusKey: member.ConsensusKeyBytes,
 			VotingPower:  member.VotingPower,
