@@ -7,7 +7,7 @@ import (
 
 	ethereum "github.com/autonity/autonity"
 	"github.com/autonity/autonity/accounts/abi/bind"
-	"github.com/autonity/autonity/autonity"
+	"github.com/autonity/autonity/autonity/bindings"
 	"github.com/autonity/autonity/common"
 	"github.com/autonity/autonity/common/fixsizecache"
 	"github.com/autonity/autonity/core/types"
@@ -62,21 +62,21 @@ func (bc *blockCache) Add(block *types.Block) {
 }
 
 type EpochCache struct {
-	cache             *fixsizecache.Cache[common.Hash, *autonity.AutonityEpochInfo]
+	cache             *fixsizecache.Cache[common.Hash, *bindings.IAutonityEpochInfo]
 	blockToEpochBlock *fixsizecache.Cache[common.Hash, *big.Int]
 	cp                net.ConnectionProvider
-	autonityBindings  *autonity.Autonity
+	autonityBindings  *bindings.Autonity
 }
 
 func NewEpochInfoCache(cp net.ConnectionProvider) *EpochCache {
 	ec := EpochCache{
-		cache:             fixsizecache.New[common.Hash, *autonity.AutonityEpochInfo](numBuckets, entryPerBucket, fixsizecache.HashKey[common.Hash]),
+		cache:             fixsizecache.New[common.Hash, *bindings.IAutonityEpochInfo](numBuckets, entryPerBucket, fixsizecache.HashKey[common.Hash]),
 		blockToEpochBlock: fixsizecache.New[common.Hash, *big.Int](numBuckets, entryPerBucket, fixsizecache.HashKey[common.Hash]),
 		cp:                cp,
 	}
 	var err error
 	cl := cp.GetWebSocketConnection().Client
-	ec.autonityBindings, err = autonity.NewAutonity(AutonityContractAddress, cl)
+	ec.autonityBindings, err = bindings.NewAutonity(AutonityContractAddress, cl)
 	if err != nil {
 		slog.Error("unable to create autonity bindings", "error", err)
 		return nil
@@ -84,7 +84,7 @@ func NewEpochInfoCache(cp net.ConnectionProvider) *EpochCache {
 	return &ec
 }
 
-func (ec *EpochCache) Get(number *big.Int) *autonity.AutonityEpochInfo {
+func (ec *EpochCache) Get(number *big.Int) *bindings.IAutonityEpochInfo {
 	epochBlockNum, ok := ec.blockToEpochBlock.Get(common.BigToHash(number))
 	if !ok {
 		return ec.retrieveEpochInfo(number)
@@ -93,22 +93,22 @@ func (ec *EpochCache) Get(number *big.Int) *autonity.AutonityEpochInfo {
 	if !ok {
 		return ec.retrieveEpochInfo(number)
 	}
-	return epochBlock.(*autonity.AutonityEpochInfo)
+	return epochBlock.(*bindings.IAutonityEpochInfo)
 }
 
 func (ec *EpochCache) Add(header *types.Header) {
 	if header.Epoch == nil {
 		return
 	}
-	committee := make([]autonity.AutonityCommitteeMember, 0)
+	committee := make([]bindings.IAutonityCommitteeMember, 0)
 	for _, member := range header.Epoch.Committee.Members {
-		committee = append(committee, autonity.AutonityCommitteeMember{
+		committee = append(committee, bindings.IAutonityCommitteeMember{
 			Addr:         member.Address,
 			ConsensusKey: member.ConsensusKeyBytes,
 			VotingPower:  member.VotingPower,
 		})
 	}
-	epochInfo := autonity.AutonityEpochInfo{
+	epochInfo := bindings.IAutonityEpochInfo{
 		PreviousEpochBlock: header.Epoch.PreviousEpochBlock,
 		NextEpochBlock:     header.Epoch.NextEpochBlock,
 		EpochBlock:         header.Number,
@@ -129,7 +129,7 @@ func (ec *EpochCache) Add(header *types.Header) {
 	}
 }
 
-func (ec *EpochCache) retrieveEpochInfo(number *big.Int) *autonity.AutonityEpochInfo {
+func (ec *EpochCache) retrieveEpochInfo(number *big.Int) *bindings.IAutonityEpochInfo {
 	epochInfo, err := ec.autonityBindings.GetEpochByHeight(&bind.CallOpts{}, number)
 	if err != nil {
 		slog.Error("unable to fetch epoch by height", "error", err)

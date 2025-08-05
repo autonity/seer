@@ -4,7 +4,7 @@ import (
 	"log/slog"
 
 	"github.com/autonity/autonity/accounts/abi/bind"
-	"github.com/autonity/autonity/autonity"
+	"github.com/autonity/autonity/autonity/bindings"
 	"github.com/autonity/autonity/common"
 	"github.com/autonity/autonity/core/types"
 
@@ -22,7 +22,7 @@ type InactivityjJaillingEventHandler struct {
 
 func (ev *InactivityjJaillingEventHandler) Handle(schema model.EventSchema, header *types.Header, core interfaces.Core) {
 	con := core.ConnectionProvider().GetWebSocketConnection()
-	omissionBindings, err := autonity.NewOmissionAccountability(helper.OmissionAccountabilityContractAddress, con.Client)
+	omissionBindings, err := bindings.NewOmissionAccountability(helper.OmissionAccountabilityContractAddress, con.Client)
 	if err != nil {
 		slog.Error("unable to create autonity bindings", "error", err)
 		return

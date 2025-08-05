@@ -9,7 +9,7 @@ import (
 
 	"github.com/autonity/autonity/accounts/abi"
 	"github.com/autonity/autonity/accounts/abi/bind"
-	"github.com/autonity/autonity/autonity"
+	"github.com/autonity/autonity/autonity/bindings"
 	"github.com/autonity/autonity/common"
 	"github.com/autonity/autonity/core/types"
 	"github.com/autonity/autonity/p2p"
@@ -141,7 +141,7 @@ func (bp *blockProcessor) recordBlock(header *types.Header) {
 
 	number := header.Number
 	slog.Debug("Recording block", "num", number.Uint64())
-	autCommittee := make([]autonity.AutonityCommitteeMember, 0)
+	autCommittee := make([]bindings.IAutonityCommitteeMember, 0)
 	committeeMembers := make([]types.CommitteeMember, 0)
 	epochInfo := bp.core.epochInfoCache.Get(number)
 	if epochInfo == nil {
@@ -169,11 +169,10 @@ func (bp *blockProcessor) recordBlock(header *types.Header) {
 		if err != nil {
 			return members
 		}
-		indexes := ag.Signers.Flatten()
-		for _, index := range indexes {
-			member := autCommittee[index]
+		ag.Signers.ForEachDistinctSigner(func(signerIndex int) {
+			member := autCommittee[signerIndex]
 			members = append(members, member.Addr)
-		}
+		})
 		return members
 	}
 
@@ -277,7 +276,7 @@ func (bp *blockProcessor) processVoteTransaction(tx *types.Transaction, voteMeth
 	go func() {
 		defer wg.Done()
 		var err error
-		oracleBindings, err := autonity.NewOracle(helper.OracleContractAddress, con.Client)
+		oracleBindings, err := bindings.NewOracle(helper.OracleContractAddress, con.Client)
 		if err != nil {
 			slog.Error("unable to create oracle bindings", "error", err)
 			return

@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/autonity/autonity/accounts/abi/bind"
-	"github.com/autonity/autonity/autonity"
+	"github.com/autonity/autonity/autonity/bindings"
 	"github.com/autonity/autonity/common"
 	"github.com/autonity/autonity/common/fixsizecache"
 	"github.com/autonity/autonity/core/types"
@@ -99,7 +99,7 @@ func (ev *NewEpochHandler) Handle(schema model.EventSchema, header *types.Header
 		return
 	}
 	con := core.ConnectionProvider().GetWebSocketConnection()
-	autBindings, err := autonity.NewAutonity(helper.AutonityContractAddress, con.Client)
+	autBindings, err := bindings.NewAutonity(helper.AutonityContractAddress, con.Client)
 	if err != nil {
 		slog.Error("unable to create autonity bindings", "error", err)
 		return
@@ -146,7 +146,7 @@ func (ev *NewEpochHandler) Handle(schema model.EventSchema, header *types.Header
 		ev.DBHandler.WritePoint(nodeLocationMeasurement, tags, fields, ts)
 	}
 
-	oracleBindings, err := autonity.NewOracle(helper.OracleContractAddress, con.Client)
+	oracleBindings, err := bindings.NewOracle(helper.OracleContractAddress, con.Client)
 	if err != nil {
 		slog.Error("unable to create autonity bindings", "error", err)
 		return
@@ -180,8 +180,8 @@ func (ev *NewEpochHandler) Handle(schema model.EventSchema, header *types.Header
 	}
 }
 
-func (ev *NewEpochHandler) GetStake(autBindings *autonity.Autonity, header *types.Header) (*big.Int, []autonity.AutonityCommitteeMember, error) {
-	totalVotingPower, err := autBindings.EpochTotalBondedStake(&bind.CallOpts{
+func (ev *NewEpochHandler) GetStake(autBindings *bindings.Autonity, header *types.Header) (*big.Int, []bindings.IAutonityCommitteeMember, error) {
+	totalVotingPower, err := autBindings.GetEpochTotalBondedStake(&bind.CallOpts{
 		BlockNumber: header.Number,
 	})
 	if err != nil {
@@ -197,7 +197,7 @@ func (ev *NewEpochHandler) GetStake(autBindings *autonity.Autonity, header *type
 	return totalVotingPower, committee, nil
 }
 
-func getVotingPower(committee []autonity.AutonityCommitteeMember, address common.Address) *big.Int {
+func getVotingPower(committee []bindings.IAutonityCommitteeMember, address common.Address) *big.Int {
 	for _, c := range committee {
 		if c.Addr == address {
 			return c.VotingPower

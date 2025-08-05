@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/autonity/autonity/accounts/abi/bind"
-	"github.com/autonity/autonity/autonity"
+	"github.com/autonity/autonity/autonity/bindings"
 	"github.com/autonity/autonity/core/types"
 
 	"seer/helper"
@@ -24,13 +24,13 @@ type SlashingEventHandler struct {
 
 func (handler *SlashingEventHandler) Handle(schema model.EventSchema, header *types.Header, core interfaces.Core) {
 	con := core.ConnectionProvider().GetWebSocketConnection()
-	accountabilityBindings, err := autonity.NewAccountability(helper.AccountabilityContractAddress, con.Client)
+	accountabilityBindings, err := bindings.NewAccountability(helper.AccountabilityContractAddress, con.Client)
 	if err != nil {
 		slog.Error("unable to create autonity bindings", "error", err)
 		return
 	}
 	evID := schema.Fields["id"]
-	event, err := accountabilityBindings.Events(&bind.CallOpts{
+	event, err := accountabilityBindings.GetEvent(&bind.CallOpts{
 		BlockNumber: header.Number,
 	}, evID.(*big.Int))
 	if err != nil {
@@ -40,7 +40,7 @@ func (handler *SlashingEventHandler) Handle(schema model.EventSchema, header *ty
 	RecordAccountabilityEvent(handler.DBHandler, event, header)
 }
 
-func RecordAccountabilityEvent(dbhandler interfaces.DatabaseHandler, event autonity.AccountabilityEvent, header *types.Header) {
+func RecordAccountabilityEvent(dbhandler interfaces.DatabaseHandler, event bindings.IAccountabilityEvent, header *types.Header) {
 	tags := make(map[string]string)
 	tags["reporter"] = event.Reporter.String()
 
