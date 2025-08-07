@@ -117,12 +117,14 @@ func (bp *blockProcessor) recordACNPeers(header *types.Header) {
 
 	var result []*p2p.PeerInfo
 	con := bp.core.cp.GetRPCConnection()
-	err := con.Client.CallContext(bp.ctx, &result, "admin_acnPeers")
+
+	err := con.Client.CallContext(bp.ctx, &result, "aut_acnPeers")
 	if err != nil {
 		slog.Error("Error fetching ACN peers", "error", err)
 		return
 	}
 
+	slog.Info("ACN peers fetched", "count", len(result), "block", header.Number.Uint64())
 	tags := map[string]string{}
 	ts := time.Unix(int64(header.Time), 0)
 	for _, peer := range result {
@@ -300,7 +302,7 @@ func (bp *blockProcessor) processVoteTransaction(tx *types.Transaction, voteMeth
 
 	sender, err := bp.signer.Sender(tx)
 	if err != nil {
-		slog.Error("unable to get tx sender info", "error", err)
+		//slog.Error("unable to get tx sender info", "error", err)
 		return
 	}
 	tags["voter"] = sender.Hex()
