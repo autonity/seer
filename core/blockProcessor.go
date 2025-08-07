@@ -13,7 +13,6 @@ import (
 	"github.com/autonity/autonity/common"
 	"github.com/autonity/autonity/core/types"
 	"github.com/autonity/autonity/p2p"
-	"github.com/autonity/autonity/params"
 	"github.com/autonity/autonity/params/generated"
 
 	"seer/helper"
@@ -63,7 +62,7 @@ func NewBlockProcessor(ctx context.Context, core *core, newBlocks chan *SeerBloc
 		qcTags:               make(map[string]string, 1),
 		apTags:               make(map[string]string, 1),
 	}
-	bp.signer = types.LatestSigner(params.PiccadillyChainConfig)
+	bp.signer = types.NewLondonSigner(chainID)
 	return bp
 }
 
