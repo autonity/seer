@@ -117,7 +117,8 @@ func (bp *blockProcessor) recordACNPeers(header *types.Header) {
 
 	var result []*p2p.PeerInfo
 	con := bp.core.cp.GetRPCConnection()
-	err := con.Client.CallContext(bp.ctx, &result, "admin_acnPeers")
+
+	err := con.Client.CallContext(bp.ctx, &result, "aut_acnPeers")
 	if err != nil {
 		slog.Error("Error fetching ACN peers", "error", err)
 		return
