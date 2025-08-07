@@ -124,7 +124,6 @@ func (bp *blockProcessor) recordACNPeers(header *types.Header) {
 		return
 	}
 
-	slog.Info("ACN peers fetched", "count", len(result), "block", header.Number.Uint64())
 	tags := map[string]string{}
 	ts := time.Unix(int64(header.Time), 0)
 	for _, peer := range result {
@@ -302,7 +301,7 @@ func (bp *blockProcessor) processVoteTransaction(tx *types.Transaction, voteMeth
 
 	sender, err := bp.signer.Sender(tx)
 	if err != nil {
-		//slog.Error("unable to get tx sender info", "error", err)
+		slog.Error("unable to get tx sender info", "error", err)
 		return
 	}
 	tags["voter"] = sender.Hex()
