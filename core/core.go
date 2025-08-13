@@ -99,7 +99,6 @@ type core struct {
 	epochInfoCache *helper.EpochCache
 
 	blockTracker *syncTracker
-	eventTracker *syncTracker
 	sync.WaitGroup
 	pendingMu     sync.Mutex
 	pendingEvents map[uint64][]model.EventSchema
@@ -141,10 +140,6 @@ func New(cfg config.NodeConfig, parser interfaces.ABIParser, dbHandler interface
 		blockCache:     helper.NewBlockCache(cp),
 		epochInfoCache: helper.NewEpochInfoCache(cp),
 		blockTracker: &syncTracker{
-			processed:     make(map[uint64]bool),
-			lastProcessed: 0,
-		},
-		eventTracker: &syncTracker{
 			processed:     make(map[uint64]bool),
 			lastProcessed: 0,
 		},
@@ -209,8 +204,6 @@ func (c *core) Start(ctx context.Context) {
 	if c.nodeConfig.Sync.History {
 		start, end := c.getHistoricalRange(ctx, db.BlockNumKey)
 		c.handleBlockHistory(ctx, start, end)
-
-		start, end = c.getHistoricalRange(ctx, db.EventNumKey)
 		c.handleEventHistory(ctx, start, end)
 	}
 	c.Wait()
@@ -261,34 +254,11 @@ func (c *core) markProcessedBlock(start, end uint64) {
 	}
 }
 
-func (c *core) markProcessedEvent(start, end uint64) {
-	update, lastProcessed := c.eventTracker.updateProcessed(start, end)
-	if update {
-		slog.Debug("saving Last processed Event", "number", lastProcessed)
-		c.dbHandler.SaveLastProcessed(db.EventNumKey, lastProcessed)
-	}
-}
-
-func (c *core) markProcessedEventUpto(end uint64) {
-	update, lastProcessed := c.eventTracker.updateProcessedUpto(end)
-	if update {
-		slog.Info("saving Last processed Event", "number", lastProcessed)
-		c.dbHandler.SaveLastProcessed(db.EventNumKey, lastProcessed)
-	}
-}
-
 func (c *core) getHistoricalRange(ctx context.Context, fieldKey string) (uint64, uint64) {
 	var startBlock uint64
 	lastProcessed := c.dbHandler.LastProcessed(fieldKey)
+	slog.Info("last processed", "key", fieldKey, "number", lastProcessed)
 	switch fieldKey {
-	case db.EventNumKey:
-		if lastProcessed < eventBatchSize {
-			startBlock = 1
-		} else {
-
-			startBlock = lastProcessed - eventBatchSize
-		}
-		c.eventTracker.lastProcessed = startBlock
 	case db.BlockNumKey:
 		if lastProcessed < blockBatchSize {
 			startBlock = 0
@@ -314,8 +284,18 @@ func (c *core) ReadHistoricalData(ctx context.Context, start, end uint64, batchR
 	i := start
 	for i <= end {
 		for j := 0; j < maxConcurrency; j++ {
-			workQueues[j] <- [2]uint64{i, i + batchSize}
-			i += batchSize
+			if i > end {
+				break
+			}
+			batchEnd := i + batchSize - 1
+			if batchEnd > end {
+				batchEnd = end
+			}
+			workQueues[j] <- [2]uint64{i, batchEnd}
+			i = batchEnd + 1
+		}
+		if i > end {
+			break
 		}
 	}
 
@@ -364,7 +344,6 @@ func (c *core) ReadEventHistory(ctx context.Context, workQueue chan [2]uint64) {
 				}
 			}
 			slog.Info("event batch complete", "startBlock", batch[0], "endBlock", batch[1])
-			c.markProcessedEvent(batch[0], batch[1])
 		}
 	}
 }
@@ -395,7 +374,7 @@ func (c *core) ReadBlockHistory(ctx context.Context, workQueue chan [2]uint64) {
 			slog.Info("Starting block batch from", "startBlock", batch[0], "endBlock", batch[1])
 			fetchTime := time.Now()
 			index := 0
-			for i := batch[0]; i < batch[1]; i++ {
+			for i := batch[0]; i <= batch[1]; i++ {
 				requests[index] = rpc.BatchElem{
 					Method: "eth_getBlockByNumber",
 					Args:   []interface{}{fmt.Sprintf("0x%x", i), true}, // false to exclude full transaction details
@@ -404,13 +383,13 @@ func (c *core) ReadBlockHistory(ctx context.Context, workQueue chan [2]uint64) {
 				index++
 			}
 
-			err := con.Client.BatchCallContext(ctx, requests)
+			err := con.Client.BatchCallContext(ctx, requests[:index])
 			if err != nil {
 				slog.Error("failed to run batch call", "error", err)
 				c.markProcessedBlock(batch[0], batch[1])
 				continue
 			}
-			for _, call := range requests {
+			for i, call := range requests[:index] {
 				if call.Error != nil {
 					slog.Error("Error in batch call", "error", err)
 					continue
@@ -422,7 +401,7 @@ func (c *core) ReadBlockHistory(ctx context.Context, workQueue chan [2]uint64) {
 					continue
 				}
 				if head == nil {
-					slog.Error("nil head")
+					slog.Debug("Block not found", "blockNumber", batch[0], "batchEnd", batch[1], "index", i)
 					continue
 				}
 				if err := json.Unmarshal(*call.Result.(*json.RawMessage), &body); err != nil {
@@ -437,9 +416,9 @@ func (c *core) ReadBlockHistory(ctx context.Context, workQueue chan [2]uint64) {
 				}
 				blockChs[counter%processorConcurrency] <- &SeerBlock{types.NewBlock(head, txs, nil, nil, new(trie.Trie)), len(body.Transactions)}
 				counter++
+				c.markProcessedBlock(head.Number.Uint64(), head.Number.Uint64())
 			}
 			// get Block receipts
-			c.markProcessedBlock(batch[0], batch[1])
 			slog.Info("block batch complete", "startBlock", batch[0], "endBlock", batch[1],
 				"fetch time", time.Since(fetchTime).Seconds(),
 				"time taken", time.Since(now).Seconds())
