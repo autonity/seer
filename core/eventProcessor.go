@@ -58,9 +58,6 @@ func (ep *eventProcessor) Process() {
 					continue
 				}
 				ep.recordEvent(block.Header(), evSchema)
-				if ep.isLive && ep.core.historySynced.Load() {
-					ep.core.markProcessedEventUpto(event.BlockNumber - 1)
-				}
 			}
 		}
 	}()

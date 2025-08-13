@@ -3,7 +3,7 @@ module seer
 go 1.24.0
 
 require (
-	github.com/autonity/autonity v1.0.2-alpha
+	github.com/autonity/autonity v1.1.2
 	github.com/fsnotify/fsnotify v1.7.0
 	github.com/golang/mock v1.5.0
 	github.com/influxdata/influxdb-client-go/v2 v2.14.0
@@ -11,9 +11,8 @@ require (
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.19.0
 	github.com/stretchr/testify v1.10.0
+	go.uber.org/mock v0.5.0
 )
-
-replace github.com/autonity/autonity => github.com/autonity/autonity v1.0.2-alpha.0.20250730181314-f7c384296fb6
 
 require (
 	github.com/JekaMas/notify v0.9.4 // indirect
@@ -32,7 +31,6 @@ require (
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/hashicorp/golang-lru v1.0.2 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
-	github.com/holiman/uint256 v1.3.2 // indirect
 	github.com/huin/goupnp v1.3.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/influxdata/line-protocol v0.0.0-20210922203350-b1ad95c89adf // indirect
@@ -60,7 +58,6 @@ require (
 	github.com/tklauser/go-sysconf v0.3.14 // indirect
 	github.com/tklauser/numcpus v0.9.0 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
-	go.uber.org/mock v0.5.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/crypto v0.33.0 // indirect
 	golang.org/x/exp v0.0.0-20250218142911-aa4b98e5adaa // indirect
