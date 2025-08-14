@@ -38,12 +38,9 @@ type blockProcessor struct {
 	ctx                  context.Context
 	blockCh              chan *SeerBlock
 	blockRecorderFields  map[string]interface{}
-	acnPeerFields        map[string]interface{}
 	blockTimestampFields map[string]interface{}
 	qcAbsenteesFields    map[string]interface{}
 	apAbsenteesFields    map[string]interface{}
-	qcTags               map[string]string
-	apTags               map[string]string
 	isLive               bool // differenciates whether we are processing blocks history or live
 	signer               types.Signer
 }
@@ -55,12 +52,9 @@ func NewBlockProcessor(ctx context.Context, core *core, newBlocks chan *SeerBloc
 		blockCh:              newBlocks,
 		isLive:               isLive,
 		blockRecorderFields:  make(map[string]interface{}, 11),
-		acnPeerFields:        make(map[string]interface{}, 4),
 		blockTimestampFields: make(map[string]interface{}, 1),
 		qcAbsenteesFields:    make(map[string]interface{}, 2),
 		apAbsenteesFields:    make(map[string]interface{}, 2),
-		qcTags:               make(map[string]string, 1),
-		apTags:               make(map[string]string, 1),
 	}
 	bp.signer = types.NewLondonSigner(chainID)
 	return bp
@@ -126,18 +120,22 @@ func (bp *blockProcessor) recordACNPeers(header *types.Header) {
 	tags := map[string]string{}
 	ts := time.Unix(int64(header.Time), 0)
 	for _, peer := range result {
-		bp.acnPeerFields["enode"] = peer.Enode
-		bp.acnPeerFields["block"] = header.Number.Uint64()
-		bp.acnPeerFields["localAddress"] = peer.Network.LocalAddress
-		bp.acnPeerFields["RemoteAddress"] = peer.Network.RemoteAddress
+		acnPeerFields := make(map[string]interface{}, 4)
+		acnPeerFields["enode"] = peer.Enode
+		acnPeerFields["block"] = header.Number.Uint64()
+		acnPeerFields["localAddress"] = peer.Network.LocalAddress
+		acnPeerFields["RemoteAddress"] = peer.Network.RemoteAddress
 		tags["id"] = peer.ID
 
-		bp.core.dbHandler.WritePoint(acnPeers, tags, bp.acnPeerFields, ts)
+		bp.core.dbHandler.WritePoint(acnPeers, tags, acnPeerFields, ts)
 	}
 	bp.core.dbHandler.Flush()
 }
 
 func (bp *blockProcessor) recordBlock(header *types.Header) {
+	clear(bp.blockRecorderFields)
+	clear(bp.qcAbsenteesFields)
+	clear(bp.apAbsenteesFields)
 
 	number := header.Number
 	slog.Debug("Recording block", "num", number.Uint64())
@@ -156,7 +154,7 @@ func (bp *blockProcessor) recordBlock(header *types.Header) {
 	}
 	skippedProposers := make([]common.Address, 0)
 	for i := 0; i < int(header.Round); i++ {
-		sk := com.Proposer(header.Number.Uint64(), int64(header.Round))
+		sk := com.Proposer(header.Number.Uint64(), int64(i))
 		skippedProposers = append(skippedProposers, sk)
 	}
 
@@ -177,16 +175,14 @@ func (bp *blockProcessor) recordBlock(header *types.Header) {
 	}
 
 	absentees := func(signers []common.Address) []common.Address {
+		signerSet := make(map[common.Address]struct{}, len(signers))
+		for _, signer := range signers {
+			signerSet[signer] = struct{}{}
+		}
+
 		ab := make([]common.Address, 0)
 		for _, cm := range autCommittee {
-			found := false
-			for _, signer := range signers {
-				if cm.Addr == signer {
-					found = true
-					break
-				}
-			}
-			if !found {
+			if _, found := signerSet[cm.Addr]; !found {
 				ab = append(ab, cm.Addr)
 			}
 		}
@@ -222,15 +218,17 @@ func (bp *blockProcessor) trackInactivity(header *types.Header, qcAbsentees, apA
 	ts := time.Unix(int64(header.Time), 0)
 	bp.qcAbsenteesFields["block"] = header.Number.Uint64()
 	bp.qcAbsenteesFields["absent"] = 1
+	qcTags := make(map[string]string)
 	for _, m := range qcAbsentees {
-		bp.qcTags["validator"] = m.String()
-		bp.core.dbHandler.WritePoint(QCAbsentees, bp.qcTags, bp.qcAbsenteesFields, ts)
+		qcTags["validator"] = m.String()
+		bp.core.dbHandler.WritePoint(QCAbsentees, qcTags, bp.qcAbsenteesFields, ts)
 	}
 	bp.apAbsenteesFields["block"] = header.Number.Uint64()
 	bp.apAbsenteesFields["absent"] = 1
+	apTags := make(map[string]string)
 	for _, m := range apAbsentees {
-		bp.apTags["validator"] = m.String()
-		bp.core.dbHandler.WritePoint(APAbsentees, bp.apTags, bp.apAbsenteesFields, ts)
+		apTags["validator"] = m.String()
+		bp.core.dbHandler.WritePoint(APAbsentees, apTags, bp.apAbsenteesFields, ts)
 	}
 }
 
