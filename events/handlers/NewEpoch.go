@@ -94,6 +94,7 @@ type NewEpochHandler struct {
 }
 
 func (ev *NewEpochHandler) Handle(schema model.EventSchema, header *types.Header, core interfaces.Core) {
+	slog.Info("New Epoch Handler")
 	if header.Epoch == nil {
 		slog.Error("NewEpoch Handler, committee information is not present")
 		return
@@ -178,6 +179,7 @@ func (ev *NewEpochHandler) Handle(schema model.EventSchema, header *types.Header
 		tags["index"] = strconv.Itoa(i)
 		ev.DBHandler.WritePoint(ValidatorToOracleMap, tags, fields, ts)
 	}
+	slog.Info("Processed new Epoch")
 }
 
 func (ev *NewEpochHandler) GetStake(autBindings *bindings.Autonity, header *types.Header) (*big.Int, []bindings.IAutonityCommitteeMember, error) {

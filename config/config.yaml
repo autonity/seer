@@ -18,7 +18,7 @@ db:
   url: "http://127.0.0.1:8086"
   # yamllint disable-line rule:line-length
   token: "51uslKJjS7prMkfmNZVWyPon71vP43dlI4yD_Jws01g-sDkV5fRCj4CPAxaZvl13qU6BueAlTtJ0nQKLUbByUA=="
-  bucket: "seer_mainnet"
+  bucket: "mainnet"
   org: "autonity"
   createBucket: true
 abi:

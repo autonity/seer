@@ -31,13 +31,10 @@ UI tool.
    ```bash
    make build
    ```
-
 4. Run application in default mode:
    ```bash
-   cd bin
-   ./seer start --config ../config/config.yaml
+   make run
    ```
-
 ---
 
 ## Configuration

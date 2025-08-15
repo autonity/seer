@@ -5,8 +5,8 @@
 package mocks
 
 import (
-	model "seer/model"
 	reflect "reflect"
+	model "seer/model"
 	time "time"
 
 	gomock "github.com/golang/mock/gomock"
