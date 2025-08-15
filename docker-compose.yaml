@@ -1,0 +1,36 @@
+services: 
+  influxdb:
+    image: influxdb:2.7
+    container_name: seer-influxdb
+    ports:
+      - "8086:8086"
+    volumes:
+      - influxdb-data:/var/lib/influxdb2
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup 
+      - DOCKER_INFLUXDB_INIT_USERNAME=admin
+      - DOCKER_INFLUXDB_INIT_PASSWORD=admin@123
+      - DOCKER_INFLUXDB_INIT_ORG=autonity
+      - DOCKER_INFLUXDB_INIT_BUCKET=mainnet
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=51uslKJjS7prMkfmNZVWyPon71vP43dlI4yD_Jws01g-sDkV5fRCj4CPAxaZvl13qU6BueAlTtJ0nQKLUbByUA==
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: seer-grafana
+    ports: 
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./provisioning/dashboards:/etc/grafana/provisioning/dashboards
+      - ./provisioning/datasources:/etc/grafana/provisioning/datasources
+      - ./dashboard:/grafana-dashboards
+    depends_on:
+      - influxdb
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+
+volumes:
+  influxdb-data: {}
+  grafana-data: {}
+
