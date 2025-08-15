@@ -37,6 +37,10 @@ UI tool.
    ```
 ---
 
+## Visualize
+Go over to ```localhost:3000``` to visualize the data captured by Seer.
+
+
 ## Configuration
 
 Seer uses **Viper** for configuration management. You can specify options via:
