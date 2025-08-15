@@ -1,0 +1,17 @@
+apiVersion: 1
+
+datasources:
+  - name: influxdb
+    type: influxdb
+    access: proxy
+    url: http://influxdb:8086
+    uid: influxdb-mainnet
+    isDefault: true
+    jsonData:
+      version: Flux
+      organization: autonity
+      defaultBucket: mainnet
+      maxSeries: 1000
+    secureJsonData:
+      token: "51uslKJjS7prMkfmNZVWyPon71vP43dlI4yD_Jws01g-sDkV5fRCj4CPAxaZvl13qU6BueAlTtJ0nQKLUbByUA=="
+    editable: true

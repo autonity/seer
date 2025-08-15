@@ -31,14 +31,15 @@ UI tool.
    ```bash
    make build
    ```
-
 4. Run application in default mode:
    ```bash
-   cd bin
-   ./seer start --config ../config/config.yaml
+   make run
    ```
-
 ---
+
+## Visualize
+Go over to ```localhost:3000``` to visualize the data captured by Seer.
+
 
 ## Configuration
 

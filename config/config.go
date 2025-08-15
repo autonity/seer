@@ -32,7 +32,7 @@ type InfluxDBConfig struct {
 	Token        string `mapstructure:"token"`
 	Org          string `mapstructure:"org"`
 	Bucket       string `mapstructure:"bucket"`
-	CreateBucket bool `mapstructure:"createBucket"`
+	CreateBucket bool   `mapstructure:"createBucket"`
 }
 
 type ABIConfig struct {

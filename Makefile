@@ -32,7 +32,15 @@ build: mock-gen
 	$(GO) build -o $(BIN_DIR)/$(APP_NAME) \
 		-ldflags "-X main.version=$(VERSION) -X main.buildTime=$(BUILD_TIME)" $(SRC_DIR)
 
-run: build
+deps-up:
+	@echo "Starting InfluxDB and Grafana containers..."
+	@docker-compose up -d
+
+deps-down:
+	@echo "Stopping InfluxDB and Grafana containers..."
+	@docker-compose down
+
+run: build deps-up
 	@echo "Running $(APP_NAME)..."
 	cd $(BIN_DIR) && ./$(APP_NAME) $(START_CMD) --config ../config/config.yaml
 
