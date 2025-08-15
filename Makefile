@@ -40,7 +40,15 @@ deps-down:
 	@echo "Stopping InfluxDB and Grafana containers..."
 	@docker-compose down
 
-run: build deps-up
+deps-wait:
+	@echo "Waiting for InfluxDB to be ready..."
+	@until curl --fail --silent --output /dev/null http://localhost:8086/health; do \
+		echo -n "."; \
+		sleep 1; \
+	done
+	@echo "\nInfluxDB is ready!"
+
+run: build deps-up deps-wait
 	@echo "Running $(APP_NAME)..."
 	cd $(BIN_DIR) && ./$(APP_NAME) $(START_CMD) --config ../config/config.yaml
 
