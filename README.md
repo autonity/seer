@@ -1,8 +1,7 @@
 # Seer
 
 **Seer** is monitoring tool designed to capture autonity on-chain events, 
-decode and store them in InfluxDB for analysis and visualization later on a 
-UI tool.
+It decodes and stores them in InfluxDB, Events are visualized later on Grafana.
 
 ---
 
@@ -56,19 +55,17 @@ node:
    rpc:
       maxConnections: 25  # maximum rpc connections across all urls
       urls:
-         - "http://35.242.168.170:8545"
+         - "https://rpc1.mainnet.autonity.org"
    ws:
       maxConnections: 5 # maximum websocket connections across all urls
       urls:
-         - "wss://rpc2.piccadilly.autonity.org/ws"
-         # - "wss://rpc-internal-1.piccadilly.autonity.org/ws"
+         - "wss://rpc1.mainnet.autonity.org/ws"
    sync:
       history: true 
 db:
    url: "http://127.0.0.1:8086"
-   # yamllint disable-line rule:line-length
    token: ""
-   bucket: "seer_temp"
+   bucket: "mainnet"
    org: "autonity"
 abi:
    dir: "../abis"

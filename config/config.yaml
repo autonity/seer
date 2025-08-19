@@ -5,13 +5,12 @@ node:
   rpc:
     maxConnections: 25
     urls:
-      - "https://rpc2.mainnet.autonity.org"
+      - "https://rpc1.mainnet.autonity.org"
 
   ws:
     maxConnections: 5
     urls:
-      - "wss://rpc2.mainnet.autonity.org/ws"
-        # - "wss://rpc-internal-1.piccadilly.autonity.org/ws"
+      - "wss://rpc1.mainnet.autonity.org/ws"
   sync:
     history: true
 db:
