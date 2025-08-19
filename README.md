@@ -76,7 +76,7 @@ abi:
 
 ### CLI Commands
 
-1. **Start service in default which and sync live and historical blocks**:
+1. **Start service in default mode which syncs live and historical blocks**:
    ```bash
    ./seer start --config ../config/config.yaml
    ```
