@@ -242,10 +242,6 @@ func (c *core) ConnectionProvider() interfaces.ConnectionProvider {
 	return c.cp
 }
 
-func (c *core) EpochCache() *helper.EpochCache {
-	return c.epochInfoCache
-}
-
 func (c *core) runInGoroutine(ctx context.Context, fn func(ctx context.Context)) {
 	c.Add(1)
 	go func() {

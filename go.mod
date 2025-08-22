@@ -5,7 +5,6 @@ go 1.24.0
 require (
 	github.com/autonity/autonity v1.1.2
 	github.com/fsnotify/fsnotify v1.7.0
-	github.com/golang/mock v1.6.0
 	github.com/influxdata/influxdb-client-go/v2 v2.14.0
 	github.com/spaolacci/murmur3 v0.0.0-20180118202830-f09979ecbc72
 	github.com/spf13/cobra v1.9.1
