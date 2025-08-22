@@ -11,6 +11,7 @@ import (
 	"seer/helper"
 	"seer/interfaces"
 	"seer/model"
+	"seer/net"
 )
 
 type NewFaultProofHandler struct {
@@ -20,7 +21,7 @@ type NewFaultProofHandler struct {
 func (handler *NewFaultProofHandler) Handle(schema model.EventSchema, header *types.Header, core interfaces.Core) {
 
 	con := core.ConnectionProvider().GetWebSocketConnection()
-	accBindings, err := bindings.NewAccountability(helper.AccountabilityContractAddress, con.Client)
+	accBindings, err := bindings.NewAccountability(helper.AccountabilityContractAddress, con.(*net.EthClientAdapter))
 	if err != nil {
 		slog.Error("unable to create autonity bindings", "error", err)
 		return

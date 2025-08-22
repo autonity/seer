@@ -11,6 +11,7 @@ import (
 	"seer/helper"
 	"seer/interfaces"
 	"seer/model"
+	"seer/net"
 )
 
 var (
@@ -29,7 +30,7 @@ func (ev *NewRoundHandler) Handle(schema model.EventSchema, header *types.Header
 	fields["block"] = header.Number.Uint64()
 
 	con := core.ConnectionProvider().GetWebSocketConnection()
-	oracleBindings, _ := bindings.NewOracle(helper.OracleContractAddress, con.Client)
+	oracleBindings, _ := bindings.NewOracle(helper.OracleContractAddress, con.(*net.EthClientAdapter))
 	voters, _ := oracleBindings.GetNewVoters(&bind.CallOpts{
 		BlockNumber: header.Number,
 	})

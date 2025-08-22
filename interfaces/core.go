@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"seer/helper"
-	"seer/net"
 )
 
 type Core interface {
@@ -12,7 +11,7 @@ type Core interface {
 	Stop()
 	ProcessRange(ctx context.Context, start, end uint64)
 	EpochCache() *helper.EpochCache
-	ConnectionProvider() net.ConnectionProvider
+	ConnectionProvider() ConnectionProvider
 }
 
 type Processor interface {

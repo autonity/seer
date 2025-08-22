@@ -89,7 +89,7 @@ type core struct {
 	nodeConfig    config.NodeConfig
 	abiParser     interfaces.ABIParser
 	dbHandler     interfaces.DatabaseHandler
-	cp            net.ConnectionProvider
+	cp            interfaces.ConnectionProvider
 	historySynced atomic.Bool
 
 	newBlocks chan *SeerBlock
@@ -129,22 +129,30 @@ func (tx *rpcTransaction) UnmarshalJSON(msg []byte) error {
 	return json.Unmarshal(msg, &tx.txExtraInfo)
 }
 
-func New(cfg config.NodeConfig, parser interfaces.ABIParser, dbHandler interfaces.DatabaseHandler, cp net.ConnectionProvider) interfaces.Core {
+func New(cfg config.NodeConfig, parser interfaces.ABIParser, dbHandler interfaces.DatabaseHandler, cp interfaces.ConnectionProvider) interfaces.Core {
+	adapter, ok := cp.GetWebSocketConnection().(*net.EthClientAdapter)
+	if !ok {
+		// This is a fatal configuration error, the application cannot proceed.
+		slog.Error("FATAL: ConnectionProvider did not return a required *net.EthClientAdapter")
+		panic("invalid connection provider configuration")
+	}
 	c := &core{
-		nodeConfig:     cfg,
-		newBlocks:      make(chan *SeerBlock, liveBlockProcessors),
-		newEvents:      make(chan types.Log, liveEventProcessors),
-		abiParser:      parser,
-		dbHandler:      dbHandler,
-		cp:             cp,
-		blockCache:     helper.NewBlockCache(cp),
-		epochInfoCache: helper.NewEpochInfoCache(cp),
+		nodeConfig: cfg,
+		newBlocks:  make(chan *SeerBlock, liveBlockProcessors),
+		newEvents:  make(chan types.Log, liveEventProcessors),
+		abiParser:  parser,
+		dbHandler:  dbHandler,
+		cp:         cp,
+		blockCache: helper.NewBlockCache(func() helper.BlockFetcher {
+			return cp.GetWebSocketConnection()
+		}),
+		epochInfoCache: helper.NewEpochInfoCache(adapter.Client),
 		blockTracker: &syncTracker{
 			processed:     make(map[uint64]bool),
 			lastProcessed: 0,
 		},
 	}
-	c.chainID, _ = cp.GetWebSocketConnection().Client.NetworkID(context.Background())
+	c.chainID, _ = cp.GetWebSocketConnection().NetworkID(context.Background())
 	return c
 }
 
@@ -186,7 +194,7 @@ func (c *core) Start(ctx context.Context) {
 		slog.Info("Starting pprof server on", "port", port)
 		err := http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
 		if err != nil {
-			slog.Error("Error starting pprof server: %v", err)
+			slog.Error("Error starting pprof server: ", "error", err)
 		}
 	}()
 	ctx, c.cancel = context.WithCancel(ctx)
@@ -216,7 +224,7 @@ func (c *core) ProcessRange(ctx context.Context, start, end uint64) {
 		slog.Info("Starting pprof server on", "port", port)
 		err := http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
 		if err != nil {
-			slog.Error("Error starting pprof server: %v", err)
+			slog.Error("Error starting pprof server:", "error", err)
 		}
 	}()
 	helper.PrintContractAddresses()
@@ -230,7 +238,7 @@ func (c *core) Stop() {
 	c.cancel()
 }
 
-func (c *core) ConnectionProvider() net.ConnectionProvider {
+func (c *core) ConnectionProvider() interfaces.ConnectionProvider {
 	return c.cp
 }
 
@@ -269,7 +277,7 @@ func (c *core) getHistoricalRange(ctx context.Context, fieldKey string) (uint64,
 		c.blockTracker.lastProcessed = startBlock
 	}
 	con := c.cp.GetWebSocketConnection()
-	endBlock, _ := con.Client.BlockNumber(ctx)
+	endBlock, _ := con.BlockNumber(ctx)
 	return startBlock, endBlock
 }
 
@@ -332,7 +340,7 @@ func (c *core) ReadEventHistory(ctx context.Context, workQueue chan [2]uint64) {
 				Addresses: helper.ContractAddresses,
 			}
 			slog.Debug("Starting event batch from", "startBlock", batch[0], "endBlock", batch[1])
-			logs, err := con.Client.FilterLogs(ctx, fq)
+			logs, err := con.FilterLogs(ctx, fq)
 			if err != nil {
 				slog.Error("Unable to filter autonity logs", "error", err, "batch start", batch[0], "batch end", batch[1])
 			}
@@ -383,7 +391,7 @@ func (c *core) ReadBlockHistory(ctx context.Context, workQueue chan [2]uint64) {
 				index++
 			}
 
-			err := con.Client.BatchCallContext(ctx, requests[:index])
+			err := con.BatchCallContext(ctx, requests[:index])
 			if err != nil {
 				slog.Error("failed to run batch call", "error", err)
 				c.markProcessedBlock(batch[0], batch[1])
@@ -431,7 +439,7 @@ func (c *core) blockReader(ctx context.Context) {
 
 	headCh := make(chan *types.Header)
 	con := c.cp.GetWebSocketConnection()
-	newHeadSub, err := con.Client.SubscribeNewHead(context.Background(), headCh)
+	newHeadSub, err := con.SubscribeNewHead(context.Background(), headCh)
 	if err != nil {
 		slog.Error("new head subscription failed", "error", err)
 		return
@@ -451,7 +459,7 @@ func (c *core) blockReader(ctx context.Context) {
 				return
 			}
 
-			block, err := con.Client.BlockByNumber(ctx, header.Number)
+			block, err := con.BlockByNumber(ctx, header.Number)
 			if err != nil {
 				slog.Error("Error fetching block by number",
 					"hash", header.Hash(),
@@ -466,13 +474,13 @@ func (c *core) blockReader(ctx context.Context) {
 
 func (c *core) eventReader(ctx context.Context) {
 	con := c.cp.GetWebSocketConnection()
-	number, err := con.Client.BlockNumber(ctx)
+	number, err := con.BlockNumber(ctx)
 	if err != nil {
 		slog.Error("Unable to get the latest block number", "error", err)
 		return
 	}
 	fq := ethereum.FilterQuery{FromBlock: big.NewInt(int64(number)), Addresses: helper.ContractAddresses}
-	sub, err := con.Client.SubscribeFilterLogs(ctx, fq, c.newEvents)
+	sub, err := con.SubscribeFilterLogs(ctx, fq, c.newEvents)
 	if err != nil {
 		slog.Error("Unable to filter autonity logs", "error", err)
 		return

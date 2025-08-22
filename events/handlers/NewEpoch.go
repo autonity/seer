@@ -20,6 +20,7 @@ import (
 	"seer/helper"
 	"seer/interfaces"
 	"seer/model"
+	"seer/net"
 )
 
 type Location struct {
@@ -100,7 +101,7 @@ func (ev *NewEpochHandler) Handle(schema model.EventSchema, header *types.Header
 		return
 	}
 	con := core.ConnectionProvider().GetWebSocketConnection()
-	autBindings, err := bindings.NewAutonity(helper.AutonityContractAddress, con.Client)
+	autBindings, err := bindings.NewAutonity(helper.AutonityContractAddress, con.(*net.EthClientAdapter))
 	if err != nil {
 		slog.Error("unable to create autonity bindings", "error", err)
 		return
@@ -147,7 +148,7 @@ func (ev *NewEpochHandler) Handle(schema model.EventSchema, header *types.Header
 		ev.DBHandler.WritePoint(nodeLocationMeasurement, tags, fields, ts)
 	}
 
-	oracleBindings, err := bindings.NewOracle(helper.OracleContractAddress, con.Client)
+	oracleBindings, err := bindings.NewOracle(helper.OracleContractAddress, con.(*net.EthClientAdapter))
 	if err != nil {
 		slog.Error("unable to create autonity bindings", "error", err)
 		return
