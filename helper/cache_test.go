@@ -2,13 +2,13 @@ package helper
 
 import (
 	"errors"
+	"math/big"
 	"testing"
 	"time"
 
-	"github.com/autonity/autonity/common"
 	"github.com/autonity/autonity/core/types"
-	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/mock/gomock"
 
 	"seer/mocks"
 )
@@ -20,35 +20,37 @@ func TestBlockCache(t *testing.T) {
 	mockEthClient := mocks.NewMockEthClient(ctrl)
 
 	// Define test variables
-	blockHash := common.HexToHash("0x1234")
+	blockNum := big.NewInt(0)
 	mockBlock := &types.Block{ReceivedAt: time.Now()}
 
 	// Create a new block cache with the mocked client
-	bc := NewBlockCache(mockEthClient)
+	bc := NewBlockCache(func() BlockFetcher {
+		return mockEthClient
+	})
 
 	t.Run("Cache miss and fetch from ethclient", func(t *testing.T) {
 		// Simulate a block fetch from ethclient
-		mockEthClient.EXPECT().BlockByHash(gomock.Any(), blockHash).Return(mockBlock, nil)
+		mockEthClient.EXPECT().BlockByNumber(gomock.Any(), blockNum).Return(mockBlock, nil)
 
 		// Call Get and ensure it fetches from the client
-		block := bc.Get(blockHash)
+		block, _ := bc.Get(blockNum)
 		assert.NotNil(t, block, "Expected block to be fetched and returned")
 		assert.Equal(t, mockBlock, block, "Fetched block should match the mock block")
 	})
 
 	t.Run("Cache hit returns block directly", func(t *testing.T) {
 		// No expectation for ethclient as the block should be cached
-		block := bc.Get(blockHash)
+		block, _ := bc.Get(blockNum)
 		assert.NotNil(t, block, "Expected block to be fetched from cache")
 		assert.Equal(t, mockBlock, block, "Cached block should match the original block")
 	})
 
 	t.Run("Cache miss and fetch error from ethclient", func(t *testing.T) {
-		errorHash := common.HexToHash("0x5678")
-		mockEthClient.EXPECT().BlockByHash(gomock.Any(), errorHash).Return(nil, errors.New("block not found"))
+		errorNum := big.NewInt(1)
+		mockEthClient.EXPECT().BlockByNumber(gomock.Any(), errorNum).Return(nil, errors.New("block not found"))
 
 		// Call Get and ensure it handles the error
-		block := bc.Get(errorHash)
+		block, _ := bc.Get(errorNum)
 		assert.Nil(t, block, "Expected nil block on fetch error")
 	})
 }

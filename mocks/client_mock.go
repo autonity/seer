@@ -46,6 +46,21 @@ func (m *MockEthClient) EXPECT() *MockEthClientMockRecorder {
 	return m.recorder
 }
 
+// BlockByHash mocks base method.
+func (m *MockEthClient) BlockByHash(ctx context.Context, hash common.Hash) (*types.Block, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "BlockByHash", ctx, hash)
+	ret0, _ := ret[0].(*types.Block)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// BlockByHash indicates an expected call of BlockByHash.
+func (mr *MockEthClientMockRecorder) BlockByHash(ctx, hash any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BlockByHash", reflect.TypeOf((*MockEthClient)(nil).BlockByHash), ctx, hash)
+}
+
 // BlockByNumber mocks base method.
 func (m *MockEthClient) BlockByNumber(ctx context.Context, number *big.Int) (*types.Block, error) {
 	m.ctrl.T.Helper()

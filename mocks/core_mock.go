@@ -12,7 +12,6 @@ package mocks
 import (
 	context "context"
 	reflect "reflect"
-	helper "seer/helper"
 	interfaces "seer/interfaces"
 
 	gomock "go.uber.org/mock/gomock"
@@ -54,20 +53,6 @@ func (m *MockCore) ConnectionProvider() interfaces.ConnectionProvider {
 func (mr *MockCoreMockRecorder) ConnectionProvider() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ConnectionProvider", reflect.TypeOf((*MockCore)(nil).ConnectionProvider))
-}
-
-// EpochCache mocks base method.
-func (m *MockCore) EpochCache() *helper.EpochCache {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "EpochCache")
-	ret0, _ := ret[0].(*helper.EpochCache)
-	return ret0
-}
-
-// EpochCache indicates an expected call of EpochCache.
-func (mr *MockCoreMockRecorder) EpochCache() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EpochCache", reflect.TypeOf((*MockCore)(nil).EpochCache))
 }
 
 // ProcessRange mocks base method.
