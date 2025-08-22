@@ -1,6 +1,6 @@
 # Seer
 
-**Seer** is monitoring tool designed to capture autonity on-chain events, 
+**Seer** is a monitoring tool designed to capture autonity on-chain events, 
 It decodes and stores them in InfluxDB, Events are visualized later on Grafana.
 
 ---
