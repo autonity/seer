@@ -13,7 +13,7 @@ import (
 	context "context"
 	reflect "reflect"
 	helper "seer/helper"
-	net "seer/net"
+	interfaces "seer/interfaces"
 
 	gomock "go.uber.org/mock/gomock"
 )
@@ -43,10 +43,10 @@ func (m *MockCore) EXPECT() *MockCoreMockRecorder {
 }
 
 // ConnectionProvider mocks base method.
-func (m *MockCore) ConnectionProvider() net.ConnectionProvider {
+func (m *MockCore) ConnectionProvider() interfaces.ConnectionProvider {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ConnectionProvider")
-	ret0, _ := ret[0].(net.ConnectionProvider)
+	ret0, _ := ret[0].(interfaces.ConnectionProvider)
 	return ret0
 }
 

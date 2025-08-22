@@ -15,7 +15,7 @@ var rootCmd = &cobra.Command{
 	Use:   "seer",
 	Short: "Seer monitors on chain events and stores them in db",
 	Long: "Seer listens to on-chain events, parses them and matches them against the known " +
-		"contract abi schemas, and stores them in DB if matched to visualize later on grafana",
+		"contract abi schemas, and stores them in influx DB. Events are visualized later on grafana",
 	Run: func(cmd *cobra.Command, args []string) {
 		err := cmd.Help()
 		if err != nil {

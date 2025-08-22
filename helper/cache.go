@@ -5,14 +5,11 @@ import (
 	"log/slog"
 	"math/big"
 
-	ethereum "github.com/autonity/autonity"
 	"github.com/autonity/autonity/accounts/abi/bind"
 	"github.com/autonity/autonity/autonity/bindings"
 	"github.com/autonity/autonity/common"
 	"github.com/autonity/autonity/common/fixsizecache"
 	"github.com/autonity/autonity/core/types"
-
-	"seer/net"
 )
 
 var (
@@ -20,24 +17,22 @@ var (
 	entryPerBucket = uint(5)
 )
 
-type EthClient interface {
-	SubscribeNewHead(ctx context.Context, ch chan<- *types.Header) (ethereum.Subscription, error)
-	SubscribeFilterLogs(ctx context.Context, q ethereum.FilterQuery, ch chan<- types.Log) (ethereum.Subscription, error)
+type BlockFetcher interface {
 	BlockByNumber(ctx context.Context, number *big.Int) (*types.Block, error)
-	BlockByHash(ctx context.Context, hash common.Hash) (*types.Block, error)
-	BlockNumber(ctx context.Context) (uint64, error)
-	FilterLogs(ctx context.Context, q ethereum.FilterQuery) ([]types.Log, error)
 }
+
+// BlockFetcherFactory defines a function type that can provide a BlockFetcher on demand.
+type BlockFetcherFactory func() BlockFetcher
 
 type blockCache struct {
-	cache *fixsizecache.Cache[common.Hash, *types.Block]
-	cp    net.ConnectionProvider
+	cache   *fixsizecache.Cache[common.Hash, *types.Block]
+	factory BlockFetcherFactory
 }
 
-func NewBlockCache(cp net.ConnectionProvider) BlockCache {
+func NewBlockCache(bf BlockFetcherFactory) BlockCache {
 	return &blockCache{
-		cache: fixsizecache.New[common.Hash, *types.Block](numBuckets, entryPerBucket, fixsizecache.HashKey[common.Hash]),
-		cp:    cp,
+		cache:   fixsizecache.New[common.Hash, *types.Block](numBuckets, entryPerBucket, fixsizecache.HashKey[common.Hash]),
+		factory: bf,
 	}
 }
 
@@ -46,8 +41,8 @@ func (bc *blockCache) Get(number *big.Int) (*types.Block, bool) {
 	if ok {
 		return blk.(*types.Block), true
 	}
-	cl := bc.cp.GetWebSocketConnection().Client
-	block, err := cl.BlockByNumber(context.Background(), number)
+	bf := bc.factory()
+	block, err := bf.BlockByNumber(context.Background(), number)
 	if err != nil {
 		slog.Error("unable to fetch block", "error", err)
 		//todo: error handling module
@@ -64,19 +59,16 @@ func (bc *blockCache) Add(block *types.Block) {
 type EpochCache struct {
 	cache             *fixsizecache.Cache[common.Hash, *bindings.IAutonityEpochInfo]
 	blockToEpochBlock *fixsizecache.Cache[common.Hash, *big.Int]
-	cp                net.ConnectionProvider
 	autonityBindings  *bindings.Autonity
 }
 
-func NewEpochInfoCache(cp net.ConnectionProvider) *EpochCache {
+func NewEpochInfoCache(backend bind.ContractBackend) *EpochCache {
 	ec := EpochCache{
 		cache:             fixsizecache.New[common.Hash, *bindings.IAutonityEpochInfo](numBuckets, entryPerBucket, fixsizecache.HashKey[common.Hash]),
 		blockToEpochBlock: fixsizecache.New[common.Hash, *big.Int](numBuckets, entryPerBucket, fixsizecache.HashKey[common.Hash]),
-		cp:                cp,
 	}
 	var err error
-	cl := cp.GetWebSocketConnection().Client
-	ec.autonityBindings, err = bindings.NewAutonity(AutonityContractAddress, cl)
+	ec.autonityBindings, err = bindings.NewAutonity(AutonityContractAddress, backend)
 	if err != nil {
 		slog.Error("unable to create autonity bindings", "error", err)
 		return nil

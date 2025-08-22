@@ -10,7 +10,6 @@ It decodes and stores them in InfluxDB, Events are visualized later on Grafana.
 ### Prerequisites
 
 - **Go** (version 1.21 or higher)
-- **InfluxDB** (running instance)
 - RPC url to an Autonity node
 
 ### Installation
