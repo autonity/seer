@@ -34,7 +34,7 @@ build: mock-gen
 
 deps-up:
 	@echo "Starting InfluxDB and Grafana containers..."
-	@docker-compose up -d
+	@env -u INFLUXDB_TOKEN docker-compose up -d
 
 deps-down:
 	@echo "Stopping InfluxDB and Grafana containers..."
@@ -48,7 +48,7 @@ deps-wait:
 	done
 	@echo "\nInfluxDB is ready!"
 
-run: build deps-up deps-wait
+run: build init deps-up deps-wait
 	@echo "Running $(APP_NAME)..."
 	cd $(BIN_DIR) && ./$(APP_NAME) $(START_CMD) --config ../config/config.yaml
 

@@ -22,7 +22,7 @@ fi
 
 TOKEN=$(openssl rand -base64 64 | tr -d '\n')
 
-echo export INFLUXDB_TOKEN="$TOKEN" > .env
+echo INFLUXDB_TOKEN="$TOKEN" > .env
 echo "Generated .env with token"
 
 if ! command -v envsubst &> /dev/null; then
@@ -30,6 +30,7 @@ if ! command -v envsubst &> /dev/null; then
 fi
 
 source .env
+export INFLUXDB_TOKEN
 envsubst < config/config.template.yaml > config/config.yaml
 echo "Generated config/config.yaml"
 
