@@ -20,20 +20,30 @@ It decodes and stores them in InfluxDB, Events are visualized later on Grafana.
    cd seer
    ```
 
-2. Install dependencies:
+2. setup a new influxdb token in .env file and prepare configuration:
    ```bash
-   make install
+   make init
    ```
 
-3. Build the application:
-   ```bash
-   make build
-   ```
-4. Run application in default mode:
+3. Run application in default mode:
    ```bash
    make run
    ```
 ---
+
+### Reset InfluxDB data and re-initialize
+1. Reset influx DB token, this overwrites the existing influxdb token, (take backup if required)
+   ```bash
+   make reset-token
+   ```
+2. Reset volumes to removes influxdb data
+   ```bash
+   make reset
+   ```
+3. Run application in default mode:
+   ```bash
+   make run
+   ```
 
 ## Visualize
 Go over to ```localhost:3000``` to visualize the data captured by Seer.

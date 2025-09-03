@@ -21,8 +21,8 @@ all: build
 mock-gen:
 	@echo "generating mocks..."
 	@for file in $(INTERFACES_DIR)/*.go; do \
-    		filename=$$(basename $$file .go); \
-    		$(MOCK_GEN) -source=$$file -destination=$(MOCKS_DIR)/$$filename\_mock.go -package=mocks; \
+		filename=$$(basename $$file .go); \
+		$(MOCK_GEN) -source=$$file -destination=$(MOCKS_DIR)/$$filename\_mock.go -package=mocks; \
     		echo "Generated mock for $$file"; \
     	done
 
@@ -51,6 +51,18 @@ deps-wait:
 run: build deps-up deps-wait
 	@echo "Running $(APP_NAME)..."
 	cd $(BIN_DIR) && ./$(APP_NAME) $(START_CMD) --config ../config/config.yaml
+
+init:
+	@echo "setting up tokens and configuration"
+	@./generate-token.sh
+
+reset-token:
+	@echo "setting up tokens and configuration"
+	@./generate-token.sh --force
+
+reset:
+	@echo "resetting volumes deleting influxdb data"
+	@docker-compose down -v
 
 test:
 	@echo "Running tests..."
