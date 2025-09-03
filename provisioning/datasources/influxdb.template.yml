@@ -13,5 +13,5 @@ datasources:
       defaultBucket: mainnet
       maxSeries: 1000
     secureJsonData:
-      token: "51uslKJjS7prMkfmNZVWyPon71vP43dlI4yD_Jws01g-sDkV5fRCj4CPAxaZvl13qU6BueAlTtJ0nQKLUbByUA=="
+      token: "${INFLUXDB_TOKEN}"
     editable: true
