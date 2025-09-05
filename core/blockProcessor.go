@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"math/big"
+	"strconv"
 	"sync"
 	"time"
 
@@ -294,7 +295,7 @@ func (bp *blockProcessor) processVoteTransaction(tx *types.Transaction, voteMeth
 	}()
 
 	fields := make(map[string]interface{}, 5)
-	tags := make(map[string]string, 2)
+	tags := make(map[string]string, 3)
 	ts := time.Unix(int64(blockTime), 0)
 
 	sender, err := bp.signer.Sender(tx)
@@ -305,7 +306,6 @@ func (bp *blockProcessor) processVoteTransaction(tx *types.Transaction, voteMeth
 	tags["voter"] = sender.Hex()
 	fields["voted"] = true
 	fields["block"] = blockNumber.Uint64()
-
 	voteData, err := voteMethod.Inputs.Unpack(tx.Data()[4:])
 	if err != nil {
 		slog.Error("unable to unpack vote method ", "error", err)
@@ -315,6 +315,14 @@ func (bp *blockProcessor) processVoteTransaction(tx *types.Transaction, voteMeth
 		Price      *big.Int `json:"price"`
 		Confidence uint8    `json:"confidence"`
 	})
+
+	// To count voters per version or to list all voters for a specific version, tag the version
+	// for quick filtering in DB engine: here is the example SQL:
+	// SELECT COUNT(DISTINCT("voter")) FROM "OracleVote" GROUP BY "version"
+	// SELECT DISTINCT("voter") FROM "OracleVote" WHERE "version" = '26' GROUP BY "voter"
+	aosVersion := voteData[3].(uint8)
+	tags["version"] = strconv.Itoa(int(aosVersion))
+
 	wg.Wait()
 
 	if receipt == nil || len(symbols) == 0 || round == nil {
