@@ -34,7 +34,7 @@ export INFLUXDB_TOKEN
 envsubst < config/config.template.yaml > config/config.yaml
 echo "Generated config/config.yaml"
 
-envsubst < provisioning/datasources/influxdb.template.yml > provisioning/datasources/influxdb.yml
+envsubst < config/influxdb.template.yml > provisioning/datasources/influxdb.yml
 echo "Generated provisioning/datasources/influxdb.yml"
 
 if [ $FORCE -eq 1 ]; then
