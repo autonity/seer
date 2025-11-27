@@ -27,7 +27,7 @@ func (handler *NewFaultProofHandler) Handle(schema model.EventSchema, header *ty
 		return
 	}
 
-	validator := schema.Fields["offender"]
+	validator := schema.Fields["_offender"]
 	events, err := accBindings.GetValidatorFaults(&bind.CallOpts{
 		BlockNumber: header.Number,
 	}, validator.(common.Address))

@@ -30,7 +30,7 @@ func (handler *SlashingEventHandler) Handle(schema model.EventSchema, header *ty
 		slog.Error("unable to create autonity bindings", "error", err)
 		return
 	}
-	evID := schema.Fields["id"]
+	evID := schema.Fields["eventId"]
 	event, err := accountabilityBindings.GetEvent(&bind.CallOpts{
 		BlockNumber: header.Number,
 	}, evID.(*big.Int))
@@ -50,7 +50,7 @@ func RecordAccountabilityEvent(dbhandler interfaces.DatabaseHandler, event bindi
 	fields["type"] = event.EventType
 	fields["eventBlock"] = event.Block.Uint64()
 	fields["epoch"] = event.Epoch.Uint64()
-	fields["offender"] = event.Offender
+	fields["_offender"] = event.Offender
 	fields["rule"] = event.Rule
 	fields["messageHash"] = event.MessageHash
 	fields["rawProof"] = event.RawProof
