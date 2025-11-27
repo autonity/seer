@@ -9,12 +9,16 @@ MOCK_GEN := mockgen
 MOCKS_DIR := ./mocks
 INTERFACES_DIR := ./interfaces
 
+# Docker
+DOCKER_REGISTRY := ghcr.io/autonity
+IMAGE_NAME := $(DOCKER_REGISTRY)/$(APP_NAME)
+DOCKER_TAG := $(VERSION)
 
 #Linting and formatting
 LINTER := golangci-lint
 FMT := gofmt
 
-.PHONY: all build run lint
+.PHONY: all build run lint docker-build docker-push docker-build-push
 
 all: build
 
@@ -84,3 +88,18 @@ format:
 install:
 	@echo "Installing dependencies..."
 	$(GO) mod tidy
+
+docker-build:
+	@echo "Building Docker image $(IMAGE_NAME):$(DOCKER_TAG)..."
+	docker build -t $(IMAGE_NAME):$(DOCKER_TAG) .
+	docker tag $(IMAGE_NAME):$(DOCKER_TAG) $(IMAGE_NAME):latest
+	@echo "Docker image built: $(IMAGE_NAME):$(DOCKER_TAG)"
+
+docker-push:
+	@echo "Pushing Docker image $(IMAGE_NAME):$(DOCKER_TAG)..."
+	docker push $(IMAGE_NAME):$(DOCKER_TAG)
+	docker push $(IMAGE_NAME):latest
+	@echo "Docker image pushed: $(IMAGE_NAME):$(DOCKER_TAG)"
+
+docker-build-push: docker-build docker-push
+	@echo "Docker image built and pushed successfully!"

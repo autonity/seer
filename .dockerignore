@@ -1,0 +1,55 @@
+# Git
+.git/
+.gitignore
+
+# Build artifacts
+bin/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test files
+*_test.go
+mocks/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Documentation
+*.md
+docs/
+images/
+
+# CI/CD
+.github/
+
+# Deployment
+docker-compose.yaml
+k8s/
+helm/
+
+# Temp files
+*.tmp
+*.log
+seer_pull_logs.txt
+temp.md
+
+# SSH keys
+ssh/
+
+# Config templates
+config/config.template.yaml
+config/influxdb.template.yml
+generate-token.sh
+
+# Service files
+seer.service
+
+# Provisioning
+provisioning/
+dashboard/
+
