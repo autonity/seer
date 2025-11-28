@@ -27,7 +27,7 @@ func RegisterEventHandlers(dbHandler interfaces.DatabaseHandler) {
 	defer mu.Unlock()
 
 	handlerRegistry[NewEpoch] = &handlers.NewEpochHandler{DBHandler: dbHandler}
-	handlerRegistry[InactivityJailingEvent] = &handlers.InactivityjJaillingEventHandler{DBHandler: dbHandler}
+	handlerRegistry[InactivityJailingEvent] = &handlers.InactivityJaillingEventHandler{DBHandler: dbHandler}
 	handlerRegistry[Penalized] = &handlers.PenalizedHandler{DBHandler: dbHandler}
 	handlerRegistry[SlashingEvent] = &handlers.SlashingEventHandler{DBHandler: dbHandler}
 	handlerRegistry[NewRound] = &handlers.NewRoundHandler{DBHandler: dbHandler}

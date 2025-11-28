@@ -201,10 +201,10 @@ func (c *core) Start(ctx context.Context) {
 	helper.PrintContractAddresses()
 
 	for i := 0; i < liveBlockProcessors; i++ {
-		NewBlockProcessor(ctx, c, c.newBlocks, true, c.chainID).Process()
+		go NewBlockProcessor(ctx, c, c.newBlocks, true, c.chainID).Process()
 	}
 	for i := 0; i < liveEventProcessors; i++ {
-		NewEventProcessor(ctx, c, c.newEvents, true).Process()
+		go NewEventProcessor(ctx, c, c.newEvents, true).Process()
 	}
 	// read current/future events and blocks
 	c.runInGoroutine(ctx, c.blockReader)
@@ -314,9 +314,14 @@ func (c *core) ReadHistoricalData(ctx context.Context, start, end uint64, batchR
 func (c *core) ReadEventHistory(ctx context.Context, workQueue chan [2]uint64) {
 	processorConcurrency := eventMaxConcurrency * 4
 	eventChs := make([]chan types.Log, processorConcurrency)
+	var wg sync.WaitGroup
 	for i := 0; i < processorConcurrency; i++ {
 		eventChs[i] = make(chan types.Log)
-		NewEventProcessor(ctx, c, eventChs[i], false).Process()
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			NewEventProcessor(ctx, c, eventChs[i], false).Process()
+		}()
 	}
 	con := c.cp.GetWebSocketConnection()
 	for {
@@ -328,6 +333,7 @@ func (c *core) ReadEventHistory(ctx context.Context, workQueue chan [2]uint64) {
 				for i := 0; i < processorConcurrency; i++ {
 					close(eventChs[i])
 				}
+				wg.Wait()
 				return
 			}
 			fq := ethereum.FilterQuery{
@@ -355,9 +361,14 @@ func (c *core) ReadEventHistory(ctx context.Context, workQueue chan [2]uint64) {
 func (c *core) ReadBlockHistory(ctx context.Context, workQueue chan [2]uint64) {
 	processorConcurrency := int(blockBatchSize) * 10
 	blockChs := make([]chan *SeerBlock, processorConcurrency)
+	var wg sync.WaitGroup
 	for i := 0; i < processorConcurrency; i++ {
 		blockChs[i] = make(chan *SeerBlock)
-		NewBlockProcessor(ctx, c, blockChs[i], false, c.chainID).Process()
+		wg.Add(1)
+		go func(ch chan *SeerBlock) {
+			defer wg.Done()
+			NewBlockProcessor(ctx, c, ch, false, c.chainID).Process()
+		}(blockChs[i])
 	}
 	counter := 0
 	con := c.cp.GetRPCConnection()
@@ -372,6 +383,7 @@ func (c *core) ReadBlockHistory(ctx context.Context, workQueue chan [2]uint64) {
 				for i := 0; i < processorConcurrency; i++ {
 					close(blockChs[i])
 				}
+				wg.Wait()
 				return
 			}
 			now := time.Now()

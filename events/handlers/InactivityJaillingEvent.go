@@ -17,11 +17,11 @@ import (
 //Note: stick to this naming convention for handlers
 // EventName + Handler
 
-type InactivityjJaillingEventHandler struct {
+type InactivityJaillingEventHandler struct {
 	DBHandler interfaces.DatabaseHandler
 }
 
-func (ev *InactivityjJaillingEventHandler) Handle(schema model.EventSchema, header *types.Header, core interfaces.Core) {
+func (ev *InactivityJaillingEventHandler) Handle(schema model.EventSchema, header *types.Header, core interfaces.Core) {
 	con := core.ConnectionProvider().GetWebSocketConnection()
 	omissionBindings, err := bindings.NewOmissionAccountability(helper.OmissionAccountabilityContractAddress, con.(*net.EthClientAdapter))
 	if err != nil {

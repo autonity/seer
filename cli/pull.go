@@ -13,6 +13,7 @@ import (
 	"seer/config"
 	"seer/core"
 	"seer/db"
+	"seer/events/registry"
 	"seer/net"
 	"seer/schema"
 )
@@ -34,6 +35,7 @@ var pullCmd = &cobra.Command{
 		}
 
 		handler := db.NewHandler(cfg.InfluxDB)
+		registry.RegisterEventHandlers(handler)
 		parser := schema.NewABIParser(cfg.ABIs, handler)
 		err := parser.Start()
 		if err != nil {
