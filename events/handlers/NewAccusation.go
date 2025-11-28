@@ -26,7 +26,7 @@ func (handler *NewAccusationHandler) Handle(schema model.EventSchema, header *ty
 		return
 	}
 
-	validator := schema.Fields["offender"]
+	validator := schema.Fields["_offender"]
 	event, err := accBindings.GetValidatorAccusation(&bind.CallOpts{
 		BlockNumber: header.Number,
 	}, validator.(common.Address))

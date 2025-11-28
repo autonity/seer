@@ -63,30 +63,28 @@ func NewBlockProcessor(ctx context.Context, core *core, newBlocks chan *SeerBloc
 }
 
 func (bp *blockProcessor) Process() {
-	go func() {
-		for {
-			select {
-			case <-bp.ctx.Done():
+	for {
+		select {
+		case <-bp.ctx.Done():
+			return
+		case seerBlock, ok := <-bp.blockCh:
+			if !ok {
 				return
-			case seerBlock, ok := <-bp.blockCh:
-				if !ok {
-					return
-				}
-				block := seerBlock.autonityBlock
-				slog.Debug("new block received", "number", block.NumberU64())
-				header := block.Header()
-				bp.core.blockCache.Add(block)
-				bp.core.epochInfoCache.Add(header)
-
-				bp.recordACNPeers(header)
-				bp.core.markProcessedBlock(header.Number.Uint64(), header.Number.Uint64())
-				bp.recordBlockTimestamp(header)
-				bp.recordBlock(header)
-				bp.checkOracleVote(block)
-				bp.recordTxCount(block, seerBlock.transactionCount)
 			}
+			block := seerBlock.autonityBlock
+			slog.Debug("new block received", "number", block.NumberU64())
+			header := block.Header()
+			bp.core.blockCache.Add(block)
+			bp.core.epochInfoCache.Add(header)
+
+			bp.recordACNPeers(header)
+			bp.core.markProcessedBlock(header.Number.Uint64(), header.Number.Uint64())
+			bp.recordBlockTimestamp(header)
+			bp.recordBlock(header)
+			bp.checkOracleVote(block)
+			bp.recordTxCount(block, seerBlock.transactionCount)
 		}
-	}()
+	}
 }
 
 func (bp *blockProcessor) recordBlockTimestamp(header *types.Header) {

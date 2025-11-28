@@ -30,7 +30,7 @@ func (handler *SlashingEventHandler) Handle(schema model.EventSchema, header *ty
 		slog.Error("unable to create autonity bindings", "error", err)
 		return
 	}
-	evID := schema.Fields["id"]
+	evID := schema.Fields["eventId"]
 	event, err := accountabilityBindings.GetEvent(&bind.CallOpts{
 		BlockNumber: header.Number,
 	}, evID.(*big.Int))
